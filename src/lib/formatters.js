@@ -8,7 +8,7 @@ export function safeNumber(value) {
     .trim()
     .replace(/\s/g, "")
     .replace(/%/g, "")
-    .replace(/€/g, "");
+    .replace(/[$€£]/g, "");
 
   if (!compact) return null;
 
@@ -39,9 +39,9 @@ export function formatCurrency(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "EUR",
+    currency: "USD",
     maximumFractionDigits: 0,
   }).format(number);
 }
@@ -50,9 +50,9 @@ export function formatCurrencyDecimal(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "EUR",
+    currency: "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(number);
@@ -62,14 +62,14 @@ export function formatNumber(value, options = {}) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", options).format(number);
+  return new Intl.NumberFormat("en-US", options).format(number);
 }
 
 export function formatCompact(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(number);
@@ -80,7 +80,7 @@ export function formatPercent(value) {
   if (number === null) return EMPTY_VALUE;
 
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
-  return `${new Intl.NumberFormat("es-ES", {
+  return `${new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(normalized)}%`;
@@ -93,7 +93,7 @@ export function formatPp(value) {
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
   const sign = normalized > 0 ? "+" : "";
 
-  return `${sign}${new Intl.NumberFormat("es-ES", {
+  return `${sign}${new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(normalized)} pp`;
@@ -128,7 +128,7 @@ export function formatMetric(value, metricKey) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 2,
   }).format(number);
 }

@@ -46,19 +46,19 @@ const FORECAST_DATA_TYPES = new Set([
 const BENCHMARK_COMPANY_IDS = new Set(["market_average"]);
 const BENCHMARK_TYPES = new Set(["benchmark"]);
 const FORECAST_SCENARIOS = new Set(["base_case", "aggressive", "conservative"]);
-const SPANISH_SHORT_MONTHS = [
-  "Ene",
+const SHORT_MONTHS = [
+  "Jan",
   "Feb",
   "Mar",
-  "Abr",
+  "Apr",
   "May",
   "Jun",
   "Jul",
-  "Ago",
+  "Aug",
   "Sep",
   "Oct",
   "Nov",
-  "Dic",
+  "Dec",
 ];
 
 function hasText(value) {
@@ -117,8 +117,8 @@ function normalizeDataType(value) {
 function getDataTypeLabel(dataType) {
   if (dataType === "forecast") return "Forecast";
   if (dataType === "actual") return "Actual";
-  if (dataType === "estimated") return "Estimado";
-  return dataType || "Estimado";
+  if (dataType === "estimated") return "Estimated";
+  return dataType || "Estimated";
 }
 
 function normalizeForecastScenarioValue(value) {
@@ -187,8 +187,8 @@ function getForecastScenario(source, isForecast) {
 
 function getForecastScenarioLabel(scenario) {
   if (scenario === "base_case") return "Base";
-  if (scenario === "aggressive") return "Agresivo";
-  if (scenario === "conservative") return "Conservador";
+  if (scenario === "aggressive") return "Aggressive";
+  if (scenario === "conservative") return "Conservative";
 
   return String(scenario || "")
     .replace(/_/g, " ")
@@ -260,14 +260,14 @@ function isDateLikeLabel(value) {
   return /^\d{4}-\d{1,2}(?:-\d{1,2})?$/.test(String(value ?? "").trim());
 }
 
-function formatSpanishShortPeriodLabel(value) {
+function formatShortPeriodLabel(value) {
   const normalizedDate = normalizeDate(value);
   const match = normalizedDate.match(/^(\d{4})-(\d{2})/);
   if (!match) return "";
 
   const [, year, month] = match;
   const monthIndex = Number(month) - 1;
-  const monthLabel = SPANISH_SHORT_MONTHS[monthIndex];
+  const monthLabel = SHORT_MONTHS[monthIndex];
 
   return monthLabel ? `${monthLabel} ${year}` : "";
 }
@@ -279,7 +279,7 @@ export function getPeriodLabel(row) {
     return explicitLabel;
   }
 
-  return formatSpanishShortPeriodLabel(row?.date || explicitLabel) || "Período sin etiqueta";
+  return formatShortPeriodLabel(row?.date || explicitLabel) || "Unlabeled period";
 }
 
 export function isAggregateRow(row) {
@@ -700,7 +700,7 @@ function normalizeInsightItem(insight, index) {
     source?.headline ||
     source?.insight_title ||
     source?.summary ||
-    "Insight competitivo";
+    "Competitive insight";
   const body =
     source?.body ||
     source?.message ||

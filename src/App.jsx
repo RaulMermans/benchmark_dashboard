@@ -57,38 +57,38 @@ const CORE_RACE_COMPANY_IDS = [OWN_COMPANY_ID, "peer_a", "peer_b", MARKET_BENCHM
 const BATTLE_TARGET_IDS = ["peer_a", "peer_b", MARKET_BENCHMARK_ID];
 
 const PERIOD_TYPE_LABELS = {
-  monthly: "Mes",
-  annual: "Año",
-  yearly: "Año",
-  quarterly: "Trimestre",
+  monthly: "Month",
+  annual: "Year",
+  yearly: "Year",
+  quarterly: "Quarter",
 };
 
 const DASHBOARD_PERIOD_TYPE_ORDER = ["monthly", "quarterly", "annual"];
 const FORECAST_SCENARIO_ORDER = ["base_case", "aggressive", "conservative"];
 
 const RANKING_SORTS = [
-  { key: "revenue", label: "Facturación" },
-  { key: "visits", label: "Visitas" },
-  { key: "market_share_revenue", label: "Cuota facturación" },
-  { key: "market_share_visits", label: "Cuota visitas" },
-  { key: "revenue_per_visit", label: "Revenue por visita" },
-  { key: "revenue_mom_growth", label: "Crecimiento facturación MoM" },
-  { key: "visits_mom_growth", label: "Crecimiento visitas MoM" },
-  { key: "revenue_yoy_growth", label: "Crecimiento facturación YoY" },
-  { key: "visits_yoy_growth", label: "Crecimiento visitas YoY" },
+  { key: "revenue", label: "Revenue" },
+  { key: "visits", label: "Visits" },
+  { key: "market_share_revenue", label: "Revenue share" },
+  { key: "market_share_visits", label: "Visit share" },
+  { key: "revenue_per_visit", label: "Revenue per visit" },
+  { key: "revenue_mom_growth", label: "Revenue growth MoM" },
+  { key: "visits_mom_growth", label: "Visit growth MoM" },
+  { key: "revenue_yoy_growth", label: "Revenue growth YoY" },
+  { key: "visits_yoy_growth", label: "Visit growth YoY" },
 ];
 
 const HOME_HASH = "#/benchmark";
 const FORECAST_HASH = "#/forecast";
-const PROFILE_HASH_PREFIX = "#/empresa/";
+const PROFILE_HASH_PREFIX = "#/company/";
 const APP_LOGO_SRC = "/assets/logo-focus.svg";
 const EMPTY_HIDDEN_COMPANY_IDS = new Set();
 
 const PROFILE_CHARTS = [
-  { metricKey: "visits", title: "Evolución de visitas" },
-  { metricKey: "revenue", title: "Evolución de facturación" },
-  { metricKey: "market_share_visits", title: "Evolución cuota de visitas" },
-  { metricKey: "revenue_per_visit", title: "Evolución revenue por visita" },
+  { metricKey: "visits", title: "Visits over time" },
+  { metricKey: "revenue", title: "Revenue over time" },
+  { metricKey: "market_share_visits", title: "Visit share over time" },
+  { metricKey: "revenue_per_visit", title: "Revenue per visit over time" },
 ];
 const DASHBOARD_CHART_METRICS = [
   "visits",
@@ -107,34 +107,34 @@ const DISTRIBUTION_METRICS = new Set([
   "market_share_visits",
 ]);
 const INDEXED_METRIC_OPTIONS = [
-  { key: "indexed_revenue", label: "Facturacion" },
-  { key: "indexed_visits", label: "Visitas" },
-  { key: "indexed_market_share_revenue", label: "Cuota facturacion" },
+  { key: "indexed_revenue", label: "Revenue" },
+  { key: "indexed_visits", label: "Visits" },
+  { key: "indexed_market_share_revenue", label: "Revenue share" },
 ];
 const EXECUTIVE_METRIC_LABELS = {
-  revenue: "facturacion",
-  visits: "visitas",
-  market_share_revenue: "cuota de facturacion",
-  market_share_visits: "cuota de visitas",
-  revenue_yoy_growth: "crecimiento facturacion YoY",
-  visits_yoy_growth: "crecimiento visitas YoY",
-  share_revenue_change_yoy: "cuota facturacion YoY",
-  share_revenue_change_mom: "cuota facturacion MoM",
-  share_visits_change_yoy: "cuota visitas YoY",
-  share_visits_change_mom: "cuota visitas MoM",
-  revenue_per_visit: "revenue por visita",
-  indexed_revenue: "indice facturacion",
-  indexed_visits: "indice visitas",
-  indexed_market_share_revenue: "indice cuota facturacion",
+  revenue: "revenue",
+  visits: "visits",
+  market_share_revenue: "revenue share",
+  market_share_visits: "visit share",
+  revenue_yoy_growth: "revenue growth YoY",
+  visits_yoy_growth: "visit growth YoY",
+  share_revenue_change_yoy: "revenue share YoY",
+  share_revenue_change_mom: "revenue share MoM",
+  share_visits_change_yoy: "visit share YoY",
+  share_visits_change_mom: "visit share MoM",
+  revenue_per_visit: "revenue per visit",
+  indexed_revenue: "indexed revenue",
+  indexed_visits: "indexed visits",
+  indexed_market_share_revenue: "indexed revenue share",
 };
 const BATTLE_METRICS = [
-  { key: "revenue", label: "Facturacion", formatter: (value) => formatCurrency(value) },
-  { key: "visits", label: "Visitas", formatter: (value) => formatCompact(value) },
-  { key: "market_share_revenue", label: "Cuota facturacion", formatter: (value) => formatPercent(value), deltaType: "pp" },
-  { key: "market_share_visits", label: "Cuota visitas", formatter: (value) => formatPercent(value), deltaType: "pp" },
+  { key: "revenue", label: "Revenue", formatter: (value) => formatCurrency(value) },
+  { key: "visits", label: "Visits", formatter: (value) => formatCompact(value) },
+  { key: "market_share_revenue", label: "Revenue share", formatter: (value) => formatPercent(value), deltaType: "pp" },
+  { key: "market_share_visits", label: "Visit share", formatter: (value) => formatPercent(value), deltaType: "pp" },
   { key: "revenue_yoy_growth", label: "Revenue YoY", formatter: (value) => formatSignedPercent(value), deltaType: "pp" },
-  { key: "visits_yoy_growth", label: "Visitas YoY", formatter: (value) => formatSignedPercent(value), deltaType: "pp" },
-  { key: "revenue_per_visit", label: "Revenue / visita", formatter: (value) => formatCurrencyDecimal(value) },
+  { key: "visits_yoy_growth", label: "Visits YoY", formatter: (value) => formatSignedPercent(value), deltaType: "pp" },
+  { key: "revenue_per_visit", label: "Revenue / visit", formatter: (value) => formatCurrencyDecimal(value) },
 ];
 
 function normalizeCompanyId(companyId) {
@@ -163,7 +163,7 @@ function formatGeneratedAt(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "N/A";
 
-  return date.toLocaleString("es-ES");
+  return date.toLocaleString("en-US");
 }
 
 function parseRouteFromHash(hash = "") {
@@ -240,8 +240,8 @@ function mergeSeriesForLegend(seriesGroups = []) {
 
 function getForecastScenarioLabel(scenario) {
   if (scenario === "base_case") return "Base";
-  if (scenario === "aggressive") return "Agresivo";
-  if (scenario === "conservative") return "Conservador";
+  if (scenario === "aggressive") return "Aggressive";
+  if (scenario === "conservative") return "Conservative";
 
   return String(scenario || "")
     .replace(/_/g, " ")
@@ -483,7 +483,7 @@ function BrandLogo() {
 }
 
 function getCompanyFallbackLabel(label, companyId) {
-  const displayLabel = label || companyId || "Empresa";
+  const displayLabel = label || companyId || "Entity";
 
   return String(displayLabel).trim().slice(0, 1).toUpperCase() || "?";
 }
@@ -596,7 +596,7 @@ function MultiSeriesTooltip({ active, payload = [], label, metricKey, seriesById
   if (!rows.length) return null;
 
   return (
-    <ChartTooltipShell title={`Periodo: ${label}`}>
+    <ChartTooltipShell title={`Period: ${label}`}>
       {rows.map((row) => (
         <div key={`${row.id}-${row.value}`} className="chart-tooltip-row">
           <span className="chart-tooltip-company">
@@ -653,7 +653,7 @@ function SingleMetricTooltip({ active, payload = [], metricKey, totalValue = nul
             {formatMetric(entry.previousValue, entry.baseMetricKey)}
           </span>
           <span>
-            <small>Crec.</small>
+            <small>Growth</small>
             {formatSignedPercent(entry.growthValue)}
           </span>
           <span>
@@ -690,7 +690,7 @@ function LineLogoLabel({ x, y, index, companySeries, lastPointIndex }) {
   }
 
   if (isBenchmarkRow(companySeries)) {
-    const label = companySeries.display_name || "Promedio mercado";
+    const label = companySeries.display_name || "Market Average";
     const width = Math.max(118, Math.min(156, label.length * 7 + 18));
 
     return (
@@ -777,9 +777,9 @@ function LoadingShell() {
             <span className="metric-pill">Competitive Intelligence</span>
           </div>
           <h1 className="mt-6 text-3xl font-semibold text-black md:text-5xl">
-            Benchmark competitivo
+            Benchmark Dashboard
           </h1>
-          <p className="mt-4 text-sm text-neutral-600">Cargando datos de benchmark.</p>
+          <p className="mt-4 text-sm text-neutral-600">Loading benchmark data.</p>
         </section>
       </div>
     </main>
@@ -795,10 +795,10 @@ function AppHeader({
   const isProfile = view === "profile";
   const isForecast = view === "forecast";
   const title = isProfile
-    ? "Ficha individual"
+    ? "Company Profile"
     : isForecast
-      ? "Forecast de mercado"
-      : "Benchmark competitivo";
+      ? "Market Forecast"
+      : "Competitive Benchmark";
 
   return (
     <header className="surface-card border-t-4 border-t-focus-500 p-5 md:p-7">
@@ -813,9 +813,9 @@ function AppHeader({
           </h1>
         </div>
         <div className="grid gap-1 text-sm text-neutral-500 sm:grid-cols-[auto_auto] lg:text-right">
-          <span>Actualizado</span>
+          <span>Updated</span>
           <span className="font-medium text-black">{generatedAt}</span>
-          <span>Filas interface</span>
+          <span>Interface rows</span>
           <span className="font-medium text-black">{rowCount}</span>
         </div>
       </div>
@@ -830,7 +830,7 @@ function AppHeader({
             Benchmark
           </button>
           {isProfile && (
-            <span className="metric-pill bg-white text-black">Ficha por empresa</span>
+            <span className="metric-pill bg-white text-black">Company Profile</span>
           )}
           {isForecast && (
             <span className="metric-pill bg-white text-black">Forecast</span>
@@ -857,17 +857,17 @@ function CompanyLegend({
   return (
     <details className="legend-disclosure">
       <summary className="legend-summary">
-        <span>Series visibles {activeCount}/{series.length}</span>
-        <span className="legend-summary-hint">Editar selección</span>
+        <span>Visible series {activeCount}/{series.length}</span>
+        <span className="legend-summary-hint">Edit selection</span>
       </summary>
 
       <div className="legend-panel">
         <div className="flex flex-wrap gap-2">
           <button type="button" className="legend-action" onClick={onShowAll}>
-            Todos
+            All
           </button>
           <button type="button" className="legend-action" onClick={onHideAll}>
-            Ninguno
+            None
           </button>
         </div>
 
@@ -1072,26 +1072,26 @@ function MetricChart({
           </ResponsiveContainer>
         ) : hasSourceData ? (
           <EmptyState
-            title="No hay competidores activos."
-            message="Activa al menos un competidor desde el selector de gráficas."
+            title="No active competitors."
+            message="Enable at least one competitor from the series selector."
           />
         ) : (
           <EmptyState
             title={emptyTitle}
-            message="Los valores null, vacíos o no numéricos se omiten del gráfico."
+            message="Null, empty, or non-numeric values are excluded from the chart."
           />
         )}
       </div>
       {forecastWindow && (
         <div className="mt-3">
-          <span className="forecast-chip">Forecast desde {forecastWindow.start.label}</span>
+          <span className="forecast-chip">Forecast from {forecastWindow.start.label}</span>
         </div>
       )}
     </Panel>
   );
 }
 
-function PeriodTypeSegment({ label = "Vista", value, onChange, periodTypes = [] }) {
+function PeriodTypeSegment({ label = "View", value, onChange, periodTypes = [] }) {
   if (periodTypes.length <= 1) return null;
 
   return (
@@ -1118,7 +1118,7 @@ function MarketSelect({ market, onMarketChange, markets, className = "" }) {
 
   return (
     <SelectField
-      label="Mercado"
+      label="Market"
       value={market}
       onChange={onMarketChange}
       className={`compact-select ${className}`}
@@ -1157,7 +1157,7 @@ function RankingControls({
       />
 
       <SelectField
-        label={PERIOD_TYPE_LABELS[periodType] || "Periodo"}
+        label={PERIOD_TYPE_LABELS[periodType] || "Period"}
         value={selectedPeriodKey}
         onChange={onSelectedPeriodChange}
         disabled={!periodOptions.length}
@@ -1171,7 +1171,7 @@ function RankingControls({
       </SelectField>
 
       <SelectField
-        label="Orden"
+        label="Sort by"
         value={rankingSort}
         onChange={onRankingSortChange}
         className="compact-select"
@@ -1201,7 +1201,7 @@ function ForecastControls({
     <div className="block-controls">
       {forecastScenarios.length > 1 && (
         <SelectField
-          label="Escenario"
+          label="Scenario"
           value={forecastScenario}
           onChange={onForecastScenarioChange}
           className="compact-select"
@@ -1217,7 +1217,7 @@ function ForecastControls({
       <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
 
       <PeriodTypeSegment
-        label="Vista"
+        label="View"
         value={periodType}
         onChange={onPeriodTypeChange}
         periodTypes={periodTypes}
@@ -1246,18 +1246,18 @@ function ChartRangeControls({
       <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
 
       <PeriodTypeSegment
-        label="Serie"
+        label="Series"
         value={periodType}
         onChange={onPeriodTypeChange}
         periodTypes={periodTypes}
       />
 
       <div className="compact-segment-group">
-        <p className="analysis-label mb-2">Rango</p>
+        <p className="analysis-label mb-2">Range</p>
         <div className="segmented-control">
           {[
             { key: "all", label: "All time" },
-            { key: "year", label: "Año" },
+            { key: "year", label: "Year" },
           ].map((option) => (
             <button
               key={option.key}
@@ -1276,7 +1276,7 @@ function ChartRangeControls({
 
       {chartRangeMode === "year" && (
         <SelectField
-          label="Año"
+          label="Year"
           value={selectedChartYear}
           onChange={(year) => {
             onSelectedChartYearChange(year);
@@ -1398,7 +1398,7 @@ function getPrimaryMetricContext(rows = []) {
 
   return {
     primaryMetric,
-    primaryLabel: primaryMetric === "revenue" ? "facturacion" : "visitas",
+    primaryLabel: primaryMetric === "revenue" ? "revenue" : "visits",
     shareMetric,
     growthMetric,
   };
@@ -1467,12 +1467,12 @@ function formatVsBenchmark(focusValue, benchmarkValue, metricKey) {
   const focusNumber = safeNumber(focusValue);
   const benchmarkNumber = safeNumber(benchmarkValue);
 
-  if (focusNumber === null || benchmarkNumber === null) return "Sin benchmark comparable";
+  if (focusNumber === null || benchmarkNumber === null) return "No comparable benchmark";
 
   const delta = focusNumber - benchmarkNumber;
-  if (Math.abs(delta) < 0.000001) return "En linea con Promedio mercado";
+  if (Math.abs(delta) < 0.000001) return "On par with Market Average";
 
-  const direction = delta > 0 ? "sobre" : "por debajo de";
+  const direction = delta > 0 ? "above" : "below";
   const formattedDelta =
     metricKey?.includes("market_share") || metricKey?.includes("growth")
       ? formatPp(delta)
@@ -1480,7 +1480,7 @@ function formatVsBenchmark(focusValue, benchmarkValue, metricKey) {
         ? formatSignedPercent(delta / Math.abs(benchmarkNumber))
         : formatMetricDelta(metricKey, delta);
 
-  return `${formattedDelta} ${direction} Promedio mercado`;
+  return `${formattedDelta} ${direction} Market Average`;
 }
 
 function getBenchmarkComparisonItems(focusRow, benchmarkRow, preferredMetric) {
@@ -1535,8 +1535,8 @@ function getCompetitiveRisks(rows = [], context = {}) {
     if (shareThreat) {
       risks.push({
         id: `share-${shareThreat.row.company_id}`,
-        title: "Presion de cuota",
-        body: `${getCompanyLabel(shareThreat.row)} gana ${formatPp(shareThreat.value)} en ${getMetricCopy(shareChangeMetric)}.`,
+        title: "Share pressure",
+        body: `${getCompanyLabel(shareThreat.row)} gains ${formatPp(shareThreat.value)} in ${getMetricCopy(shareChangeMetric)}.`,
         row: shareThreat.row,
       });
     }
@@ -1555,8 +1555,8 @@ function getCompetitiveRisks(rows = [], context = {}) {
     if (growthThreat) {
       risks.push({
         id: `growth-${growthThreat.row.company_id}`,
-        title: "Momentum superior",
-        body: `${getCompanyLabel(growthThreat.row)} crece ${formatSignedPercent(growthThreat.value)} en ${getMetricCopy(context.growthMetric)}.`,
+        title: "Superior momentum",
+        body: `${getCompanyLabel(growthThreat.row)} grows ${formatSignedPercent(growthThreat.value)} in ${getMetricCopy(context.growthMetric)}.`,
         row: growthThreat.row,
       });
     }
@@ -1574,8 +1574,8 @@ function getCompetitiveRisks(rows = [], context = {}) {
     if (efficiencyThreat) {
       risks.push({
         id: `efficiency-${efficiencyThreat.row.company_id}`,
-        title: "Mejor monetizacion",
-        body: `${getCompanyLabel(efficiencyThreat.row)} logra ${formatCurrencyDecimal(efficiencyThreat.value)} por visita frente a ${formatCurrencyDecimal(focusRpv)} de Focus Brand.`,
+        title: "Better monetization",
+        body: `${getCompanyLabel(efficiencyThreat.row)} achieves ${formatCurrencyDecimal(efficiencyThreat.value)} per visit vs ${formatCurrencyDecimal(focusRpv)} for Focus Brand.`,
         row: efficiencyThreat.row,
       });
     }
@@ -1630,16 +1630,16 @@ function buildExecutiveSnapshot(realRows = [], comparisonRows = [], selectedPeri
 
   if (leader) {
     headlineParts.push(
-      `${getCompanyLabel(leader)} lidera por ${context.primaryLabel} en ${selectedPeriod?.label || "el periodo seleccionado"}`,
+      `${getCompanyLabel(leader)} leads in ${context.primaryLabel} for ${selectedPeriod?.label || "the selected period"}`,
     );
   }
 
   if (shareWinners.topGainer) {
     headlineParts.push(
-      `${shareWinners.topGainer.name} gana ${formatPp(shareWinners.topGainer.value)} de cuota`,
+      `${shareWinners.topGainer.name} gains ${formatPp(shareWinners.topGainer.value)} in share`,
     );
   } else if (focusShare !== null) {
-    headlineParts.push(`Focus Brand alcanza ${formatMetric(focusShare, context.shareMetric)} de ${getMetricCopy(context.shareMetric)}`);
+    headlineParts.push(`Focus Brand holds ${formatMetric(focusShare, context.shareMetric)} of ${getMetricCopy(context.shareMetric)}`);
   }
 
   if (benchmarkComparisons[0]) {
@@ -1648,7 +1648,7 @@ function buildExecutiveSnapshot(realRows = [], comparisonRows = [], selectedPeri
 
   const headline = headlineParts.length
     ? `${headlineParts.join(". ")}.`
-    : "Selecciona un periodo con datos comparables para leer el mercado.";
+    : "Select a period with comparable data to read the market.";
 
   return {
     ...context,
@@ -1671,7 +1671,7 @@ function buildExecutiveSnapshot(realRows = [], comparisonRows = [], selectedPeri
 
 function getEfficiencyBadge(gap) {
   const value = safeNumber(gap);
-  if (value === null) return "Sin dato";
+  if (value === null) return "No data";
   if (value > 0.005) return "High efficiency";
   if (value < -0.005) return "Traffic under-monetized";
   return "Balanced";
@@ -1713,32 +1713,32 @@ function getMedian(values = []) {
 function getBattleDeltaLabel(metric, focusValue, targetValue) {
   const focusNumber = safeNumber(focusValue);
   const targetNumber = safeNumber(targetValue);
-  if (focusNumber === null || targetNumber === null) return "Sin dato comparable";
+  if (focusNumber === null || targetNumber === null) return "No comparable data";
 
   const delta = focusNumber - targetNumber;
-  if (Math.abs(delta) < 0.000001) return "Empate";
+  if (Math.abs(delta) < 0.000001) return "Tied";
 
   if (metric.deltaType === "pp") {
-    return `${formatPp(delta)} Foco vs objetivo`;
+    return `${formatPp(delta)} Focus vs target`;
   }
 
   if (targetNumber !== 0) {
-    return `${formatSignedPercent(delta / Math.abs(targetNumber))} Foco vs objetivo`;
+    return `${formatSignedPercent(delta / Math.abs(targetNumber))} Focus vs target`;
   }
 
-  return `Dif. ${formatMetric(delta, metric.key)}`;
+  return `Diff. ${formatMetric(delta, metric.key)}`;
 }
 
 function getBattleWinner(metric, focusRow, targetRow) {
   const focusValue = safeNumber(focusRow?.[metric.key]);
   const targetValue = safeNumber(targetRow?.[metric.key]);
   if (focusValue === null || targetValue === null) return "N/A";
-  if (Math.abs(focusValue - targetValue) < 0.000001) return "Empate";
-  return focusValue > targetValue ? "Foco" : getCompanyLabel(targetRow);
+  if (Math.abs(focusValue - targetValue) < 0.000001) return "Tied";
+  return focusValue > targetValue ? "Focus" : getCompanyLabel(targetRow);
 }
 
 function getStrategicConclusion(snapshot) {
-  if (!snapshot) return "Selecciona un periodo con datos comparables para cerrar la lectura.";
+  if (!snapshot) return "Select a period with comparable data to close the read.";
 
   const risk = snapshot.risks[0];
   if (risk) {
@@ -1746,14 +1746,14 @@ function getStrategicConclusion(snapshot) {
   }
 
   if (snapshot.shareWinners?.topGainer) {
-    return `${snapshot.shareWinners.topGainer.name} marca el movimiento competitivo mas relevante; conviene contrastarlo con Focus Brand y Promedio mercado.`;
+    return `${snapshot.shareWinners.topGainer.name} is the most relevant competitive move; cross-check against Focus Brand and Market Average.`;
   }
 
   if (snapshot.leader) {
-    return `${getCompanyLabel(snapshot.leader)} concentra la lectura principal del periodo por ${snapshot.primaryLabel}.`;
+    return `${getCompanyLabel(snapshot.leader)} holds the primary position for the period in ${snapshot.primaryLabel}.`;
   }
 
-  return "No hay senales suficientes para una conclusion estrategica sin forzar la lectura.";
+  return "Insufficient signals for a strategic conclusion without forcing the read.";
 }
 
 function getPieData(rows = [], metricKey, maxSlices = 5) {
@@ -1772,7 +1772,7 @@ function getPieData(rows = [], metricKey, maxSlices = 5) {
   const restValue = restRows.reduce((total, row) => total + row.value, 0);
 
   return restValue > 0
-    ? [...topRows, { id: "rest", name: "Resto", value: restValue, color: "#D8D2CD" }]
+    ? [...topRows, { id: "rest", name: "Other", value: restValue, color: "#D8D2CD" }]
     : topRows;
 }
 
@@ -1786,7 +1786,7 @@ function RankingPieChart({ rows, metricKey, title }) {
   return (
     <aside className="ranking-side-card" aria-label={title}>
       <div>
-        <p className="analysis-label text-focus-500">Distribución</p>
+        <p className="analysis-label text-focus-500">Distribution</p>
         <h3 className="mt-2 text-lg font-semibold text-black">{title}</h3>
       </div>
 
@@ -1839,8 +1839,8 @@ function RankingPieChart({ rows, metricKey, title }) {
         </>
       ) : (
         <EmptyState
-          title="Sin datos positivos para el pie."
-          message="El ranking actual no tiene valores suficientes para calcular una distribución."
+          title="No positive data for distribution chart."
+          message="The current ranking does not have enough values to calculate a distribution."
         />
       )}
     </aside>
@@ -1885,7 +1885,7 @@ function RankingBarChart({ rows, metricKey, title }) {
   return (
     <aside className="ranking-side-card" aria-label={title}>
       <div>
-        <p className="analysis-label text-focus-500">Comparativa</p>
+        <p className="analysis-label text-focus-500">Comparison</p>
         <h3 className="mt-2 text-lg font-semibold text-black">{title}</h3>
       </div>
 
@@ -1932,8 +1932,8 @@ function RankingBarChart({ rows, metricKey, title }) {
         </div>
       ) : (
         <EmptyState
-          title="Sin datos para la comparativa."
-          message="El ranking actual no tiene valores suficientes para representar esta métrica."
+          title="No data for comparison chart."
+          message="The current ranking does not have enough values to represent this metric."
         />
       )}
 
@@ -1957,7 +1957,7 @@ function RankingBarChart({ rows, metricKey, title }) {
                     {formatMetric(entry.previousValue, entry.baseMetricKey)}
                   </span>
                   <span>
-                    <small>Crec.</small>
+                    <small>Growth</small>
                     {formatSignedPercent(entry.growthValue ?? entry.value)}
                   </span>
                   <span>
@@ -2007,11 +2007,11 @@ function BenchmarkRankingPanel({
   return (
     <Panel
       eyebrow="Ranking"
-      title="Ranking del período"
+      title="Period ranking"
     >
       {selectedPeriod && (
         <p className="mb-4 text-sm text-neutral-500">
-          {selectedPeriod.label}. Top empresas por {sortLabel}.
+          {selectedPeriod.label}. Top companies by {sortLabel}.
         </p>
       )}
 
@@ -2027,7 +2027,7 @@ function BenchmarkRankingPanel({
                   type="button"
                   onClick={() => onOpenProfile(row.company_id)}
                   className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 bg-white px-4 py-3 text-left transition hover:bg-[#fbf8f5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus-500 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4"
-                  aria-label={`Abrir ficha de ${getCompanyLabel(row)}`}
+                  aria-label={`Open profile for ${getCompanyLabel(row)}`}
                 >
                   <span
                     className={`flex h-10 w-10 items-center justify-center rounded-sm text-sm font-semibold ${
@@ -2047,7 +2047,7 @@ function BenchmarkRankingPanel({
                       <span className="truncate font-semibold text-black">{getCompanyLabel(row)}</span>
                     </span>
                     <span className="mt-1 block truncate text-xs uppercase text-neutral-500">
-                      {row.segment || row.market || "Competidor"}
+                      {row.segment || row.market || "Competitor"}
                     </span>
                     <DataTypeBadge row={row} />
                   </span>
@@ -2076,8 +2076,8 @@ function BenchmarkRankingPanel({
         </div>
       ) : (
         <EmptyState
-          title="No hay filas para el ranking."
-          message="Cambia filtros o rango temporal para recuperar el último período disponible."
+          title="No rows for this ranking."
+          message="Adjust filters or date range to recover the latest available period."
         />
       )}
     </Panel>
@@ -2088,19 +2088,19 @@ function RankingTable({
   rows,
   selectedPeriod,
   onOpenProfile,
-  title = "Tabla completa del ranking",
+  title = "Full ranking table",
   description,
 }) {
   const hasForecastRows = rows.some(isForecastRow);
 
   return (
     <Panel
-      eyebrow="Detalle"
+      eyebrow="Detail"
       title={title}
     >
       {selectedPeriod && (
         <p className="mb-4 text-sm text-neutral-500">
-          {description || `Período seleccionado: ${selectedPeriod.label}. Ranking detallado por empresas.`}
+          {description || `Selected period: ${selectedPeriod.label}. Detailed ranking by company.`}
         </p>
       )}
       {rows.length ? (
@@ -2109,15 +2109,15 @@ function RankingTable({
             <thead>
               <tr className="border-y border-black/10 bg-[#fbf8f5] text-left text-xs uppercase text-neutral-500">
                 <th className="px-3 py-3 font-semibold">Rank</th>
-                <th className="px-3 py-3 font-semibold">Empresa</th>
-                <th className="px-3 py-3 text-right font-semibold">Facturación</th>
-                <th className="px-3 py-3 text-right font-semibold">Visitas</th>
-                <th className="px-3 py-3 text-right font-semibold">Cuota facturación</th>
-                <th className="px-3 py-3 text-right font-semibold">Cuota visitas</th>
+                <th className="px-3 py-3 font-semibold">Company</th>
+                <th className="px-3 py-3 text-right font-semibold">Revenue</th>
+                <th className="px-3 py-3 text-right font-semibold">Visits</th>
+                <th className="px-3 py-3 text-right font-semibold">Revenue share</th>
+                <th className="px-3 py-3 text-right font-semibold">Visit share</th>
                 <th className="px-3 py-3 text-right font-semibold">Rev / visit</th>
-                <th className="px-3 py-3 font-semibold">Prioridad</th>
-                {hasForecastRows && <th className="px-3 py-3 font-semibold">Tipo</th>}
-                <th className="px-3 py-3 text-right font-semibold">Ficha</th>
+                <th className="px-3 py-3 font-semibold">Priority</th>
+                {hasForecastRows && <th className="px-3 py-3 font-semibold">Type</th>}
+                <th className="px-3 py-3 text-right font-semibold">Profile</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/10">
@@ -2177,9 +2177,9 @@ function RankingTable({
                         onOpenProfile(row.company_id);
                       }}
                       className="primary-action"
-                      aria-label={`Abrir ficha de ${getCompanyLabel(row)}`}
+                      aria-label={`Open profile for ${getCompanyLabel(row)}`}
                     >
-                      Abrir
+                      Open
                     </button>
                   </td>
                 </tr>
@@ -2189,8 +2189,8 @@ function RankingTable({
         </div>
       ) : (
         <EmptyState
-          title="No hay filas para el ranking."
-          message="Cambia filtros o rango temporal para recuperar el último período disponible."
+          title="No rows for this ranking."
+          message="Adjust filters or date range to recover the latest available period."
         />
       )}
     </Panel>
@@ -2229,20 +2229,20 @@ function ForecastPreview({ forecastRows, forecastScenarioLabel, onOpenForecast }
       type="button"
       className="forecast-entry"
       onClick={onOpenForecast}
-      aria-label="Abrir detalle del forecast"
+      aria-label="Open forecast detail"
     >
       <span className="forecast-entry-kicker">Forecast</span>
       <span className="forecast-entry-copy">
-        <span className="forecast-entry-title">Forecast de mercado</span>
+        <span className="forecast-entry-title">Market Forecast</span>
         <span className="forecast-entry-detail">
-          {horizonLabel} · {forecastCompanies.length} empresas · Escenario {forecastScenarioLabel}
+          {horizonLabel} · {forecastCompanies.length} companies · Scenario: {forecastScenarioLabel}
         </span>
       </span>
       <span className="forecast-entry-metric">
         <span>{formatCompact(focusForecastRow?.visits)}</span>
-        <span>Foco visitas</span>
+        <span>Focus visits</span>
       </span>
-      <span className="forecast-entry-action">Ver detalle</span>
+      <span className="forecast-entry-action">View detail</span>
     </button>
   );
 }
@@ -2251,8 +2251,8 @@ function ForecastRankingList({ rows, onOpenProfile }) {
   if (!rows.length) {
     return (
       <EmptyState
-        title="No hay filas forecast para este período."
-        message="Cambia el escenario o vuelve al benchmark para revisar otro contexto."
+        title="No forecast rows for this period."
+        message="Change the scenario or return to the benchmark to review another context."
       />
     );
   }
@@ -2266,7 +2266,7 @@ function ForecastRankingList({ rows, onOpenProfile }) {
             type="button"
             onClick={() => onOpenProfile(row.company_id)}
             className="clean-list-row"
-            aria-label={`Abrir ficha de ${getCompanyLabel(row)}`}
+            aria-label={`Open profile for ${getCompanyLabel(row)}`}
           >
             <span
               className={`rank-token ${index === 0 ? "rank-token-lead" : ""}`}
@@ -2284,7 +2284,7 @@ function ForecastRankingList({ rows, onOpenProfile }) {
                 <span className="truncate font-semibold text-black">{getCompanyLabel(row)}</span>
               </span>
               <span className="mt-1 block truncate text-xs uppercase text-neutral-500">
-                {row.segment || row.market || "Competidor"}
+                {row.segment || row.market || "Competitor"}
               </span>
             </span>
             <span className="text-right">
@@ -2292,14 +2292,14 @@ function ForecastRankingList({ rows, onOpenProfile }) {
                 {formatCompact(row.visits)}
               </span>
               <span className="mt-1 block text-xs font-semibold uppercase text-neutral-500">
-                Visitas forecast
+                Forecast visits
               </span>
             </span>
           </button>
         ))}
       </div>
 
-      <RankingPieChart rows={rows} metricKey="visits" title="Visitas forecast" />
+      <RankingPieChart rows={rows} metricKey="visits" title="Forecast visits" />
     </div>
   );
 }
@@ -2379,11 +2379,11 @@ function ForecastDetailView({
     return (
       <div className="space-y-6">
         <button type="button" className="section-link" onClick={onBack}>
-          Volver al benchmark
+          Back to benchmark
         </button>
         <EmptyState
-          title="No hay forecast disponible."
-          message="El snapshot actual no incluye filas de forecast para el contexto seleccionado."
+          title="No forecast available."
+          message="The current snapshot does not include forecast rows for the selected context."
         />
       </div>
     );
@@ -2400,14 +2400,14 @@ function ForecastDetailView({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <button type="button" className="section-link" onClick={onBack}>
-              Volver al benchmark
+              Back to benchmark
             </button>
             <p className="analysis-label mt-6 text-focus-500">Forecast</p>
             <h2 className="mt-2 text-3xl font-semibold text-black md:text-4xl">
-              Forecast de mercado
+              Market Forecast
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600">
-              {horizonLabel}. Escenario {forecastScenarioLabel} con lectura de visitas y facturación.
+              {horizonLabel}. {forecastScenarioLabel} scenario covering visits and revenue.
             </p>
           </div>
 
@@ -2426,27 +2426,27 @@ function ForecastDetailView({
 
         <dl className="forecast-stat-strip">
           <div>
-            <dt>Horizonte</dt>
-            <dd>{forecastPeriods.length} períodos</dd>
+            <dt>Horizon</dt>
+            <dd>{forecastPeriods.length} periods</dd>
           </div>
           <div>
-            <dt>Empresas</dt>
+            <dt>Companies</dt>
             <dd>{forecastCompanies.length}</dd>
           </div>
           <div>
-            <dt>Focus Brand inicio</dt>
+            <dt>Focus Brand start</dt>
             <dd>{formatCompact(focusStartRow?.visits)}</dd>
           </div>
           <div>
-            <dt>Focus Brand cierre</dt>
+            <dt>Focus Brand end</dt>
             <dd>{formatCompact(focusEndRow?.visits)}</dd>
           </div>
         </dl>
       </section>
 
       <ContentSection
-        eyebrow="Evolución"
-        title="Forecast por competidor"
+        eyebrow="Trend"
+        title="Forecast by competitor"
         detail={forecastScenarioLabel}
       >
         <CompanyLegend
@@ -2459,34 +2459,34 @@ function ForecastDetailView({
 
         <section className="grid gap-6 xl:grid-cols-2">
           <MetricChart
-            title="Forecast de visitas"
+            title="Forecast visits"
             metricKey="visits"
             series={visitsSeries}
             chartData={visitsChartData}
-            emptyTitle="No hay datos de visitas para este forecast."
+            emptyTitle="No visits data for this forecast."
             hiddenCompanyIds={forecastVisibility.hiddenCompanyIds}
           />
           <MetricChart
-            title="Forecast de facturación"
+            title="Forecast revenue"
             metricKey="revenue"
             series={revenueSeries}
             chartData={revenueChartData}
-            emptyTitle="No hay datos de facturación para este forecast."
+            emptyTitle="No revenue data for this forecast."
             hiddenCompanyIds={forecastVisibility.hiddenCompanyIds}
           />
         </section>
       </ContentSection>
 
       <ContentSection
-        eyebrow="Ranking forecast"
-        title="Último período forecast"
+        eyebrow="Forecast ranking"
+        title="Last forecast period"
         detail={lastForecastPeriod?.label}
       >
         <ForecastRankingList rows={topForecastRows} onOpenProfile={onOpenProfile} />
       </ContentSection>
 
       <ContentSection
-        eyebrow="Detalle"
+        eyebrow="Detail"
         title="Tabla forecast"
         detail={lastForecastPeriod?.label}
       >
@@ -2494,8 +2494,8 @@ function ForecastDetailView({
           rows={lastForecastRows}
           selectedPeriod={lastForecastPeriod}
           onOpenProfile={onOpenProfile}
-          title="Tabla forecast por empresa"
-          description={`Período forecast: ${lastForecastPeriod?.label}. Detalle completo por competidor.`}
+          title="Forecast table by company"
+          description={`Forecast period: ${lastForecastPeriod?.label}. Full detail by competitor.`}
         />
       </ContentSection>
     </div>
@@ -2524,8 +2524,8 @@ function InsightFeed({ items = [] }) {
   if (!items.length) {
     return (
       <EmptyState
-        title="No hay insights para esta seleccion."
-        message="El dashboard evita generar insights para benchmarks o forecasts sin senal competitiva real."
+        title="No insights for this selection."
+        message="The dashboard avoids generating insights for benchmarks or forecasts without real competitive signals."
       />
     );
   }
@@ -2605,9 +2605,9 @@ function BenchmarkComparisonStrip({ items = [] }) {
   if (!items.length) {
     return (
       <div className="executive-benchmark-strip">
-        <p className="text-sm font-semibold text-black">Promedio mercado</p>
+        <p className="text-sm font-semibold text-black">Market Average</p>
         <p className="mt-1 text-sm text-neutral-500">
-          No hay metricas comparables contra Promedio mercado para este periodo.
+          No comparable metrics against Market Average for this period.
         </p>
       </div>
     );
@@ -2616,8 +2616,8 @@ function BenchmarkComparisonStrip({ items = [] }) {
   return (
     <div className="executive-benchmark-strip">
       <div>
-        <p className="analysis-label">Benchmark visual</p>
-        <h3 className="mt-1 text-lg font-semibold text-black">Foco vs Promedio mercado</h3>
+        <p className="analysis-label">Visual benchmark</p>
+        <h3 className="mt-1 text-lg font-semibold text-black">Focus vs Market Average</h3>
       </div>
       <div className="executive-benchmark-grid">
         {items.map((item) => (
@@ -2635,7 +2635,7 @@ function BenchmarkComparisonStrip({ items = [] }) {
 function CompetitiveRiskList({ risks = [] }) {
   return (
     <div className="executive-list-card">
-      <p className="analysis-label">Riesgos competitivos</p>
+      <p className="analysis-label">Competitive risks</p>
       {risks.length ? (
         <div className="mt-3 space-y-3">
           {risks.map((risk) => (
@@ -2655,7 +2655,7 @@ function CompetitiveRiskList({ risks = [] }) {
         </div>
       ) : (
         <p className="mt-3 text-sm leading-6 text-neutral-500">
-          No hay alertas con datos suficientes para este periodo.
+          No alerts with sufficient data for this period.
         </p>
       )}
     </div>
@@ -2666,8 +2666,8 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
   if (!rows.length) {
     return (
       <EmptyState
-        title="Selecciona un periodo con datos comparables."
-        message="La home ejecutiva necesita competidores reales y observados; forecast y benchmark no entran en esta lectura."
+        title="Select a period with comparable data."
+        message="The executive home requires real observed competitors; forecast and benchmark rows are excluded from this view."
       />
     );
   }
@@ -2679,13 +2679,13 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
   )?.deltaLabel;
   const shareChangeLabel = snapshot.shareChangeMetric
     ? getMetricCopy(snapshot.shareChangeMetric)
-    : "cuota";
+    : "share";
 
   return (
-    <Panel eyebrow="Executive Home" title="Que esta pasando en el mercado">
+    <Panel eyebrow="Executive Home" title="What is happening in the market">
       <div className="executive-hero">
         <div className="min-w-0">
-          <p className="analysis-label text-focus-500">Lectura ejecutiva</p>
+          <p className="analysis-label text-focus-500">Executive read</p>
           <h2 className="mt-2 text-2xl font-semibold leading-tight text-black md:text-3xl">
             {snapshot.headline}
           </h2>
@@ -2695,8 +2695,8 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
           </div>
         </div>
         <div className="executive-hero-aside">
-          <span>Pregunta estrategica</span>
-          <strong>Quien lidera, quien gana cuota y donde queda el foco frente al mercado.</strong>
+          <span>Strategic question</span>
+          <strong>Who leads, who gains share, and where does the focus stand vs the market.</strong>
         </div>
       </div>
 
@@ -2704,32 +2704,32 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
         <KpiCard
           label={totalLabel}
           value={snapshot.totalMarketValue !== null ? formatMetric(snapshot.totalMarketValue, snapshot.primaryMetric) : "N/A"}
-          detail={`${rows.length} competidores reales medidos`}
+          detail={`${rows.length} real competitors measured`}
           accentColor="#000000"
         />
         <KpiCard
-          label="Market share foco"
+          label="Focus Brand market share"
           value={formatMetric(snapshot.focusShare, snapshot.shareMetric)}
           detail={focusShareDetail || getMetricCopy(snapshot.shareMetric)}
           accentColor="#000000"
         />
         <KpiCard
-          label="Crecimiento YoY foco"
+          label="Focus Brand YoY growth"
           value={snapshot.focusGrowth !== null ? formatSignedPercent(snapshot.focusGrowth) : "N/A"}
           detail={
             snapshot.focusGrowth !== null
               ? getMetricCopy(snapshot.growthMetric)
-              : "Sin YoY disponible para este periodo"
+              : "No YoY available for this period"
           }
           accentColor="#000000"
         />
         <KpiCard
-          label="Mayor ganador/perdedor cuota"
+          label="Top share gainer/loser"
           value={snapshot.shareWinners.topGainer ? formatPp(snapshot.shareWinners.topGainer.value) : "N/A"}
           detail={
             snapshot.shareWinners.topGainer
-              ? `Gana ${snapshot.shareWinners.topGainer.name}${snapshot.shareWinners.topLoser ? ` / pierde ${snapshot.shareWinners.topLoser.name}` : ""}`
-              : `Sin datos de ${shareChangeLabel}`
+              ? `Gains: ${snapshot.shareWinners.topGainer.name}${snapshot.shareWinners.topLoser ? ` / Loses: ${snapshot.shareWinners.topLoser.name}` : ""}`
+              : `No data for ${shareChangeLabel}`
           }
           accentColor="#E4032C"
         />
@@ -2740,12 +2740,12 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
           <ExecutiveMoverList
             title="Top winners"
             items={snapshot.shareWinners.gainers}
-            emptyMessage="No hay ganadores de cuota detectables."
+            emptyMessage="No share gainers detected."
           />
           <ExecutiveMoverList
             title="Top losers"
             items={snapshot.shareWinners.losers}
-            emptyMessage="No hay perdedores de cuota detectables."
+            emptyMessage="No share losers detected."
           />
         </div>
         <BenchmarkComparisonStrip items={snapshot.benchmarkComparisons} />
@@ -2755,7 +2755,7 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
   );
 }
 
-function MetricSwitch({ options = [], value, onChange, label = "Metrica" }) {
+function MetricSwitch({ options = [], value, onChange, label = "Metric" }) {
   if (options.length <= 1) return null;
 
   return (
@@ -2846,7 +2846,7 @@ function IndexedGrowthRace({ rows = [], rangeLabel = "All time" }) {
 
   return (
     <Panel
-      eyebrow="Momentum relativo"
+      eyebrow="Relative momentum"
       title="Indexed Growth Race"
       action={
         <MetricSwitch
@@ -2857,7 +2857,7 @@ function IndexedGrowthRace({ rows = [], rangeLabel = "All time" }) {
       }
     >
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Momentum relativo frente al foco, dos peers y el promedio de mercado.
+        Relative momentum compared to the focus entity, two peers, and the market average.
       </p>
 
       <CompanyLegend
@@ -2925,15 +2925,15 @@ function IndexedGrowthRace({ rows = [], rangeLabel = "All time" }) {
           </ResponsiveContainer>
         ) : (
           <EmptyState
-            title="No hay historico suficiente para crecimiento indexado."
-            message="Se necesitan al menos dos periodos comparables con indexed_revenue o indexed_visits."
+            title="Not enough history for indexed growth."
+            message="At least two comparable periods with indexed_revenue or indexed_visits are required."
           />
         )}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <span className="scope-pill">{rangeLabel}</span>
         {selectedOption && <span className="scope-pill">{selectedOption.label}</span>}
-        <span className="scope-pill">Benchmark: Promedio mercado</span>
+        <span className="scope-pill">Benchmark: Market Average</span>
       </div>
     </Panel>
   );
@@ -2947,15 +2947,15 @@ function MonetizationTooltip({ active, payload = [] }) {
   return (
     <ChartTooltipShell title={entry.name}>
       <div className="chart-tooltip-row">
-        <span>Gap monetizacion</span>
+        <span>Monetization gap</span>
         <span className="chart-tooltip-value">{formatPp(entry.value)}</span>
       </div>
       <div className="chart-tooltip-row">
-        <span>Cuota facturacion</span>
+        <span>Revenue share</span>
         <span className="chart-tooltip-value">{formatPercent(entry.revenueShare)}</span>
       </div>
       <div className="chart-tooltip-row">
-        <span>Cuota visitas</span>
+        <span>Visit share</span>
         <span className="chart-tooltip-value">{formatPercent(entry.visitShare)}</span>
       </div>
     </ChartTooltipShell>
@@ -2978,9 +2978,9 @@ function MonetizationGap({ rows = [] }) {
   }, [chartData]);
 
   return (
-    <Panel eyebrow="Eficiencia comercial" title="Monetization Gap">
+    <Panel eyebrow="Commercial efficiency" title="Monetization Gap">
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Diferencia frontend entre cuota de facturacion y cuota de visitas. Positivo implica mejor monetizacion que peso en trafico.
+        Gap between revenue share and visit share. Positive means better monetization than traffic weight.
       </p>
       {chartData.length ? (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
@@ -3037,8 +3037,8 @@ function MonetizationGap({ rows = [] }) {
         </div>
       ) : (
         <EmptyState
-          title="No hay datos suficientes para calcular eficiencia comercial."
-          message="Se necesitan cuota de facturacion y cuota de visitas en competidores reales del periodo."
+          title="Not enough data to calculate commercial efficiency."
+          message="Revenue share and visit share are required for real competitors in this period."
         />
       )}
     </Panel>
@@ -3069,12 +3069,12 @@ function ShareGainLossCompact({ rows = [] }) {
 
   return (
     <Panel
-      eyebrow="Cuota"
+      eyebrow="Share"
       title="Share Gain/Loss"
-      action={<MetricSwitch options={availableModes} value={mode} onChange={setMode} label="Vista" />}
+      action={<MetricSwitch options={availableModes} value={mode} onChange={setMode} label="View" />}
     >
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Movimiento compacto de cuota para detectar cambios relevantes sin listar todo el mercado.
+        Compact share movement to detect relevant changes without listing the full market.
       </p>
       {metricKey ? (
         <>
@@ -3082,12 +3082,12 @@ function ShareGainLossCompact({ rows = [] }) {
             <ExecutiveMoverList
               title="Gainers"
               items={movers.gainers}
-              emptyMessage="Sin ganadores de cuota para esta vista."
+              emptyMessage="No share gainers for this view."
             />
             <ExecutiveMoverList
               title="Losers"
               items={movers.losers}
-              emptyMessage="Sin perdedores de cuota para esta vista."
+              emptyMessage="No share losers for this view."
             />
           </div>
           <div className="mt-3">
@@ -3096,8 +3096,8 @@ function ShareGainLossCompact({ rows = [] }) {
         </>
       ) : (
         <EmptyState
-          title="No hay datos suficientes para cuota ganada/perdida."
-          message="Se requiere share_revenue_change_yoy o share_visits_change_yoy; si no existen, se usa MoM."
+          title="Not enough data for share gain/loss."
+          message="share_revenue_change_yoy or share_visits_change_yoy is required; MoM is used as fallback."
         />
       )}
     </Panel>
@@ -3112,7 +3112,7 @@ function CompetitiveMapTooltip({ active, payload = [], yMetric, sizeMetric }) {
   return (
     <ChartTooltipShell title={entry.name}>
       <div className="chart-tooltip-row">
-        <span>Visitas</span>
+        <span>Visits</span>
         <span className="chart-tooltip-value">{formatMetric(entry.x, "visits")}</span>
       </div>
       <div className="chart-tooltip-row">
@@ -3189,9 +3189,9 @@ function CompetitiveMap({ rows = [] }) {
   const medianY = useMemo(() => getMedian(scatterData.map((entry) => entry.y)), [scatterData]);
 
   return (
-    <Panel eyebrow="Mapa competitivo" title="Competitive Map">
+    <Panel eyebrow="Competitive map" title="Competitive Map">
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Alto trafico + alta eficiencia senala lideres fuertes; alto trafico + baja eficiencia revela trafico mal monetizado.
+        High traffic + high efficiency signals strong leaders; high traffic + low efficiency reveals under-monetized traffic.
       </p>
       {scatterData.length >= 2 ? (
         <>
@@ -3208,7 +3208,7 @@ function CompetitiveMap({ rows = [] }) {
                 <XAxis
                   type="number"
                   dataKey="x"
-                  name="Visitas"
+                  name="Visits"
                   tick={{ fill: "#6F6864", fontSize: 12 }}
                   tickFormatter={(value) => formatMetric(value, "visits")}
                   tickLine={false}
@@ -3239,16 +3239,16 @@ function CompetitiveMap({ rows = [] }) {
             </ResponsiveContainer>
           </div>
           <div className="quadrant-guide">
-            <span>Lider fuerte: alto trafico + alta eficiencia.</span>
-            <span>Trafico mal monetizado: alto trafico + baja eficiencia.</span>
-            <span>Nicho eficiente: bajo trafico + alta eficiencia.</span>
-            <span>Player pequeno/debil: bajo trafico + baja eficiencia.</span>
+            <span>Strong leader: high traffic + high efficiency.</span>
+            <span>Under-monetized traffic: high traffic + low efficiency.</span>
+            <span>Efficient niche: low traffic + high efficiency.</span>
+            <span>Small/weak player: low traffic + low efficiency.</span>
           </div>
         </>
       ) : (
         <EmptyState
-          title="No hay datos suficientes para el mapa competitivo."
-          message="Se necesitan visitas y revenue_per_visit o revenue en al menos dos competidores reales."
+          title="Not enough data for the competitive map."
+          message="Visits and revenue_per_visit or revenue are required for at least two real competitors."
         />
       )}
     </Panel>
@@ -3264,9 +3264,9 @@ function BattleCards({ rows = [] }) {
   }));
 
   return (
-    <Panel eyebrow="Comparativas" title="Battle Cards">
+    <Panel eyebrow="Comparisons" title="Battle Cards">
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Comparativa del foco contra dos peers y el benchmark medio del mercado.
+        Focus entity vs two peers and the market benchmark.
       </p>
       {focusRow ? (
         <div className="battle-grid">
@@ -3317,7 +3317,7 @@ function BattleCards({ rows = [] }) {
                             <small>{getBattleDeltaLabel(metric, focusValue, targetValue)}</small>
                           </>
                         ) : (
-                          <span className="battle-empty">Sin dato comparable</span>
+                          <span className="battle-empty">No comparable data</span>
                         )}
                       </div>
                     );
@@ -3325,8 +3325,8 @@ function BattleCards({ rows = [] }) {
                 </div>
               ) : (
                 <EmptyState
-                  title="No hay datos para esta battle card."
-                  message="Selecciona un periodo en el que exista la entidad comparada."
+                  title="No data for this battle card."
+                  message="Select a period in which the compared entity has data."
                 />
               )}
             </article>
@@ -3334,8 +3334,8 @@ function BattleCards({ rows = [] }) {
         </div>
       ) : (
         <EmptyState
-          title="No hay datos de Focus Brand para comparar."
-          message="Las battle cards necesitan una fila real de Focus Brand en el periodo seleccionado."
+          title="No Focus Brand data to compare."
+          message="Battle cards require a real Focus Brand row in the selected period."
         />
       )}
     </Panel>
@@ -3361,8 +3361,8 @@ function PresentationChart({ rows = [], snapshot }) {
   if (series.length < 2 || chartData.length < 2) {
     return (
       <EmptyState
-        title="No hay grafico principal para modo presentacion."
-        message="Faltan al menos dos series historicas comparables."
+        title="No main chart for presentation mode."
+        message="At least two comparable historical series are needed."
       />
     );
   }
@@ -3421,7 +3421,7 @@ function PresentationMode({ snapshot, periodRows = [], chartRows = [] }) {
   );
   const kpis = [
     {
-      label: snapshot.primaryMetric === "revenue" ? "Mercado facturacion" : "Mercado visitas",
+      label: snapshot.primaryMetric === "revenue" ? "Market revenue" : "Market visits",
       value: snapshot.totalMarketValue !== null ? formatMetric(snapshot.totalMarketValue, snapshot.primaryMetric) : "N/A",
     },
     {
@@ -3435,10 +3435,10 @@ function PresentationMode({ snapshot, periodRows = [], chartRows = [] }) {
   ];
 
   return (
-    <Panel eyebrow="Modo presentacion" title="Slide capture">
+    <Panel eyebrow="Presentation mode" title="Slide capture">
       <div className="presentation-mode">
         <div className="presentation-headline">
-          <p className="analysis-label text-focus-500">Historia principal</p>
+          <p className="analysis-label text-focus-500">Main story</p>
           <h2>{snapshot.headline}</h2>
           <TrustBadges badges={snapshot.badges} />
         </div>
@@ -3453,7 +3453,7 @@ function PresentationMode({ snapshot, periodRows = [], chartRows = [] }) {
         <div className="presentation-grid">
           <PresentationChart rows={chartRows} snapshot={snapshot} />
           <div className="presentation-ranking">
-            <p className="analysis-label">Ranking compacto</p>
+            <p className="analysis-label">Compact ranking</p>
             {rankingRows.length ? (
               <div className="mt-3 space-y-2">
                 {rankingRows.map((row, index) => (
@@ -3471,12 +3471,12 @@ function PresentationMode({ snapshot, periodRows = [], chartRows = [] }) {
                 ))}
               </div>
             ) : (
-              <p className="mt-3 text-sm text-neutral-500">Sin ranking para este periodo.</p>
+              <p className="mt-3 text-sm text-neutral-500">No ranking for this period.</p>
             )}
           </div>
         </div>
         <div className="presentation-conclusion">
-          <span>Conclusion estrategica</span>
+          <span>Strategic conclusion</span>
           <strong>{getStrategicConclusion(snapshot)}</strong>
         </div>
       </div>
@@ -3540,13 +3540,13 @@ function HomeView({
   );
   const rankingSortLabel =
     RANKING_SORTS.find((sort) => sort.key === rankingSort)?.label || rankingSort;
-  const chartRangeLabel = chartRangeMode === "year" ? selectedChartYear || "Año" : "All time";
+  const chartRangeLabel = chartRangeMode === "year" ? selectedChartYear || "Year" : "All time";
 
   return (
     <div className="home-block-stack">
       <ContentSection
         eyebrow="Executive cockpit"
-        title="Lectura del mercado"
+        title="Market read"
         detail={selectedRankingPeriod?.label || rankingSortLabel}
         action={
           <RankingControls
@@ -3570,7 +3570,7 @@ function HomeView({
 
       <ContentSection
         eyebrow="Momentum"
-        title="Crecimiento indexado"
+        title="Indexed growth"
         detail={chartRangeLabel}
         action={
           <ChartRangeControls
@@ -3592,8 +3592,8 @@ function HomeView({
       </ContentSection>
 
       <ContentSection
-        eyebrow="Cuota y monetizacion"
-        title="Donde se gana, se pierde y se convierte mejor"
+        eyebrow="Share and monetization"
+        title="Where share is won, lost, and converted"
         detail={selectedRankingPeriod?.label}
       >
         <section className="grid gap-6 xl:grid-cols-2">
@@ -3612,15 +3612,15 @@ function HomeView({
 
       <ContentSection
         eyebrow="Battle cards"
-        title="Focus Brand frente a rivales clave"
+        title="Focus Brand vs key rivals"
         detail={selectedRankingPeriod?.label}
       >
         <BattleCards rows={currentComparisonRows} />
       </ContentSection>
 
       <ContentSection
-        eyebrow="Presentacion"
-        title="Vista capturable"
+        eyebrow="Presentation"
+        title="Capture view"
         detail={selectedRankingPeriod?.label}
       >
         <PresentationMode
@@ -3632,7 +3632,7 @@ function HomeView({
 
       <ContentSection
         eyebrow="Ranking"
-        title="Ranking benchmark"
+        title="Benchmark ranking"
         detail={selectedRankingPeriod?.label || rankingSortLabel}
       >
         <BenchmarkRankingPanel
@@ -3645,7 +3645,7 @@ function HomeView({
 
       <ContentSection
         eyebrow="Insights"
-        title="Senales adicionales"
+        title="Additional signals"
         detail={selectedRankingPeriod?.label}
       >
         <InsightFeed items={insightItems} />
@@ -3653,7 +3653,7 @@ function HomeView({
 
       <ContentSection
         eyebrow="Forecast"
-        title="Forecast de mercado"
+        title="Market forecast"
         detail={forecastScenarioLabel}
         action={
           <ForecastControls
@@ -3677,8 +3677,8 @@ function HomeView({
           />
         ) : (
           <EmptyState
-            title="No hay forecast para esta selección."
-            message="Cambia escenario o mercado para ver el horizonte disponible."
+            title="No forecast for this selection."
+            message="Change the scenario or market to see the available horizon."
           />
         )}
       </ContentSection>
@@ -3693,39 +3693,39 @@ function ProfileKpis({ row, company }) {
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
       <KpiCard
-        label="Facturación"
+        label="Revenue"
         value={formatCurrency(row?.revenue)}
         detail={row?.period_display_label}
         accentColor={accentColor}
       />
       <KpiCard
-        label="Visitas"
+        label="Visits"
         value={formatCompact(row?.visits)}
         detail={row?.period_display_label}
         accentColor={accentColor}
       />
       <KpiCard
-        label="Cuota facturación"
+        label="Revenue share"
         value={formatPercent(row?.market_share_revenue)}
         detail="Share"
         accentColor={accentColor}
       />
       <KpiCard
-        label="Cuota visitas"
+        label="Visit share"
         value={formatPercent(row?.market_share_visits)}
         detail="Share"
         accentColor={accentColor}
       />
       <KpiCard
-        label="Ranking facturación"
+        label="Revenue ranking"
         value={formatMetric(row?.rank_revenue, "rank_revenue")}
         detail="Ranking"
         accentColor={accentColor}
       />
       <KpiCard
-        label="Revenue por visita"
+        label="Revenue per visit"
         value={formatCurrencyDecimal(row?.revenue_per_visit)}
-        detail="Eficiencia"
+        detail="Efficiency"
         accentColor={accentColor}
       />
     </section>
@@ -3762,7 +3762,7 @@ function ProfileView({
   const hasSelectedCompanyOption = companies.some((company) =>
     sameCompany(company.id, selectedCompanyId),
   );
-  const companyTitle = selectedCompany?.label || selectedCompanyId || "Empresa";
+  const companyTitle = selectedCompany?.label || selectedCompanyId || "Company";
   const profileChartItems = useMemo(
     () =>
       PROFILE_CHARTS.map((chart) => {
@@ -3785,7 +3785,7 @@ function ProfileView({
     [selectedCompanyId],
   );
   const profileVisibility = useCompanyVisibility(profileLegendSeries, selectedCompanyDefault);
-  const chartRangeLabel = chartRangeMode === "year" ? selectedChartYear || "Año" : "All time";
+  const chartRangeLabel = chartRangeMode === "year" ? selectedChartYear || "Year" : "All time";
 
   return (
     <div className="space-y-6">
@@ -3793,7 +3793,7 @@ function ProfileView({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <button type="button" className="section-link" onClick={onBack}>
-              Volver al benchmark
+              Back to benchmark
             </button>
             <div className="mt-5 flex items-center gap-3">
               <CompanyMark
@@ -3803,20 +3803,20 @@ function ProfileView({
                 className="company-mark-profile"
               />
               <div>
-                <p className="analysis-label">Ficha individual</p>
+                <p className="analysis-label">Company profile</p>
                 <h2 className="mt-1 text-3xl font-semibold text-black">
                   {companyTitle}
                 </h2>
               </div>
             </div>
             <p className="mt-3 text-sm text-neutral-600">
-              Lectura individual para {selectedPeriod?.label || "el período seleccionado"}.
+              Individual view for {selectedPeriod?.label || "the selected period"}.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-[1fr_auto] lg:min-w-[520px]">
             <SelectField
-              label="Cambiar ficha"
+              label="Change profile"
               value={selectedCompanyId}
               onChange={onSelectedCompanyChange}
               disabled={!companies.length}
@@ -3832,7 +3832,7 @@ function ProfileView({
             </SelectField>
 
             <div className="rounded-sm border border-black/10 bg-[#fbf8f5] px-4 py-3">
-              <p className="analysis-label">Período</p>
+              <p className="analysis-label">Period</p>
               <div className="mt-2 flex items-center gap-2">
                 <p className="font-semibold text-black">{selectedPeriod?.label || "N/A"}</p>
               </div>
@@ -3845,14 +3845,14 @@ function ProfileView({
         <ProfileKpis row={selectedPeriodRow} company={selectedCompany} />
       ) : (
         <EmptyState
-          title="No hay datos para el competidor seleccionado."
-          message="Vuelve al benchmark y cambia el período o selecciona otra empresa disponible."
+          title="No data for the selected competitor."
+          message="Return to the benchmark and change the period or select another available company."
         />
       )}
 
       <ContentSection
-        eyebrow="Gráficas"
-        title="Gráficas de ficha"
+        eyebrow="Charts"
+        title="Company charts"
         detail={chartRangeLabel}
         action={
           <ChartRangeControls
@@ -3886,7 +3886,7 @@ function ProfileView({
               metricKey={chart.metricKey}
               series={chart.series}
               chartData={chart.chartData}
-              emptyTitle={`No hay datos suficientes para ${chart.title}.`}
+              emptyTitle={`Not enough data for ${chart.title}.`}
               hiddenCompanyIds={profileVisibility.hiddenCompanyIds}
             />
           ))}
