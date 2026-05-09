@@ -1,0 +1,27 @@
+{
+  "name": "benchmark-dashboard-template",
+  "private": true,
+  "version": "0.2.0",
+  "packageManager": "pnpm@10.33.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "demo:data": "node scripts/generate-demo-data.mjs",
+    "audit:public": "node scripts/audit-public-ready.mjs",
+    "prepublish:public": "pnpm demo:data && pnpm build && pnpm audit:public"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^3.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}
