@@ -200,7 +200,7 @@ Checks the entire repository (excluding `node_modules`, `dist`, `.git`, `.tools`
 | Output directory | `dist` |
 | Environment variables | None required for demo mode |
 
-Set `VITE_BENCHMARK_API_URL` in Vercel's environment settings only if you want to connect a live data source.
+Set `VITE_BENCHMARK_API_URL` in Vercel's environment settings only if you want to connect a live data source. Only add it if your endpoint serves public-safe or mock data — do not point a public deployment at a private or client-connected endpoint.
 
 ---
 
@@ -217,9 +217,15 @@ Set `VITE_BENCHMARK_API_URL` in Vercel's environment settings only if you want t
 
 ---
 
-## Portfolio note
+## Portfolio usage
 
-This project is designed as a public-safe portfolio version of a data dashboard pattern. The structure demonstrates product thinking, dashboard UX, data normalization, and deployment readiness without exposing confidential data.
+This repository is designed for public GitHub hosting and portfolio presentation.
+
+- The GitHub repository can be made public as-is.
+- A portfolio website can showcase screenshots, the architecture, the README, and optionally a live demo link.
+- A Vercel deployment is optional. If you deploy it, use the demo mode (no `VITE_BENCHMARK_API_URL` set) so the deployment only serves synthetic data.
+- Do not link a deployment that is connected to private or client data.
+- If using a live demo link publicly, confirm it uses mock/synthetic data only.
 
 > Built an unbranded benchmark dashboard template that converts spreadsheet/API/database exports into an executive intelligence interface with ranking, share, growth, forecast, and event-analysis views. The public version uses synthetic data while preserving the reusable data contract and connector architecture.
 
@@ -227,7 +233,7 @@ This project is designed as a public-safe portfolio version of a data dashboard 
 
 ## License
 
-Add your preferred license before publishing.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
