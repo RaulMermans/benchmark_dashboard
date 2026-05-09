@@ -43,14 +43,14 @@ The dashboard ingests a normalized JSON payload and renders:
 
 ## Tech stack
 
-| Layer | Library |
-|---|---|
-| UI framework | React 19 |
-| Build tool | Vite 7 |
-| Styling | Tailwind CSS 3 |
-| Charts | Recharts 3 |
-| Data | Local JSON fallback or live API endpoint |
-| Deployment | Vercel (zero config) |
+| Layer         | Library                              |
+| ------------- | ------------------------------------ |
+| UI framework  | React 19                             |
+| Build tool    | Vite 7                               |
+| Styling       | Tailwind CSS 3                       |
+| Charts        | Recharts 3                           |
+| Data          | Local JSON fallback or live API endpoint |
+| Deployment    | Vercel (zero config)                 |
 
 ---
 
@@ -82,22 +82,22 @@ The app loads data through `src/lib/api.js` with a two-step strategy:
 
 ### Required fields in `data.interface[]`
 
-| Field | Type | Notes |
-|---|---|---|
-| `date` | string | `YYYY-MM-DD` |
-| `period_type` | string | `monthly`, `quarterly`, or `annual` |
-| `company_id` | string | Stable lowercase identifier |
-| `display_name` | string | Label shown in UI |
-| `type` | string | `competitor` or `benchmark` |
-| `market` | string | Market or filter label |
-| `revenue` | number / null | Optional metric |
-| `visits` | number / null | Optional metric |
-| `market_share_revenue` | number / null | Decimal, e.g. `0.18` |
-| `market_share_visits` | number / null | Decimal, e.g. `0.18` |
-| `revenue_yoy_growth` | number / null | Decimal, e.g. `0.12` |
-| `visits_yoy_growth` | number / null | Decimal, e.g. `0.12` |
-| `data_type` | string | `estimated`, `actual`, or `forecast` |
-| `forecast_scenario` | string | Optional: `base_case`, `aggressive`, `conservative` |
+| Field                   | Type          | Notes                                         |
+| ----------------------- | ------------- | --------------------------------------------- |
+| `date`                  | string        | `YYYY-MM-DD`                                  |
+| `period_type`           | string        | `monthly`, `quarterly`, or `annual`           |
+| `company_id`            | string        | Stable lowercase identifier                   |
+| `display_name`          | string        | Label shown in UI                             |
+| `type`                  | string        | `competitor` or `benchmark`                   |
+| `market`                | string        | Market or filter label                        |
+| `revenue`               | number / null | Optional metric                               |
+| `visits`                | number / null | Optional metric                               |
+| `market_share_revenue`  | number / null | Decimal, e.g. `0.18`                          |
+| `market_share_visits`   | number / null | Decimal, e.g. `0.18`                          |
+| `revenue_yoy_growth`    | number / null | Decimal, e.g. `0.12`                          |
+| `visits_yoy_growth`     | number / null | Decimal, e.g. `0.12`                          |
+| `data_type`             | string        | `estimated`, `actual`, or `forecast`          |
+| `forecast_scenario`     | string        | Optional: `base_case`, `aggressive`, `conservative` |
 
 Extra fields (ranks, MoM growth, share movement, indexed values, event signals, colors) are used when present. Field names can be adapted in the normalization layer (`src/lib/data.js`).
 
@@ -133,9 +133,9 @@ Schedule a warehouse query (BigQuery, Snowflake, Redshift, DuckDB) to write a JS
 
 ## Environment variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `VITE_BENCHMARK_API_URL` | No | Live JSON endpoint. If absent, the app uses local mock data. |
+| Variable                 | Required | Description                                             |
+| ------------------------ | -------- | ------------------------------------------------------- |
+| `VITE_BENCHMARK_API_URL` | No       | Live JSON endpoint. If absent, the app uses local mock data. |
 
 Create a `.env.local` file (never committed):
 
@@ -178,27 +178,27 @@ Checks the entire repository (excluding `node_modules`, `dist`, `.git`, `.tools`
 
 ## Scripts
 
-| Script | Purpose |
-|---|---|
-| `pnpm dev` | Start the dev server |
-| `pnpm build` | Build the static app |
-| `pnpm preview` | Preview the production build locally |
-| `pnpm demo:data` | Regenerate the seeded synthetic data snapshot |
-| `pnpm audit:public` | Check for private/internal references |
-| `pnpm prepublish:public` | Full pre-publish run: demo data → build → audit |
+| Script                    | Purpose                                            |
+| ------------------------- | -------------------------------------------------- |
+| `pnpm dev`                | Start the dev server                               |
+| `pnpm build`              | Build the static app                               |
+| `pnpm preview`            | Preview the production build locally               |
+| `pnpm demo:data`          | Regenerate the seeded synthetic data snapshot      |
+| `pnpm audit:public`       | Check for private/internal references              |
+| `pnpm prepublish:public`  | Full pre-publish run: demo data → build → audit    |
 
 ---
 
 ## Vercel deployment
 
-| Setting | Value |
-|---|---|
-| Framework preset | Vite |
-| Root directory | `./` |
-| Install command | `pnpm install --frozen-lockfile` |
-| Build command | `pnpm demo:data && pnpm build` |
-| Output directory | `dist` |
-| Environment variables | None required for demo mode |
+| Setting               | Value                              |
+| --------------------- | ---------------------------------- |
+| Framework preset      | Vite                               |
+| Root directory        | `./`                               |
+| Install command       | `pnpm install --frozen-lockfile`   |
+| Build command         | `pnpm demo:data && pnpm build`     |
+| Output directory      | `dist`                             |
+| Environment variables | None required for demo mode        |
 
 Set `VITE_BENCHMARK_API_URL` in Vercel's environment settings only if you want to connect a live data source. Only add it if your endpoint serves public-safe or mock data — do not point a public deployment at a private or client-connected endpoint.
 
@@ -206,14 +206,14 @@ Set `VITE_BENCHMARK_API_URL` in Vercel's environment settings only if you want t
 
 ## Customization
 
-| What | Where |
-|---|---|
-| Demo entities and peers | `scripts/generate-demo-data.mjs` → `companies` array |
-| Metrics and field names | `src/lib/data.js` → normalization layer |
-| Brand colors | `src/lib/brandTokens.js`, `src/lib/companyColors.js` |
-| Chart labels and copy | `src/App.jsx` → `RANKING_SORTS`, `EXECUTIVE_METRIC_LABELS`, etc. |
-| Currency and locale | `src/lib/formatters.js` |
-| Data adapter / connector | `src/lib/api.js` |
+| What                      | Where                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| Demo entities and peers   | `scripts/generate-demo-data.mjs` → `companies` array              |
+| Metrics and field names   | `src/lib/data.js` → normalization layer                            |
+| Brand colors              | `src/lib/brandTokens.js`, `src/lib/companyColors.js`              |
+| Chart labels and copy     | `src/App.jsx` → `RANKING_SORTS`, `EXECUTIVE_METRIC_LABELS`, etc.  |
+| Currency and locale       | `src/lib/formatters.js`                                            |
+| Data adapter / connector  | `src/lib/api.js`                                                   |
 
 ---
 
