@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 const root=process.cwd();
-const skipDirs=new Set([".git","node_modules","dist",".tools"]);
+const skipDirs=new Set([".git","node_modules","dist",".tools",".codex"]);
 const skipFiles=new Set(["scripts/audit-public-ready.mjs"]);
 const textExtensions=[".js",".jsx",".json",".md",".css",".html",".env",".example",".txt",".svg"];
 const decode=v=>Buffer.from(v,"base64").toString("utf8");

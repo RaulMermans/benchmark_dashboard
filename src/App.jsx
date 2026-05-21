@@ -21,6 +21,9 @@ import {
 } from "recharts";
 import KpiCard from "./components/KpiCard";
 import Panel from "./components/Panel";
+import { defaultBenchmarkConfig as benchmarkDashboardConfig } from "./framework/config/defaultBenchmarkConfig.js";
+import { buildBenchmarkDataset } from "./framework/core/buildBenchmarkDataset.js";
+import { buildRankingViewModel } from "./framework/view-models/buildRankingViewModel.js";
 import { loadBenchmarkData } from "./lib/api.js";
 import { getCompanyLogoSrc } from "./lib/companyLogos.js";
 import {
@@ -51,8 +54,8 @@ import {
   safeNumber,
 } from "./lib/formatters.js";
 
-const OWN_COMPANY_ID = "focus";
-const MARKET_BENCHMARK_ID = "market_average";
+const OWN_COMPANY_ID = benchmarkDashboardConfig.ownCompanyId;
+const MARKET_BENCHMARK_ID = benchmarkDashboardConfig.benchmarkCompanyId;
 const CORE_RACE_COMPANY_IDS = [OWN_COMPANY_ID, "peer_a", "peer_b", MARKET_BENCHMARK_ID];
 const BATTLE_TARGET_IDS = ["peer_a", "peer_b", MARKET_BENCHMARK_ID];
 
@@ -66,7 +69,22 @@ const PERIOD_TYPE_LABELS = {
 const DASHBOARD_PERIOD_TYPE_ORDER = ["monthly", "quarterly", "annual"];
 const FORECAST_SCENARIO_ORDER = ["base_case", "aggressive", "conservative"];
 
-const RANKING_SORTS = [
+const RANKING_SORTS = benchmarkDashboardConfig.metrics.map((metric) => ({
+  key: metric.key,
+  label: metric.label,
+})).filter((metric) => [
+  "revenue",
+  "visits",
+  "market_share_revenue",
+  "market_share_visits",
+  "revenue_per_visit",
+  "revenue_mom_growth",
+  "visits_mom_growth",
+  "revenue_yoy_growth",
+  "visits_yoy_growth",
+].includes(metric.key));
+
+const FALLBACK_RANKING_SORTS = [
   { key: "revenue", label: "Revenue" },
   { key: "visits", label: "Visits" },
   { key: "market_share_revenue", label: "Revenue share" },
@@ -77,6 +95,8 @@ const RANKING_SORTS = [
   { key: "revenue_yoy_growth", label: "Revenue growth YoY" },
   { key: "visits_yoy_growth", label: "Visit growth YoY" },
 ];
+
+if (!RANKING_SORTS.length) RANKING_SORTS.push(...FALLBACK_RANKING_SORTS);
 
 const HOME_HASH = "#/benchmark";
 const FORECAST_HASH = "#/forecast";
@@ -470,7 +490,7 @@ function StatusShell({ title, message }) {
   return (
     <main className="app-shell">
       <div className="mx-auto max-w-3xl">
-        <Panel eyebrow="Benchmark Intelligence" title="Benchmark Dashboard">
+        <Panel eyebrow="Benchmark Intelligence" title={benchmarkDashboardConfig.title}>
           <EmptyState title={title} message={message} />
         </Panel>
       </div>
@@ -643,7 +663,7 @@ function SingleMetricTooltip({ active, payload = [], metricKey, totalValue = nul
         </span>
         <span className="chart-tooltip-value">
           {isGrowthMetric(metricKey) ? formatSignedPercent(value) : formatMetric(value, metricKey)}
-          {share !== null ? ` · ${formatPercent(share)}` : ""}
+          {share !== null ? ` - ${formatPercent(share)}` : ""}
         </span>
       </div>
       {hasGrowthBreakdown && (
@@ -2235,7 +2255,7 @@ function ForecastPreview({ forecastRows, forecastScenarioLabel, onOpenForecast }
       <span className="forecast-entry-copy">
         <span className="forecast-entry-title">Market Forecast</span>
         <span className="forecast-entry-detail">
-          {horizonLabel} · {forecastCompanies.length} companies · Scenario: {forecastScenarioLabel}
+          {horizonLabel} - {forecastCompanies.length} companies - Scenario: {forecastScenarioLabel}
         </span>
       </span>
       <span className="forecast-entry-metric">
@@ -3910,7 +3930,7 @@ export default function App() {
   const [chartMarket, setChartMarket] = useState("");
   const [chartRangeMode, setChartRangeMode] = useState("all");
   const [selectedChartYear, setSelectedChartYear] = useState("");
-  const [rankingSort, setRankingSort] = useState("revenue");
+  const [rankingSort, setRankingSort] = useState(benchmarkDashboardConfig.defaultMetric);
   const [forecastScenario, setForecastScenario] = useState("base_case");
   const [selectedCompanyId, setSelectedCompanyId] = useState(OWN_COMPANY_ID);
 
@@ -3920,7 +3940,7 @@ export default function App() {
     loadBenchmarkData()
       .then((json) => {
         if (!isMounted) return;
-        setPayload(json);
+        setPayload(buildBenchmarkDataset(json, benchmarkDashboardConfig));
         setStatus("ready");
       })
       .catch((apiError) => {
@@ -4031,7 +4051,11 @@ export default function App() {
     }
 
     if (!rankingMarket || !rankingMarkets.includes(rankingMarket)) {
-      setRankingMarket(rankingMarkets[0]);
+      setRankingMarket(
+        rankingMarkets.includes(benchmarkDashboardConfig.defaultMarket)
+          ? benchmarkDashboardConfig.defaultMarket
+          : rankingMarkets[0],
+      );
     }
   }, [rankingMarket, rankingMarkets]);
 
@@ -4142,7 +4166,11 @@ export default function App() {
     }
 
     if (!chartMarket || !chartMarkets.includes(chartMarket)) {
-      setChartMarket(chartMarkets[0]);
+      setChartMarket(
+        chartMarkets.includes(benchmarkDashboardConfig.defaultMarket)
+          ? benchmarkDashboardConfig.defaultMarket
+          : chartMarkets[0],
+      );
     }
   }, [chartMarket, chartMarkets]);
 
@@ -4216,7 +4244,11 @@ export default function App() {
     }
 
     if (!forecastMarket || !forecastMarkets.includes(forecastMarket)) {
-      setForecastMarket(forecastMarkets[0]);
+      setForecastMarket(
+        forecastMarkets.includes(benchmarkDashboardConfig.defaultMarket)
+          ? benchmarkDashboardConfig.defaultMarket
+          : forecastMarkets[0],
+      );
     }
   }, [forecastMarket, forecastMarkets]);
 
@@ -4261,7 +4293,10 @@ export default function App() {
   }, [companies, route.companyId, route.view, selectedCompanyId]);
 
   const rankingRows = useMemo(
-    () => getRankingRows(rankingPeriodRows, rankingSort),
+    () =>
+      buildRankingViewModel(rankingPeriodRows, benchmarkDashboardConfig, {
+        metric: rankingSort,
+      }).rows,
     [rankingPeriodRows, rankingSort],
   );
   const selectedCompany = useMemo(
