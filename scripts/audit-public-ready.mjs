@@ -19,14 +19,16 @@ const forbiddenTerms = [
   "AK" + "fy",
   "Apps" + " Script",
 ];
-const forbiddenPathParts = [".env.local", "node_modules", ".git", ".codex", ".tools", "dist"];
+// Directories/files to skip silently — expected artifacts, not violations.
+const skipSilently = [".git", "node_modules", "dist"];
+// Directories/files whose presence is a violation (proprietary tooling, secrets).
+const forbiddenPaths = [".env.local", ".codex", ".tools"];
 const skipExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".svg", ".lock"]);
 const findings = [];
 
-function shouldSkipPath(rel) {
+function matchesPathList(rel, list) {
   const normalized = rel.split(path.sep).join("/");
-  if (normalized === "scripts/audit-public-ready.mjs") return true;
-  return forbiddenPathParts.some((part) => normalized === part || normalized.startsWith(`${part}/`) || normalized.includes(`/${part}/`));
+  return list.some((part) => normalized === part || normalized.startsWith(`${part}/`) || normalized.includes(`/${part}/`));
 }
 
 function walk(dir) {
@@ -35,12 +37,14 @@ function walk(dir) {
     const rel = path.relative(root, full);
     const normalized = rel.split(path.sep).join("/");
     if (entry.isDirectory()) {
-      if (shouldSkipPath(rel)) findings.push(`Forbidden directory present: ${normalized}`);
-      else walk(full);
+      if (matchesPathList(rel, skipSilently)) continue;
+      if (matchesPathList(rel, forbiddenPaths)) { findings.push(`Forbidden directory present: ${normalized}`); continue; }
+      walk(full);
       continue;
     }
     if (normalized === "scripts/audit-public-ready.mjs") continue;
-    if (shouldSkipPath(rel) || entry.name.toLowerCase().endsWith(".zip")) {
+    if (matchesPathList(rel, skipSilently)) continue;
+    if (matchesPathList(rel, forbiddenPaths) || entry.name.toLowerCase().endsWith(".zip")) {
       findings.push(`Forbidden file present: ${normalized}`);
       continue;
     }
