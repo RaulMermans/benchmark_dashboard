@@ -37,5 +37,11 @@ jobs:
       - name: Public-readiness audit (no real client data)
         run: pnpm audit:public
 
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
       - name: Build
         run: pnpm build

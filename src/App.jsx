@@ -27,7 +27,6 @@ import {
   buildAggregatedRowsFromMonthly,
   buildMonthDate,
   filterInterfaceRows,
-  getAvailableAnnualPeriods,
   getAvailableMonthsForYear,
   getAvailablePeriods,
   getAvailableRangeBounds,
@@ -39,7 +38,6 @@ import {
   getMarkets,
   getPeriodTypes,
   getRankingRows,
-  getRowsForAnnualPeriod,
   getRowsForPeriod,
   getUniqueCompanies,
   groupSeriesByCompetitor,
@@ -186,14 +184,7 @@ const PROFILE_HASH_PREFIX = "#/empresa/";
 const FOCUS_LOGO_SRC = "";
 const EMPTY_HIDDEN_COMPANY_IDS = new Set();
 const BATTLE_TECHNICAL_DRAW_THRESHOLD = 0.02;
-const FORECAST_CAVEAT_COPY = "Proyección basada en histórico estimado. No representa dato observado.";
 
-const PROFILE_CHARTS = [
-  { metricKey: "visits", title: "Evolución de visitas" },
-  { metricKey: "revenue", title: "Evolución de facturación" },
-  { metricKey: "market_share_visits", title: "Evolución cuota de visitas" },
-  { metricKey: "revenue_per_visit", title: "Evolución facturación por visita" },
-];
 const PROFILE_CHART_TABS = [
   {
     key: "revenue",
@@ -549,7 +540,7 @@ function filterRowsWithMetrics(rows = [], metricKeys = [], requireAll = true) {
   });
 }
 
-function getDashboardPeriodTypes(rows = [], sourcePeriodTypes = []) {
+function _getDashboardPeriodTypes(_rows = [], sourcePeriodTypes = []) {
   const periodTypeSet = new Set(sourcePeriodTypes);
 
   return Array.from(periodTypeSet).sort((a, b) => {
@@ -562,14 +553,6 @@ function getDashboardPeriodTypes(rows = [], sourcePeriodTypes = []) {
   });
 }
 
-function getRankingPeriodTypes(rows = [], sourcePeriodTypes = [], sortKey = "") {
-  const periodTypes = getDashboardPeriodTypes(rows, sourcePeriodTypes);
-
-  if (!isMoMGrowthMetric(sortKey)) return periodTypes;
-
-  const monthlyTypes = periodTypes.filter((type) => type === "monthly");
-  return monthlyTypes.length ? monthlyTypes : periodTypes;
-}
 
 function getSourcePeriodType(periodType, sourcePeriodTypes = []) {
   if (sourcePeriodTypes.includes(periodType)) return periodType;
@@ -1212,7 +1195,7 @@ function getTimeSelectionDates(selection = {}) {
   };
 }
 
-function buildSelectedPeriod(selection = {}) {
+function _buildSelectedPeriod(selection = {}) {
   const { startDate, endDate } = getTimeSelectionDates(selection);
   const selectedTimeMode = normalizeTimeMode(
     selection.timeMode || selection.selectedTimeMode || selection.periodType,
@@ -1461,9 +1444,6 @@ function buildRowsForPeriod(rows = [], context = {}, metricRequirement = "any", 
   }));
 }
 
-function buildRowsForGlobalPeriod(rows = [], globalPeriod = {}, options = {}) {
-  return buildRowsForPeriod(rows, globalPeriod, "any", options);
-}
 
 function buildRowsForTimeSelection(rows = [], selection = {}, options = {}) {
   const {
@@ -3029,7 +3009,7 @@ function TemporalControls({
   );
 }
 
-function RankingControls({
+function _RankingControls({
   market,
   onMarketChange,
   markets,
@@ -4811,9 +4791,9 @@ function ForecastDetailView({
   forecastMarket,
   onForecastMarketChange,
   forecastMarkets,
-  forecastPeriodType,
-  onForecastPeriodTypeChange,
-  forecastPeriodTypes,
+  forecastPeriodType: _forecastPeriodType,
+  onForecastPeriodTypeChange: _onForecastPeriodTypeChange,
+  forecastPeriodTypes: _forecastPeriodTypes,
   onBack,
   onOpenProfile,
 }) {
@@ -4961,7 +4941,7 @@ function ForecastDetailView({
     () => getRowsForPeriod(selectedForecastMonthlyRows, lastSelectedForecastPeriod?.key),
     [lastSelectedForecastPeriod?.key, selectedForecastMonthlyRows],
   );
-  const forecastCompanies = useMemo(
+  const _forecastCompanies = useMemo(
     () => getUniqueCompanies(forecastRows, { includeForecasts: true }),
     [forecastRows],
   );
@@ -5567,7 +5547,7 @@ function getVisibleTimeSeriesWindow(rows = [], context = {}, metricKey = "indexe
   };
 }
 
-function buildIndexedSeries(rows = [], options = {}) {
+function _buildIndexedSeries(rows = [], options = {}) {
   const {
     metric = "indexed_visits",
     context = {},
@@ -5656,7 +5636,7 @@ function buildIndexedSeries(rows = [], options = {}) {
   };
 }
 
-function getIndexedAxisTicks(chartData = [], series = []) {
+function _getIndexedAxisTicks(chartData = [], series = []) {
   const companyIds = new Set(series.map((companySeries) => companySeries.company_id));
   const values = chartData.flatMap((row) =>
     Array.from(companyIds)
@@ -7092,7 +7072,7 @@ function buildBattleRound({
     ? aNumber === bNumber
     : relativeDiff !== null && relativeDiff < BATTLE_TECHNICAL_DRAW_THRESHOLD;
   const aWins = !technicalDraw && (lowerIsBetter ? aNumber < bNumber : aNumber > bNumber);
-  const bWins = !technicalDraw && !aWins;
+  const _bWins = !technicalDraw && !aWins;
   const winnerLabel = technicalDraw ? "Empate técnico" : aWins ? aLabel : bLabel;
   const gapValue = Math.abs(aNumber - bNumber);
   const metric = { key: metricKey, deltaType };
@@ -7995,6 +7975,7 @@ function getBattleShare(baseValue, targetValue) {
   return Math.max(8, Math.min(92, (Math.abs(baseNumber) / total) * 100));
 }
 
+// eslint-disable-next-line no-unused-vars
 function ProfileBattleCard({
   rows = [],
   companies = [],
@@ -8262,7 +8243,7 @@ function getPresentationChartMetricKey(rows = [], snapshot = {}) {
   );
 }
 
-function getPresentationChartCopy(metricKey) {
+function _getPresentationChartCopy(metricKey) {
   const growthDescription =
     "Barras por año. Cada barra compara el crecimiento frente al año anterior; los años parciales usan los mismos meses disponibles.";
 
@@ -8690,7 +8671,7 @@ function HomeView({
   selectedChartYear,
   chartYearOptions,
   onOpenBattleArena,
-  onOpenForecast,
+  onOpenForecast: _onOpenForecast,
   onOpenProfile,
 }) {
   const dashboardScope = globalScope ?? {};
@@ -8752,7 +8733,7 @@ function HomeView({
     () => filterRowsWithMetrics(comparableRows, DASHBOARD_CHART_METRICS, false),
     [comparableRows],
   );
-  const chartRows = useMemo(
+  const _chartRows = useMemo(
     () =>
       filterRowsForTimeSeries(chartSelectableRows, dashboardScope.timeSelection, {
         market: dashboardScope.market,
@@ -10641,7 +10622,7 @@ function getProfileKpiComparison(row = {}, periodRows = [], metricKey = "") {
   };
 }
 
-function ProfileKpis({ row, company, periodRows = [], periodLabel = "" }) {
+function ProfileKpis({ row, company, periodRows = [], periodLabel: _periodLabel = "" }) {
   const accentColor = row?.company_color || company?.company_color || "#E4032C";
   const kpis = PROFILE_KPI_DEFINITIONS.map((definition) => {
     const value = safeNumber(row?.[definition.key]);
