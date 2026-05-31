@@ -1,42 +1,15 @@
-import { getSortValue, isForecastRow, safeNumber } from "../core/benchmarkUtils.js";
+import { isBenchmarkRow, safeNumber } from "../core/helpers.js";
 
-const SHARE_FIELDS = ["market_share_revenue", "market_share_visits"];
-
-export function buildMarketShareViewModel(rows = [], config = {}, options = {}) {
-  const metric = options.metric || "market_share_revenue";
-  const includeForecasts = options.includeForecasts ?? false;
-  const seriesMap = new Map();
-
-  rows
-    .filter((row) => SHARE_FIELDS.includes(metric) && (includeForecasts || !isForecastRow(row)))
-    .forEach((row) => {
-      const value = safeNumber(row?.[metric]);
-      if (value === null) return;
-
-      const key = row.company_id;
-      const current =
-        seriesMap.get(key) ??
-        {
-          company_id: row.company_id,
-          display_name: row.display_name || row.company_name || row.company_id,
-          color: row.company_color || row.color,
-          points: [],
-        };
-
-      current.points.push({
-        date: row.date,
-        label: row.period_label || row.date,
-        value,
-        sortValue: getSortValue(row),
-      });
-      seriesMap.set(key, current);
-    });
-
-  return {
-    metric,
-    series: Array.from(seriesMap.values()).map((series) => ({
-      ...series,
-      points: series.points.sort((a, b) => a.sortValue - b.sortValue),
-    })),
-  };
+export function buildMarketShareViewModel(rows = [], config = {}) {
+  const shareMetric = config.shareMetric || (config.defaultMetric === "visits" ? "market_share_visits" : "market_share_revenue");
+  return rows
+    .filter((row) => !isBenchmarkRow(row, config) && safeNumber(row[shareMetric]) !== null)
+    .sort((a, b) => safeNumber(b[shareMetric]) - safeNumber(a[shareMetric]))
+    .map((row) => ({
+      companyId: row.company_id,
+      label: row.display_name,
+      share: safeNumber(row[shareMetric]),
+      color: row.color,
+      row,
+    }));
 }

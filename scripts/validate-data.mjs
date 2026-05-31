@@ -1,41 +1,27 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import fs from "node:fs";
+import path from "node:path";
 import { validateBenchmarkPayload } from "../src/framework/schema/validateBenchmarkPayload.js";
 
-const dataPath = join(process.cwd(), "public", "data", "benchmark-data.json");
+const filePath = path.resolve("public/data/benchmark-data.json");
+const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
+const result = validateBenchmarkPayload(payload);
 
-function printIssues(label, issues) {
-  if (!issues.length) return;
-  console.log(`\n${label}:`);
-  issues.forEach((issue) => {
-    const path = issue.path ? ` (${issue.path})` : "";
-    console.log(`- [${issue.code}] ${issue.message}${path}`);
-  });
+console.log("Benchmark data validation");
+console.log(`Valid: ${result.valid ? "yes" : "no"}`);
+console.log(`Rows: ${result.summary.rowCount}`);
+console.log(`Companies: ${result.summary.companyCount}`);
+console.log(`Markets: ${result.summary.markets.join(", ") || "none"}`);
+console.log(`Date range: ${result.summary.dateRange?.start || "n/a"} to ${result.summary.dateRange?.end || "n/a"}`);
+console.log(`Forecasts: ${result.summary.hasForecasts ? "yes" : "no"}`);
+console.log(`Events: ${result.summary.hasEvents ? "yes" : "no"}`);
+
+if (result.warnings.length) {
+  console.warn("Warnings:");
+  result.warnings.forEach((warning) => console.warn(`- ${warning}`));
 }
-
-let payload;
-
-try {
-  payload = JSON.parse(readFileSync(dataPath, "utf8"));
-} catch (error) {
-  console.error(`Could not read ${dataPath}: ${error.message}`);
+if (result.errors.length) {
+  console.error("Errors:");
+  result.errors.slice(0, 50).forEach((error) => console.error(`- ${error}`));
+  if (result.errors.length > 50) console.error(`... ${result.errors.length - 50} more errors`);
   process.exit(1);
 }
-
-const result = validateBenchmarkPayload(payload);
-const { summary } = result;
-
-console.log("Benchmark data validation report");
-console.log(`- File: ${dataPath}`);
-console.log(`- Valid: ${result.valid ? "yes" : "no"}`);
-console.log(`- Rows: ${summary.rowCount}`);
-console.log(`- Companies: ${summary.companyCount}`);
-console.log(`- Markets: ${summary.markets.join(", ") || "N/A"}`);
-console.log(`- Date range: ${summary.dateRange.start || "N/A"} to ${summary.dateRange.end || "N/A"}`);
-console.log(`- Forecasts: ${summary.hasForecasts ? "yes" : "no"}`);
-console.log(`- Events: ${summary.hasEvents ? "yes" : "no"}`);
-
-printIssues("Warnings", result.warnings);
-printIssues("Errors", result.errors);
-
-process.exit(result.valid ? 0 : 1);

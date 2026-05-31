@@ -1,26 +1,17 @@
-import { getPeriodKey, groupRows, isBenchmarkRow, safeNumber, shouldWriteDerived } from "./benchmarkUtils.js";
+import { groupBy, isBenchmarkRow, safeNumber } from "./helpers.js";
 
 export function calculateRanks(rows = [], metric = "revenue", options = {}) {
-  const rankField = options.rankField || `rank_${metric.replace(/^market_share_/, "share_")}`;
-  const preserveExisting = options.preserveExisting ?? true;
-  const includeBenchmark = options.includeBenchmark ?? false;
-  const direction = options.direction || "desc";
-  const nextRows = rows.map((row) => ({ ...row }));
-  const groups = groupRows(nextRows, getPeriodKey);
+  const rankField = metric === "visits" ? "rank_visits" : "rank_revenue";
+  const includeBenchmark = options.includeBenchmarkInRanks === true;
+  const groups = groupBy(rows, (row) => [row.date, row.market, row.data_type, row.forecast_scenario || ""].join("|"));
+  const rankMap = new Map();
 
-  groups.forEach((groupRowsForPeriod) => {
-    const rankedRows = groupRowsForPeriod
-      .filter((row) => includeBenchmark || !isBenchmarkRow(row))
-      .filter((row) => safeNumber(row?.[metric]) !== null)
-      .sort((a, b) => {
-        const diff = (safeNumber(a?.[metric]) ?? 0) - (safeNumber(b?.[metric]) ?? 0);
-        return direction === "asc" ? diff : -diff;
-      });
-
-    rankedRows.forEach((row, index) => {
-      if (shouldWriteDerived(row, rankField, preserveExisting)) row[rankField] = index + 1;
-    });
+  groups.forEach((group) => {
+    const ranked = group
+      .filter((row) => (includeBenchmark || !isBenchmarkRow(row, options)) && safeNumber(row[metric]) !== null)
+      .sort((a, b) => safeNumber(b[metric]) - safeNumber(a[metric]));
+    ranked.forEach((row, index) => rankMap.set(row, index + 1));
   });
 
-  return nextRows;
+  return rows.map((row) => ({ ...row, [rankField]: rankMap.get(row) ?? row[rankField] ?? null }));
 }

@@ -8,7 +8,7 @@ export function safeNumber(value) {
     .trim()
     .replace(/\s/g, "")
     .replace(/%/g, "")
-    .replace(/[$€£]/g, "");
+    .replace(/€/g, "");
 
   if (!compact) return null;
 
@@ -39,9 +39,9 @@ export function formatCurrency(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("es-ES", {
     style: "currency",
-    currency: "USD",
+    currency: "EUR",
     maximumFractionDigits: 0,
   }).format(number);
 }
@@ -50,9 +50,9 @@ export function formatCurrencyDecimal(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("es-ES", {
     style: "currency",
-    currency: "USD",
+    currency: "EUR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(number);
@@ -62,14 +62,14 @@ export function formatNumber(value, options = {}) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("en-US", options).format(number);
+  return new Intl.NumberFormat("es-ES", options).format(number);
 }
 
 export function formatCompact(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("es-ES", {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(number);
@@ -80,23 +80,40 @@ export function formatPercent(value) {
   if (number === null) return EMPTY_VALUE;
 
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
-  return `${new Intl.NumberFormat("en-US", {
+  return `${new Intl.NumberFormat("es-ES", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(normalized)}%`;
 }
 
-export function formatPp(value) {
+export function formatPp(value, { compact = false, signed = true } = {}) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
-  const sign = normalized > 0 ? "+" : "";
+  const sign = signed && normalized > 0 ? "+" : "";
+  const displayValue = signed ? normalized : Math.abs(normalized);
+  const label = compact ? "puntos" : "puntos de cuota";
 
-  return `${sign}${new Intl.NumberFormat("en-US", {
+  return `${sign}${new Intl.NumberFormat("es-ES", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(normalized)} pp`;
+  }).format(displayValue)} ${label}`;
+}
+
+export function formatPercentagePoints(value, { compact = false, signed = true } = {}) {
+  const number = safeNumber(value);
+  if (number === null) return EMPTY_VALUE;
+
+  const normalized = Math.abs(number) <= 1 ? number * 100 : number;
+  const sign = signed && normalized > 0 ? "+" : "";
+  const displayValue = signed ? normalized : Math.abs(normalized);
+  const label = compact ? "pp" : "puntos porcentuales";
+
+  return `${sign}${new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(displayValue)} ${label}`;
 }
 
 export function formatMetric(value, metricKey) {
@@ -121,6 +138,16 @@ export function formatMetric(value, metricKey) {
     return formatPp(value);
   }
 
+  if (metricKey?.startsWith("indexed_")) {
+    const number = safeNumber(value);
+    return number === null
+      ? EMPTY_VALUE
+      : new Intl.NumberFormat("es-ES", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(number);
+  }
+
   if (metricKey?.includes("market_share") || metricKey?.includes("growth")) {
     return formatPercent(value);
   }
@@ -128,7 +155,7 @@ export function formatMetric(value, metricKey) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: 2,
   }).format(number);
 }

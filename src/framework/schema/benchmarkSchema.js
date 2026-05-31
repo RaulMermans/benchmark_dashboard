@@ -1,35 +1,38 @@
-import { DERIVED_NUMERIC_FIELDS, REQUIRED_INTERFACE_FIELDS } from "../core/benchmarkUtils.js";
-
 export const benchmarkPayloadContract = {
   ok: "boolean",
   meta: "object",
   data: {
-    interface: "array",
-    events: "array",
-    dictionary: "array",
+    interface: "BenchmarkRow[]",
+    events: "BenchmarkEvent[]",
+    dictionary: "MetricDefinition[]",
   },
 };
 
-export const requiredInterfaceFields = REQUIRED_INTERFACE_FIELDS;
-
-export const optionalEnrichedFields = [
-  ...DERIVED_NUMERIC_FIELDS,
-  "forecast_scenario",
-  "active",
-  "color",
-  "logo",
-  "company_color",
-  "event_summary",
-  "event_names",
-  "event_id",
-  "event_name",
-  "event_type",
-  "event_origin",
-  "expected_impact",
-  "metric_affected",
+export const requiredBenchmarkRowFields = [
+  "date",
+  "period_type",
+  "company_id",
+  "display_name",
+  "type",
+  "market",
+  "revenue",
+  "visits",
+  "data_type",
 ];
 
-export const benchmarkRowSchema = {
-  required: requiredInterfaceFields,
-  optional: optionalEnrichedFields,
-};
+export const enrichedBenchmarkRowFields = [
+  "market_share_revenue",
+  "market_share_visits",
+  "revenue_mom_growth",
+  "revenue_yoy_growth",
+  "visits_mom_growth",
+  "visits_yoy_growth",
+  "rank_revenue",
+  "rank_visits",
+  "revenue_per_visit",
+  "revenue_share_vs_visit_share",
+  "indexed_revenue",
+  "indexed_visits",
+  "forecast_scenario",
+  "active",
+];

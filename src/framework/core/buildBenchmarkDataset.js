@@ -1,48 +1,25 @@
-import { mergeBenchmarkConfig } from "../config/defaultBenchmarkConfig.js";
-import { validateBenchmarkPayload } from "../schema/validateBenchmarkPayload.js";
-import { aggregatePeriods } from "./aggregatePeriods.js";
-import { calculateEfficiencyMetrics } from "./calculateEfficiencyMetrics.js";
-import { calculateGrowthRates } from "./calculateGrowthRates.js";
+import { normalizeRows } from "./normalizeRows.js";
 import { calculateMarketShares } from "./calculateMarketShares.js";
 import { calculateRanks } from "./calculateRanks.js";
-import { normalizeRows } from "./normalizeRows.js";
+import { calculateEfficiencyMetrics } from "./calculateEfficiencyMetrics.js";
 
-export function buildBenchmarkDataset(payload, config = {}) {
-  const mergedConfig = mergeBenchmarkConfig(config);
-  const validation = validateBenchmarkPayload(payload);
-  const preserveExisting =
-    mergedConfig.recalculateDerivedMetrics === true ? false : mergedConfig.preserveDerivedMetrics !== false;
-
-  let rows = normalizeRows(payload?.data?.interface ?? [], mergedConfig);
-
-  rows = calculateMarketShares(rows, "revenue", { preserveExisting });
-  rows = calculateMarketShares(rows, "visits", { preserveExisting });
-  rows = calculateGrowthRates(rows, { preserveExisting });
-  rows = calculateRanks(rows, "revenue", { preserveExisting });
-  rows = calculateRanks(rows, "visits", { preserveExisting });
-  rows = calculateEfficiencyMetrics(rows, { preserveExisting });
-
-  const periodMode = mergedConfig.periodMode || "monthly";
-  if (periodMode !== "monthly") {
-    rows = aggregatePeriods(rows, periodMode, {
-      includeForecasts: mergedConfig.includeForecastsInAggregates,
-    });
+export function buildBenchmarkDataset(payload = {}, config = {}) {
+  const rawRows = Array.isArray(payload?.data?.interface) ? payload.data.interface : [];
+  let rows = normalizeRows(rawRows, config);
+  if (config.recalculateMarketShares === true) {
+    rows = calculateMarketShares(rows, "revenue", config);
+    rows = calculateMarketShares(rows, "visits", config);
   }
-
+  if (config.recalculateRanks === true) {
+    rows = calculateRanks(rows, "revenue", config);
+    rows = calculateRanks(rows, "visits", config);
+  }
+  rows = calculateEfficiencyMetrics(rows);
   return {
-    ok: validation.valid,
-    meta: {
-      ...(payload?.meta ?? {}),
-      framework: "Benchmark Intelligence Framework",
-      validation: validation.summary,
-    },
-    data: {
-      ...(payload?.data ?? {}),
-      interface: rows,
-      events: Array.isArray(payload?.data?.events) ? payload.data.events.slice() : [],
-      dictionary: Array.isArray(payload?.data?.dictionary) ? payload.data.dictionary.slice() : [],
-    },
-    validation,
-    config: mergedConfig,
+    meta: payload.meta || {},
+    rows,
+    events: Array.isArray(payload?.data?.events) ? payload.data.events : [],
+    dictionary: Array.isArray(payload?.data?.dictionary) ? payload.data.dictionary : [],
+    config,
   };
 }

@@ -1,60 +1,30 @@
-import { getSortValue, getYearMonth, groupRows, roundMetric, safeNumber, shouldWriteDerived } from "./benchmarkUtils.js";
+import { groupBy, safeNumber } from "./helpers.js";
 
-function getCompanyMetricKey(row) {
-  return [row.company_id || "", row.market || "", row.period_type || "", row.is_forecast ? row.forecast_scenario || "" : ""].join("||");
-}
-
-function findPriorRow(rows, index, monthsBack) {
-  const current = rows[index];
-  const currentPeriod = getYearMonth(current);
-  if (!currentPeriod.year || !currentPeriod.month) return null;
-
-  const targetDate = new Date(Date.UTC(currentPeriod.year, currentPeriod.month - 1 - monthsBack, 1));
-  const targetYear = targetDate.getUTCFullYear();
-  const targetMonth = targetDate.getUTCMonth() + 1;
-
-  return (
-    rows.find((row, rowIndex) => {
-      if (rowIndex >= index) return false;
-      const period = getYearMonth(row);
-      return period.year === targetYear && period.month === targetMonth;
-    }) ?? null
-  );
-}
-
-function calculateGrowth(currentValue, priorValue) {
-  if (currentValue === null || priorValue === null || priorValue === 0) return null;
-  return roundMetric((currentValue - priorValue) / priorValue);
+function monthIndex(date = "") {
+  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
 }
 
 export function calculateGrowthRates(rows = [], options = {}) {
-  const preserveExisting = options.preserveExisting ?? true;
-  const metrics = options.metrics ?? ["revenue", "visits"];
-  const nextRows = rows.map((row) => ({ ...row }));
-  const groups = groupRows(nextRows, getCompanyMetricKey);
+  const metrics = options.metrics || ["revenue", "visits"];
+  const grouped = groupBy(rows, (row) => [row.company_id, row.market, row.data_type, row.forecast_scenario || ""].join("|"));
+  const updates = new Map();
 
-  groups.forEach((companyRows) => {
-    const sortedRows = companyRows.slice().sort((a, b) => getSortValue(a) - getSortValue(b));
-
-    sortedRows.forEach((row, index) => {
-      const priorMonth = findPriorRow(sortedRows, index, 1);
-      const priorYear = findPriorRow(sortedRows, index, 12);
-
+  grouped.forEach((group) => {
+    const byMonth = new Map(group.map((row) => [monthIndex(row.date), row]));
+    group.forEach((row) => {
+      const idx = monthIndex(row.date);
+      const next = { ...row };
       metrics.forEach((metric) => {
-        const currentValue = safeNumber(row?.[metric]);
-        const momField = `${metric}_mom_growth`;
-        const yoyField = `${metric}_yoy_growth`;
-
-        if (shouldWriteDerived(row, momField, preserveExisting)) {
-          row[momField] = calculateGrowth(currentValue, safeNumber(priorMonth?.[metric]));
-        }
-
-        if (shouldWriteDerived(row, yoyField, preserveExisting)) {
-          row[yoyField] = calculateGrowth(currentValue, safeNumber(priorYear?.[metric]));
-        }
+        const current = safeNumber(row[metric]);
+        const priorMonth = safeNumber(byMonth.get(idx - 1)?.[metric]);
+        const priorYear = safeNumber(byMonth.get(idx - 12)?.[metric]);
+        const prefix = metric === "visits" ? "visits" : "revenue";
+        if (current !== null && priorMonth) next[`${prefix}_mom_growth`] = (current - priorMonth) / priorMonth;
+        if (current !== null && priorYear) next[`${prefix}_yoy_growth`] = (current - priorYear) / priorYear;
       });
+      updates.set(row, next);
     });
   });
 
-  return nextRows;
+  return rows.map((row) => updates.get(row) || row);
 }

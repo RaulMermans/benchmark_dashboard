@@ -1,15 +1,63 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-const root=process.cwd();
-const skipDirs=new Set([".git","node_modules","dist",".tools",".codex"]);
-const skipFiles=new Set(["scripts/audit-public-ready.mjs"]);
-const textExtensions=[".js",".jsx",".json",".md",".css",".html",".env",".example",".txt",".svg"];
-const decode=v=>Buffer.from(v,"base64").toString("utf8");
-const forbiddenTerms=["cHJpbW9y","ZHJ1bmk=","c2VwaG9yYQ==","ZG91Z2xhcw==","bm90aW5v","YXJlbmFs","bWFxdWlsbGFsaWE=","cGVyZnVtZXNjbHVi","cGFjb3BlcmZ1bWVyaWFz","c2ltaWxhcndlYg==","ZWNkYg==","MDdfaW50ZXJmYWNlX3JlYWR5","MDVfbm90ZXNfZXZlbnRz","MDhfbWV0cmljX2RpY3Rpb25hcnk=","c2NyaXB0Lmdvb2dsZS5jb20=","VklURV9DSV9BUElfVVJM"].map(decode);
-const forbiddenPaths=[".env.local",".tools"];
-function isTextFile(path){const lower=path.toLowerCase(); return textExtensions.some(ext=>lower.endsWith(ext));}
-function walk(dir,out=[]){for(const entry of readdirSync(dir)){if(skipDirs.has(entry))continue; const full=join(dir,entry); const rel=relative(root,full).replaceAll("\\","/"); const stats=statSync(full); if(stats.isDirectory())walk(full,out); else if(!skipFiles.has(rel)&&isTextFile(rel))out.push(full);} return out;}
-const errors=[];
-for(const path of forbiddenPaths)if(existsSync(join(root,path)))errors.push(`Forbidden path present: ${path}`);
-for(const file of walk(root)){const rel=relative(root,file).replaceAll("\\","/"); const content=readFileSync(file,"utf8").toLowerCase(); for(const term of forbiddenTerms){if(content.includes(term.toLowerCase())){errors.push(`Forbidden term detected in ${rel}`); break;}}}
-if(errors.length){console.error("Public-readiness audit failed:"); for(const e of errors)console.error(`- ${e}`); process.exit(1);} console.log("Public-readiness audit passed.");
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd();
+const forbiddenTerms = [
+  "Pri" + "mor",
+  "Dru" + "ni",
+  "Se" + "phora",
+  "Dou" + "glas",
+  "No" + "tino",
+  "Are" + "nal",
+  "Maquil" + "lalia",
+  "Perfume" + "sclub",
+  "Perfume" + "’s Club",
+  "Paco" + " Perfumer",
+  "Similar" + "web",
+  "Similar" + "Web",
+  "script" + ".google",
+  "AK" + "fy",
+  "Apps" + " Script",
+];
+const forbiddenPathParts = [".env.local", "node_modules", ".git", ".codex", ".tools", "dist"];
+const skipExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".svg", ".lock"]);
+const findings = [];
+
+function shouldSkipPath(rel) {
+  const normalized = rel.split(path.sep).join("/");
+  if (normalized === "scripts/audit-public-ready.mjs") return true;
+  return forbiddenPathParts.some((part) => normalized === part || normalized.startsWith(`${part}/`) || normalized.includes(`/${part}/`));
+}
+
+function walk(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    const rel = path.relative(root, full);
+    const normalized = rel.split(path.sep).join("/");
+    if (entry.isDirectory()) {
+      if (shouldSkipPath(rel)) findings.push(`Forbidden directory present: ${normalized}`);
+      else walk(full);
+      continue;
+    }
+    if (normalized === "scripts/audit-public-ready.mjs") continue;
+    if (shouldSkipPath(rel) || entry.name.toLowerCase().endsWith(".zip")) {
+      findings.push(`Forbidden file present: ${normalized}`);
+      continue;
+    }
+    if (skipExtensions.has(path.extname(entry.name).toLowerCase())) continue;
+    let text = "";
+    try { text = fs.readFileSync(full, "utf8"); } catch { continue; }
+    for (const term of forbiddenTerms) {
+      if (text.toLowerCase().includes(term.toLowerCase())) findings.push(`Forbidden reference in ${normalized}`);
+    }
+  }
+}
+
+walk(root);
+if (findings.length) {
+  console.error("Public-readiness audit failed:");
+  findings.slice(0, 100).forEach((finding) => console.error(`- ${finding}`));
+  if (findings.length > 100) console.error(`... ${findings.length - 100} more findings`);
+  process.exit(1);
+}
+console.log("Public-readiness audit passed.");

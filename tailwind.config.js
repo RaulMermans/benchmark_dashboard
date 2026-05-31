@@ -14,16 +14,16 @@ export default {
       },
       colors: {
         brand: {
-          primary: "#111827",
+          primary: "#E4032C",
           secondary: "#000000",
-          accent: "#2563EB",
+          accent: "#E4032C",
           background: "#F7F4F1",
           surface: "#FFFFFF",
           muted: "#6F6864",
           border: "rgba(0,0,0,0.12)",
           success: "#0F7A4A",
           warning: "#A15C00",
-          danger: "#B91C1C",
+          danger: "#E4032C",
         },
         cockpit: {
           950: "#f7f4f1",
@@ -31,13 +31,13 @@ export default {
           850: "#f1eeea",
           800: "#000000",
         },
-        focus: {
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          300: "#93C5FD",
-          500: "#2563EB",
-          700: "#1D4ED8",
-          900: "#1E3A8A",
+        accent: {
+          50: "#fff1f3",
+          100: "#ffe1e6",
+          300: "#ff8fa3",
+          500: "#E4032C",
+          700: "#a90220",
+          900: "#5f0011",
         },
       },
       boxShadow: {

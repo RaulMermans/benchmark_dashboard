@@ -1,26 +1,17 @@
-import { getSortValue, isForecastRow, normalizeText, safeNumber } from "../core/benchmarkUtils.js";
+import { isForecastRow, safeNumber } from "../core/helpers.js";
 
-export function buildForecastViewModel(rows = [], config = {}, options = {}) {
-  const scenario = normalizeText(options.scenario || "");
-  const forecastRows = rows
-    .filter(isForecastRow)
-    .filter((row) => !scenario || normalizeText(row.forecast_scenario) === scenario)
-    .sort((a, b) => getSortValue(a) - getSortValue(b));
-
-  const scenarios = Array.from(
-    new Set(forecastRows.map((row) => normalizeText(row.forecast_scenario)).filter(Boolean)),
-  ).sort();
-
-  return {
-    scenarios,
-    rows: forecastRows,
-    latestRows: forecastRows
-      .slice()
-      .reverse()
-      .filter((row, index, source) => source.findIndex((candidate) => candidate.company_id === row.company_id) === index),
-    metrics: ["visits", "revenue"].map((metric) => ({
-      metric,
-      total: forecastRows.reduce((sum, row) => sum + (safeNumber(row?.[metric]) ?? 0), 0),
-    })),
-  };
+export function buildForecastViewModel(rows = [], config = {}) {
+  const metric = config.metric || config.defaultMetric || "revenue";
+  return rows
+    .filter((row) => isForecastRow(row))
+    .map((row) => ({
+      companyId: row.company_id,
+      label: row.display_name,
+      date: row.date,
+      scenario: row.forecast_scenario || "base_case",
+      value: safeNumber(row[metric]),
+      color: row.color,
+      row,
+    }))
+    .filter((entry) => entry.value !== null);
 }

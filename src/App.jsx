@@ -21,25 +21,35 @@ import {
 } from "recharts";
 import KpiCard from "./components/KpiCard";
 import Panel from "./components/Panel";
-import { defaultBenchmarkConfig as benchmarkDashboardConfig } from "./framework/config/defaultBenchmarkConfig.js";
-import { buildBenchmarkDataset } from "./framework/core/buildBenchmarkDataset.js";
-import { buildRankingViewModel } from "./framework/view-models/buildRankingViewModel.js";
 import { loadBenchmarkData } from "./lib/api.js";
 import { getCompanyLogoSrc } from "./lib/companyLogos.js";
 import {
+  buildAggregatedRowsFromMonthly,
+  buildMonthDate,
   filterInterfaceRows,
+  getAvailableAnnualPeriods,
+  getAvailableMonthsForYear,
   getAvailablePeriods,
+  getAvailableRangeBounds,
+  getAvailableYears,
+  getAvailableYearPeriods,
+  getForecastScenario,
   getForecastRows,
-  getInsightItems,
+  getMetricAvailability,
   getMarkets,
   getPeriodTypes,
   getRankingRows,
+  getRowsForAnnualPeriod,
   getRowsForPeriod,
   getUniqueCompanies,
   groupSeriesByCompetitor,
+  formatMonthLabelFromKey,
+  getDemoMonthLabel,
+  hasDataForMetric,
   isBenchmarkRow,
   isComparableRow,
   isForecastRow,
+  isObservedRow,
   isRealCompanyRow,
   normalizeInterfaceRows,
   toMultiLineChartData,
@@ -49,75 +59,183 @@ import {
   formatCurrency,
   formatCurrencyDecimal,
   formatMetric,
+  formatNumber,
   formatPercent,
+  formatPercentagePoints,
   formatPp,
   safeNumber,
 } from "./lib/formatters.js";
 
-const OWN_COMPANY_ID = benchmarkDashboardConfig.ownCompanyId;
-const MARKET_BENCHMARK_ID = benchmarkDashboardConfig.benchmarkCompanyId;
+const OWN_COMPANY_ID = "focus";
+const MARKET_BENCHMARK_ID = "market_average";
 const CORE_RACE_COMPANY_IDS = [OWN_COMPANY_ID, "peer_a", "peer_b", MARKET_BENCHMARK_ID];
 const BATTLE_TARGET_IDS = ["peer_a", "peer_b", MARKET_BENCHMARK_ID];
 
 const PERIOD_TYPE_LABELS = {
-  monthly: "Month",
-  annual: "Year",
-  yearly: "Year",
-  quarterly: "Quarter",
+  monthly: "Mes",
+  annual: "Año",
+  yearly: "Año",
+  quarterly: "Trimestre",
+  historical: "Histórico",
 };
 
-const DASHBOARD_PERIOD_TYPE_ORDER = ["monthly", "quarterly", "annual"];
-const FORECAST_SCENARIO_ORDER = ["base_case", "aggressive", "conservative"];
+const TIME_MODE_OPTIONS = [
+  { key: "month", label: "Mes" },
+  { key: "annual", label: "Año" },
+  { key: "range", label: "Rango" },
+  { key: "historical", label: "Histórico" },
+];
+const TIME_MODE_KEYS = TIME_MODE_OPTIONS.map((option) => option.key);
 
-const RANKING_SORTS = benchmarkDashboardConfig.metrics.map((metric) => ({
-  key: metric.key,
-  label: metric.label,
-})).filter((metric) => [
+const FORECAST_TIME_MODE_OPTIONS = [
+  { key: "month", label: "Mes" },
+  { key: "annual", label: "Año" },
+  { key: "range", label: "Rango" },
+  { key: "horizon", label: "Horizonte" },
+];
+const FORECAST_TIME_MODE_KEYS = FORECAST_TIME_MODE_OPTIONS.map((option) => option.key);
+
+const DASHBOARD_PERIOD_TYPE_ORDER = ["monthly", "quarterly", "annual"];
+const FORECAST_SCENARIO_ORDER = ["base_case", "conservative", "aggressive", "unknown"];
+
+const RANKING_SORTS = [
+  { key: "revenue", label: "Facturación" },
+  { key: "visits", label: "Visitas" },
+  { key: "market_share_revenue", label: "Cuota facturación" },
+  { key: "market_share_visits", label: "Cuota visitas" },
+  { key: "revenue_per_visit", label: "Facturación por visita" },
+  { key: "revenue_mom_growth", label: "Crecimiento mensual facturación" },
+  { key: "visits_mom_growth", label: "Crecimiento mensual visitas" },
+  { key: "revenue_yoy_growth", label: "Crecimiento interanual facturación" },
+  { key: "visits_yoy_growth", label: "Crecimiento interanual visitas" },
+];
+
+const LOCAL_RANKING_SORTS = [
+  { key: "revenue", label: "Facturación" },
+  { key: "visits", label: "Visitas" },
+  { key: "market_share_revenue", label: "Cuota facturación" },
+  { key: "market_share_visits", label: "Cuota visitas" },
+  { key: "growth_revenue", label: "Crecimiento facturación" },
+  { key: "growth_visits", label: "Crecimiento visitas" },
+  { key: "revenue_per_visit", label: "Eficiencia" },
+];
+const EXECUTIVE_METRIC_OPTIONS = [
+  { key: "revenue", label: "Facturación" },
+  { key: "visits", label: "Visitas" },
+];
+const GLOBAL_CONTEXT_METRICS = [
   "revenue",
   "visits",
   "market_share_revenue",
   "market_share_visits",
   "revenue_per_visit",
-  "revenue_mom_growth",
-  "visits_mom_growth",
-  "revenue_yoy_growth",
-  "visits_yoy_growth",
-].includes(metric.key));
-
-const FALLBACK_RANKING_SORTS = [
-  { key: "revenue", label: "Revenue" },
-  { key: "visits", label: "Visits" },
-  { key: "market_share_revenue", label: "Revenue share" },
-  { key: "market_share_visits", label: "Visit share" },
-  { key: "revenue_per_visit", label: "Revenue per visit" },
-  { key: "revenue_mom_growth", label: "Revenue growth MoM" },
-  { key: "visits_mom_growth", label: "Visit growth MoM" },
-  { key: "revenue_yoy_growth", label: "Revenue growth YoY" },
-  { key: "visits_yoy_growth", label: "Visit growth YoY" },
+  "monetization_gap",
 ];
-
-if (!RANKING_SORTS.length) RANKING_SORTS.push(...FALLBACK_RANKING_SORTS);
+const COMPETITIVE_MAP_OPTIONS = [
+  {
+    key: "traffic_revenue",
+    label: "Tráfico vs facturación",
+    xMetric: "visits",
+    yMetric: "revenue",
+    sizeMetric: "market_share_revenue",
+    description: "Relaciona escala de audiencia con facturación medida.",
+    unavailableReason: "Falta facturación.",
+    quadrants: [
+      "Líder de escala: alto tráfico + alta facturación.",
+      "Audiencia fuerte: alto tráfico + menor facturación.",
+      "Alta monetización relativa: menor tráfico + alta facturación.",
+      "Jugador pequeño: bajo tráfico + baja facturación.",
+    ],
+  },
+  {
+    key: "traffic_efficiency",
+    label: "Tráfico vs eficiencia",
+    xMetric: "visits",
+    yMetric: "revenue_per_visit",
+    sizeMetric: "market_share_revenue",
+    description: "Mide quién convierte mejor el tráfico en facturación.",
+    unavailableReason: "Requiere facturación y visitas.",
+    quadrants: [
+      "Líder eficiente: alto tráfico + alta eficiencia.",
+      "Tráfico infra-monetizado: alto tráfico + baja eficiencia.",
+      "Nicho eficiente: bajo tráfico + alta eficiencia.",
+      "Jugador débil: bajo tráfico + baja eficiencia.",
+    ],
+  },
+  {
+    key: "share_growth",
+    label: "Posición vs momentum",
+    xMetric: "market_share_revenue",
+    yMetric: "revenue_yoy_growth",
+    sizeMetric: "visits",
+    description: "Cruza cuota de facturación con crecimiento interanual.",
+    unavailableReason: "Falta facturación o periodo comparable.",
+    quadrants: [
+      "Líder en aceleración: alta cuota + alto crecimiento.",
+      "Líder maduro: alta cuota + bajo crecimiento.",
+      "Challenger emergente: baja cuota + alto crecimiento.",
+      "Jugador débil: baja cuota + bajo crecimiento.",
+    ],
+  },
+];
 
 const HOME_HASH = "#/benchmark";
 const FORECAST_HASH = "#/forecast";
-const PROFILE_HASH_PREFIX = "#/company/";
-const APP_LOGO_SRC = "/assets/logo-focus.svg";
+const BATTLE_ARENA_HASH = "#/battle-arena";
+const PROFILE_HASH_PREFIX = "#/empresa/";
+const FOCUS_LOGO_SRC = "";
 const EMPTY_HIDDEN_COMPANY_IDS = new Set();
+const BATTLE_TECHNICAL_DRAW_THRESHOLD = 0.02;
+const FORECAST_CAVEAT_COPY = "Proyección basada en histórico estimado. No representa dato observado.";
 
 const PROFILE_CHARTS = [
-  { metricKey: "visits", title: "Visits over time" },
-  { metricKey: "revenue", title: "Revenue over time" },
-  { metricKey: "market_share_visits", title: "Visit share over time" },
-  { metricKey: "revenue_per_visit", title: "Revenue per visit over time" },
+  { metricKey: "visits", title: "Evolución de visitas" },
+  { metricKey: "revenue", title: "Evolución de facturación" },
+  { metricKey: "market_share_visits", title: "Evolución cuota de visitas" },
+  { metricKey: "revenue_per_visit", title: "Evolución facturación por visita" },
 ];
+const PROFILE_CHART_TABS = [
+  {
+    key: "revenue",
+    label: "Facturación",
+    metrics: ["revenue"],
+  },
+  {
+    key: "visits",
+    label: "Visitas",
+    metrics: ["visits"],
+  },
+  {
+    key: "share",
+    label: "Cuota",
+    metrics: ["market_share_revenue", "market_share_visits"],
+  },
+  {
+    key: "efficiency",
+    label: "Eficiencia",
+    metrics: ["revenue_per_visit", "monetization_gap"],
+  },
+  {
+    key: "ranking",
+    label: "Ranking",
+    metrics: ["rank_revenue", "rank_visits", "rank_share_revenue", "rank_share_visits"],
+  },
+];
+const PROFILE_MAIN_TABS = [
+  { key: "historical", label: "Histórico" },
+  { key: "forecast", label: "Forecast" },
+];
+const PROFILE_FORECAST_METRICS = [
+  { key: "visits", label: "Visitas" },
+  { key: "revenue", label: "Facturación" },
+];
+const PROFILE_FORECAST_SCENARIO_ORDER = ["base_case", "conservative", "aggressive", "unknown"];
+
 const DASHBOARD_CHART_METRICS = [
   "visits",
   "revenue",
   "market_share_visits",
   "market_share_revenue",
-  "indexed_revenue",
-  "indexed_visits",
-  "indexed_market_share_revenue",
 ];
 const FORECAST_DETAIL_METRICS = ["visits", "revenue"];
 const DISTRIBUTION_METRICS = new Set([
@@ -127,34 +245,55 @@ const DISTRIBUTION_METRICS = new Set([
   "market_share_visits",
 ]);
 const INDEXED_METRIC_OPTIONS = [
-  { key: "indexed_revenue", label: "Revenue" },
-  { key: "indexed_visits", label: "Visits" },
-  { key: "indexed_market_share_revenue", label: "Revenue share" },
+  { key: "indexed_revenue", label: "Facturación" },
+  { key: "indexed_visits", label: "Visitas" },
+];
+const INDEXED_SOURCE_METRICS = {
+  indexed_revenue: "revenue",
+  indexed_visits: "visits",
+};
+const MOMENTUM_METRIC_OPTIONS = [
+  { key: "visits", label: "Visitas" },
+  { key: "revenue", label: "Facturación" },
+];
+const MOMENTUM_READING_OPTIONS = [
+  { key: "absolute", label: "Volumen añadido" },
+  { key: "yoy", label: "Crecimiento %" },
 ];
 const EXECUTIVE_METRIC_LABELS = {
-  revenue: "revenue",
-  visits: "visits",
-  market_share_revenue: "revenue share",
-  market_share_visits: "visit share",
-  revenue_yoy_growth: "revenue growth YoY",
-  visits_yoy_growth: "visit growth YoY",
-  share_revenue_change_yoy: "revenue share YoY",
-  share_revenue_change_mom: "revenue share MoM",
-  share_visits_change_yoy: "visit share YoY",
-  share_visits_change_mom: "visit share MoM",
-  revenue_per_visit: "revenue per visit",
-  indexed_revenue: "indexed revenue",
-  indexed_visits: "indexed visits",
-  indexed_market_share_revenue: "indexed revenue share",
+  revenue: "facturación",
+  visits: "visitas",
+  market_share_revenue: "cuota de facturación",
+  market_share_visits: "cuota de visitas",
+  revenue_yoy_growth: "crecimiento interanual de facturación",
+  visits_yoy_growth: "crecimiento interanual de visitas",
+  share_revenue_change_yoy: "variación interanual de cuota de facturación",
+  share_revenue_change_mom: "variación mensual de cuota de facturación",
+  share_revenue_change_range: "cambio de cuota de facturación",
+  share_visits_change_yoy: "variación interanual de cuota de visitas",
+  share_visits_change_mom: "variación mensual de cuota de visitas",
+  share_visits_change_range: "cambio de cuota de visitas",
+  revenue_per_visit: "facturación por visita",
+  indexed_revenue: "índice de facturación",
+  indexed_visits: "índice de visitas",
 };
 const BATTLE_METRICS = [
-  { key: "revenue", label: "Revenue", formatter: (value) => formatCurrency(value) },
-  { key: "visits", label: "Visits", formatter: (value) => formatCompact(value) },
-  { key: "market_share_revenue", label: "Revenue share", formatter: (value) => formatPercent(value), deltaType: "pp" },
-  { key: "market_share_visits", label: "Visit share", formatter: (value) => formatPercent(value), deltaType: "pp" },
-  { key: "revenue_yoy_growth", label: "Revenue YoY", formatter: (value) => formatSignedPercent(value), deltaType: "pp" },
-  { key: "visits_yoy_growth", label: "Visits YoY", formatter: (value) => formatSignedPercent(value), deltaType: "pp" },
-  { key: "revenue_per_visit", label: "Revenue / visit", formatter: (value) => formatCurrencyDecimal(value) },
+  { key: "revenue", label: "Facturación", formatter: (value) => formatCurrency(value) },
+  { key: "visits", label: "Visitas", formatter: (value) => formatCompact(value) },
+  { key: "market_share_revenue", label: "Cuota facturación", formatter: (value) => formatPercent(value), deltaType: "sharePoints" },
+  { key: "market_share_visits", label: "Cuota visitas", formatter: (value) => formatPercent(value), deltaType: "sharePoints" },
+  { key: "revenue_yoy_growth", label: "Crecimiento facturación YoY", formatter: (value) => formatSignedPercent(value), deltaType: "percentagePoints" },
+  { key: "visits_yoy_growth", label: "Crecimiento visitas YoY", formatter: (value) => formatSignedPercent(value), deltaType: "percentagePoints" },
+  { key: "revenue_per_visit", label: "Revenue / visita", formatter: (value) => formatCurrencyDecimal(value) },
+  { key: "monetization_gap", label: "Brecha monetización", formatter: (value) => formatPercentagePoints(value, { compact: true }), deltaType: "points" },
+];
+const BATTLE_MODE_OPTIONS = [
+  { key: "historical", label: "Histórico" },
+  { key: "forecast", label: "Forecast" },
+];
+const BATTLE_FORECAST_METRIC_OPTIONS = [
+  { key: "visits", label: "Visitas" },
+  { key: "revenue", label: "Facturación" },
 ];
 
 function normalizeCompanyId(companyId) {
@@ -183,7 +322,7 @@ function formatGeneratedAt(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "N/A";
 
-  return date.toLocaleString("en-US");
+  return date.toLocaleString("es-ES");
 }
 
 function parseRouteFromHash(hash = "") {
@@ -200,6 +339,10 @@ function parseRouteFromHash(hash = "") {
 
   if (normalizedHash === FORECAST_HASH) {
     return { view: "forecast", companyId: "" };
+  }
+
+  if (normalizedHash === BATTLE_ARENA_HASH) {
+    return { view: "battle", companyId: "" };
   }
 
   if (normalizedHash.startsWith(PROFILE_HASH_PREFIX)) {
@@ -260,8 +403,9 @@ function mergeSeriesForLegend(seriesGroups = []) {
 
 function getForecastScenarioLabel(scenario) {
   if (scenario === "base_case") return "Base";
-  if (scenario === "aggressive") return "Aggressive";
-  if (scenario === "conservative") return "Conservative";
+  if (scenario === "aggressive") return "Agresivo";
+  if (scenario === "conservative") return "Conservador";
+  if (scenario === "unknown") return "Sin escenario";
 
   return String(scenario || "")
     .replace(/_/g, " ")
@@ -272,7 +416,7 @@ function getAvailableForecastScenarios(rows = []) {
   const scenarios = new Set(
     rows
       .filter(isForecastRow)
-      .map((row) => normalizeCompanyId(row.forecast_scenario))
+      .map(getForecastScenario)
       .filter(Boolean),
   );
 
@@ -288,10 +432,58 @@ function getAvailableForecastScenarios(rows = []) {
 
 function filterRowsByForecastScenario(rows = [], forecastScenario = "") {
   if (!forecastScenario) return rows;
+  const selectedScenario = getForecastScenario({ forecast_scenario: forecastScenario });
+  if (!selectedScenario) return rows;
 
   return rows.filter(
-    (row) => !isForecastRow(row) || normalizeCompanyId(row.forecast_scenario) === forecastScenario,
+    (row) => !isForecastRow(row) || getForecastScenario(row) === selectedScenario,
   );
+}
+
+const FORECAST_MERGE_FIELDS = [
+  "revenue",
+  "visits",
+  "market_share_revenue",
+  "market_share_visits",
+  "revenue_per_visit",
+  "monetization_gap",
+  "rank_revenue",
+  "rank_visits",
+  "rank_share_revenue",
+  "rank_share_visits",
+];
+
+function getForecastMergeKey(row = {}) {
+  return [
+    row.period_type,
+    row.market,
+    normalizeCompanyId(row.company_id),
+    row.date || `${row.year || ""}-${row.month || ""}`,
+    getForecastScenario(row),
+  ].join("||");
+}
+
+function mergeForecastMetricRows(rows = []) {
+  const rowMap = new Map();
+
+  rows.forEach((row) => {
+    const key = getForecastMergeKey(row);
+    const current = rowMap.get(key);
+    if (!current) {
+      rowMap.set(key, { ...row, forecast_scenario: getForecastScenario(row) });
+      return;
+    }
+
+    const merged = { ...current };
+    FORECAST_MERGE_FIELDS.forEach((field) => {
+      if (safeNumber(merged?.[field]) === null && safeNumber(row?.[field]) !== null) {
+        merged[field] = row[field];
+      }
+    });
+    rowMap.set(key, merged);
+  });
+
+  return Array.from(rowMap.values()).sort((a, b) => getProfileRowSortValue(a) - getProfileRowSortValue(b));
 }
 
 function getComparableRowKey(row) {
@@ -332,7 +524,7 @@ function getForecastWindow(chartData = []) {
 function DataTypeBadge({ row }) {
   if (!isForecastRow(row)) return null;
 
-  return <span className="data-type-badge data-type-badge-forecast">Forecast</span>;
+  return <span className="data-type-badge data-type-badge-forecast">Proyección</span>;
 }
 
 function getRowYear(row) {
@@ -343,22 +535,8 @@ function getRowYear(row) {
   return dateMatch ? dateMatch[1] : "";
 }
 
-function getRowPeriodSortValue(row) {
-  const dateValue = String(row?.date || "");
-  const parsedDate = Date.parse(dateValue);
-  if (!Number.isNaN(parsedDate)) return parsedDate;
-
-  const year = Number(row?.year);
-  const month = Number(row?.month);
-  return new Date(
-    Number.isFinite(year) ? year : 0,
-    Number.isFinite(month) ? Math.max(0, month - 1) : 0,
-    1,
-  ).getTime();
-}
-
 function hasMetricValue(row, metricKey) {
-  return safeNumber(row?.[metricKey]) !== null;
+  return hasDataForMetric(row, metricKey);
 }
 
 function filterRowsWithMetrics(rows = [], metricKeys = [], requireAll = true) {
@@ -371,17 +549,8 @@ function filterRowsWithMetrics(rows = [], metricKeys = [], requireAll = true) {
   });
 }
 
-function getAvailableRankingSorts(rows = []) {
-  return RANKING_SORTS.filter((sort) => rows.some((row) => hasMetricValue(row, sort.key)));
-}
-
 function getDashboardPeriodTypes(rows = [], sourcePeriodTypes = []) {
   const periodTypeSet = new Set(sourcePeriodTypes);
-  const hasDatedRows = rows.some((row) => getRowYear(row));
-
-  if ((periodTypeSet.has("monthly") || hasDatedRows) && !periodTypeSet.has("annual")) {
-    periodTypeSet.add("annual");
-  }
 
   return Array.from(periodTypeSet).sort((a, b) => {
     const aIndex = DASHBOARD_PERIOD_TYPE_ORDER.indexOf(a);
@@ -403,54 +572,14 @@ function getRankingPeriodTypes(rows = [], sourcePeriodTypes = [], sortKey = "") 
 }
 
 function getSourcePeriodType(periodType, sourcePeriodTypes = []) {
-  if (periodType !== "annual") return periodType;
-  if (sourcePeriodTypes.includes("annual")) return "annual";
-  if (sourcePeriodTypes.includes("monthly")) return "monthly";
+  if (sourcePeriodTypes.includes(periodType)) return periodType;
   return sourcePeriodTypes[0] || "";
 }
 
-function getAvailableAnnualPeriods(rows = []) {
-  const periodMap = new Map();
-
-  rows.forEach((row) => {
-    const year = getRowYear(row);
-    if (!year) return;
-
-    const sortValue = getRowPeriodSortValue(row);
-    const current =
-      periodMap.get(year) ??
-      {
-        key: year,
-        date: row.date,
-        label: year,
-        sortValue,
-        has_forecast: false,
-      };
-
-    current.sortValue = Math.max(current.sortValue, sortValue);
-    current.has_forecast = current.has_forecast || Boolean(row.is_forecast);
-    periodMap.set(year, current);
-  });
-
-  return Array.from(periodMap.values()).sort((a, b) => a.sortValue - b.sortValue);
-}
-
-function getRowsForAnnualPeriod(rows = [], year = "") {
-  if (!year) return [];
-
-  const yearRows = rows.filter((row) => getRowYear(row) === String(year));
-  if (!yearRows.length) return [];
-
-  const latestSortValue = Math.max(...yearRows.map(getRowPeriodSortValue));
-  return yearRows.filter((row) => getRowPeriodSortValue(row) === latestSortValue);
-}
-
-function getAvailableChartYears(rows = [], metricKeys = []) {
+function getAvailableChartYearOptions(rows = [], metricKeys = []) {
   const rowsWithData = filterRowsWithMetrics(rows, metricKeys, false);
 
-  return Array.from(new Set(rowsWithData.map(getRowYear).filter(Boolean))).sort((a, b) =>
-    b.localeCompare(a),
-  );
+  return getAvailableYearPeriods(rowsWithData).sort((a, b) => b.key.localeCompare(a.key));
 }
 
 function filterRowsByChartRange(rows = [], chartRangeMode, selectedChartYear) {
@@ -459,15 +588,1371 @@ function filterRowsByChartRange(rows = [], chartRangeMode, selectedChartYear) {
   return rows.filter((row) => getRowYear(row) === selectedChartYear);
 }
 
-function EmptyState({ title, message }) {
+function getMonthKeyFromParts(year, month) {
+  if (!year || !month) return "";
+  return `${String(year)}-${String(month).padStart(2, "0")}`;
+}
+
+function getMonthParts(monthKey = "") {
+  const [year, month] = String(monthKey || "").slice(0, 7).split("-");
+  return {
+    year,
+    month: Number(month),
+  };
+}
+
+function getRangeMonthDate(monthKey = "") {
+  return monthKey ? `${monthKey}-01` : "";
+}
+
+function compareRangeMonthKeys(a = "", b = "") {
+  return String(a).localeCompare(String(b));
+}
+
+function getGlobalContextMonthKey(row = {}) {
+  const dateMonthKey = String(row?.date || "").slice(0, 7);
+  if (/^\d{4}-\d{2}$/.test(dateMonthKey)) return dateMonthKey;
+
+  return getMonthKeyFromParts(row?.year, row?.month);
+}
+
+function hasGlobalContextData(row = {}) {
+  return GLOBAL_CONTEXT_METRICS.some((metricKey) => hasMetricValue(row, metricKey));
+}
+
+function getGlobalContextRows(rows = [], options = {}) {
+  const { market = "", includeBenchmark = false, includeForecasts = false } = options;
+
+  return preferObservedRows(
+    filterInterfaceRows(
+      rows,
+      { periodType: "monthly", market },
+      { includeBenchmark, includeForecasts, realOnly: !includeBenchmark },
+    ).filter(hasGlobalContextData),
+  );
+}
+
+function getGlobalAvailableYears(rows = [], options = {}) {
+  const years = new Set(
+    getGlobalContextRows(rows, options)
+      .map((row) => String(row?.year || getGlobalContextMonthKey(row).slice(0, 4)))
+      .filter(Boolean),
+  );
+
+  return Array.from(years).sort((a, b) => b.localeCompare(a));
+}
+
+function getGlobalAvailableMonthsForYear(rows = [], year = "", options = {}) {
+  const selectedYear = String(year || "");
+  const months = new Set(
+    getGlobalContextRows(rows, options)
+      .filter((row) => String(row?.year || getGlobalContextMonthKey(row).slice(0, 4)) === selectedYear)
+      .map((row) => Number(row?.month || getGlobalContextMonthKey(row).slice(5, 7)))
+      .filter((month) => Number.isFinite(month) && month >= 1 && month <= 12),
+  );
+
+  return Array.from(months).sort((a, b) => a - b);
+}
+
+function getGlobalAvailableRangeBounds(rows = [], options = {}) {
+  const monthMap = new Map();
+
+  getGlobalContextRows(rows, options).forEach((row) => {
+    const monthKey = getGlobalContextMonthKey(row);
+    if (!monthKey || monthMap.has(monthKey)) return;
+
+    const [year, month] = monthKey.split("-");
+    monthMap.set(monthKey, {
+      key: monthKey,
+      date: buildMonthDate(year, month),
+      year,
+      month: Number(month),
+      label: formatMonthLabelFromKey(monthKey),
+      sortValue: new Date(buildMonthDate(year, month)).getTime(),
+    });
+  });
+
+  const months = Array.from(monthMap.values()).sort((a, b) =>
+    compareRangeMonthKeys(a.key, b.key),
+  );
+
+  return {
+    months,
+    first: months[0] ?? null,
+    last: months[months.length - 1] ?? null,
+  };
+}
+
+function getForecastMonthOptions(rows = [], metricKeys = FORECAST_DETAIL_METRICS) {
+  const monthMap = new Map();
+  const keys = Array.isArray(metricKeys) ? metricKeys.filter(Boolean) : [];
+
+  rows
+    .filter((row) => row?.period_type === "monthly")
+    .filter((row) => isForecastRow(row))
+    .filter((row) => !keys.length || keys.some((metricKey) => hasMetricValue(row, metricKey)))
+    .forEach((row) => {
+      const monthKey = getGlobalContextMonthKey(row);
+      if (!monthKey || monthMap.has(monthKey)) return;
+      const [year, month] = monthKey.split("-");
+
+      monthMap.set(monthKey, {
+        key: monthKey,
+        date: buildMonthDate(year, month),
+        year,
+        month: Number(month),
+        label: formatMonthLabelFromKey(monthKey),
+        sortValue: new Date(buildMonthDate(year, month)).getTime(),
+      });
+    });
+
+  return Array.from(monthMap.values()).sort((a, b) => compareRangeMonthKeys(a.key, b.key));
+}
+
+function getForecastAvailableYears(monthOptions = []) {
+  return Array.from(new Set(monthOptions.map((month) => month.year).filter(Boolean))).sort((a, b) =>
+    b.localeCompare(a),
+  );
+}
+
+function getForecastMonthsForYear(monthOptions = [], year = "") {
+  const selectedYear = String(year || "");
+  return monthOptions
+    .filter((month) => String(month.year) === selectedYear)
+    .map((month) => month.month)
+    .filter((month) => Number.isFinite(month))
+    .sort((a, b) => a - b);
+}
+
+function getForecastRangeMonthOptions(monthOptions = []) {
+  return monthOptions.map((month) => ({
+    key: month.key,
+    label: month.label,
+    date: month.date,
+    year: month.year,
+    month: month.month,
+  }));
+}
+
+function getForecastSelectionWindow(selection = {}, monthOptions = []) {
+  if (!monthOptions.length) return null;
+
+  const timeMode = FORECAST_TIME_MODE_KEYS.includes(selection.selectedTimeMode)
+    ? selection.selectedTimeMode
+    : "horizon";
+  const firstMonth = monthOptions[0];
+  const lastMonth = monthOptions[monthOptions.length - 1];
+  const selectedYear = String(selection.selectedYear || lastMonth.year || "");
+  const yearMonths = monthOptions.filter((month) => String(month.year) === selectedYear);
+
+  if (timeMode === "month") {
+    const monthKey = getMonthKeyFromParts(selectedYear, Number(selection.selectedMonth));
+    const selectedMonth = monthOptions.find((month) => month.key === monthKey) ?? lastMonth;
+
+    return {
+      mode: "month",
+      startMonth: selectedMonth.key,
+      endMonth: selectedMonth.key,
+      startDate: selectedMonth.date,
+      endDate: selectedMonth.date,
+      label: selectedMonth.label,
+      detail: "Periodo forecast mensual seleccionado.",
+      monthCount: 1,
+      closeLabel: selectedMonth.label,
+    };
+  }
+
+  if (timeMode === "annual") {
+    const selectedYearMonths = yearMonths.length ? yearMonths : monthOptions;
+    const start = selectedYearMonths[0];
+    const end = selectedYearMonths[selectedYearMonths.length - 1];
+    const fullYear = selectedYearMonths.length === 12;
+    const label = fullYear
+      ? `Año ${end.year}`
+      : `${end.year} parcial · ${getDemoMonthLabel(start.month)}-${getDemoMonthLabel(end.month)}`;
+
+    return {
+      mode: "annual",
+      startMonth: start.key,
+      endMonth: end.key,
+      startDate: start.date,
+      endDate: end.date,
+      label,
+      detail: fullYear
+        ? `Forecast acumulado Ene-Dic ${end.year}.`
+        : `Forecast parcial ${end.year}: ${getDemoMonthLabel(start.month)}-${getDemoMonthLabel(end.month)}.`,
+      monthCount: selectedYearMonths.length,
+      closeLabel: end.label,
+    };
+  }
+
+  if (timeMode === "range") {
+    const requestedStart = selection.rangeStartMonth || firstMonth.key;
+    const requestedEnd = selection.rangeEndMonth || lastMonth.key;
+    const start = monthOptions.find((month) => month.key === requestedStart) ?? firstMonth;
+    const end = monthOptions.find((month) => month.key === requestedEnd) ?? lastMonth;
+    const [safeStart, safeEnd] =
+      compareRangeMonthKeys(start.key, end.key) <= 0 ? [start, end] : [end, start];
+    const monthCount = monthOptions.filter(
+      (month) =>
+        compareRangeMonthKeys(month.key, safeStart.key) >= 0 &&
+        compareRangeMonthKeys(month.key, safeEnd.key) <= 0,
+    ).length;
+
+    return {
+      mode: "range",
+      startMonth: safeStart.key,
+      endMonth: safeEnd.key,
+      startDate: safeStart.date,
+      endDate: safeEnd.date,
+      label: `Rango · ${safeStart.label}-${safeEnd.label}`,
+      detail: "Forecast agregado para el rango seleccionado.",
+      monthCount,
+      closeLabel: safeEnd.label,
+    };
+  }
+
+  return {
+    mode: "horizon",
+    startMonth: firstMonth.key,
+    endMonth: lastMonth.key,
+    startDate: firstMonth.date,
+    endDate: lastMonth.date,
+    label: `Horizonte · ${firstMonth.label}-${lastMonth.label}`,
+    detail: "Horizonte forecast completo. Ranking y tabla muestran el cierre proyectado.",
+    monthCount: monthOptions.length,
+    closeLabel: lastMonth.label,
+  };
+}
+
+function filterRowsByForecastWindow(rows = [], window = null) {
+  if (!window?.startMonth || !window?.endMonth) return [];
+
+  return rows.filter((row) => {
+    const monthKey = getGlobalContextMonthKey(row);
+    return (
+      monthKey &&
+      compareRangeMonthKeys(monthKey, window.startMonth) >= 0 &&
+      compareRangeMonthKeys(monthKey, window.endMonth) <= 0
+    );
+  });
+}
+
+function getForecastPeriodRowsForWindow(rows = [], window = null) {
+  if (!window) return [];
+
+  if (window.mode === "horizon" || window.mode === "month") {
+    return rows.filter((row) => getGlobalContextMonthKey(row) === window.endMonth);
+  }
+
+  return buildAggregatedRowsFromMonthly(rows, {
+    startDate: window.startDate,
+    endDate: window.endDate,
+    aggregationType: window.mode === "annual" ? "annual" : "range",
+    includeBenchmark: false,
+    includeForecasts: true,
+  });
+}
+
+function getForecastCoverageItem(rows = [], metricKey = "", label = "") {
+  const months = getForecastMonthOptions(rows, [metricKey]);
+  const first = months[0] ?? null;
+  const last = months[months.length - 1] ?? null;
+  const source = getProfileSourceLabel(metricKey);
+
+  return {
+    key: metricKey,
+    label,
+    available: Boolean(first && last),
+    statusLabel: first && last ? `${first.label}-${last.label}` : "No disponible",
+    reason: first && last ? source : `Forecast de ${label.toLowerCase()} no disponible`,
+  };
+}
+
+function getForecastPeriodStatusItems(rows = []) {
+  return [
+    {
+      key: "visits",
+      label: "Forecast visitas",
+      available: hasAnyMetric(rows, "visits"),
+      statusLabel: hasAnyMetric(rows, "visits") ? "Disponible" : "No disponible",
+      reason: "Mock benchmark dataset",
+    },
+    {
+      key: "revenue",
+      label: "Forecast facturación",
+      available: hasAnyMetric(rows, "revenue"),
+      statusLabel: hasAnyMetric(rows, "revenue") ? "Disponible" : "No disponible",
+      reason: "ECDB",
+    },
+  ];
+}
+
+function getPrimaryAvailabilityMetric(metricKeys = [], selectedMetric = "") {
+  if (selectedMetric) return selectedMetric;
+
+  const keys = Array.isArray(metricKeys) ? metricKeys.filter(Boolean) : [];
+  if (!keys.length) return "revenue";
+  if (keys.some((key) => key.includes("share_revenue_change"))) return "market_share_revenue";
+  if (keys.some((key) => key.includes("share_visits_change"))) return "market_share_visits";
+  if (keys.includes("market_share_revenue") && keys.includes("market_share_visits")) {
+    return "monetization_gap";
+  }
+
+  return keys[0];
+}
+
+function getRankingMetricKey(sortKey = "", timeMode = "") {
+  if (sortKey === "growth_revenue") {
+    return timeMode === "month" ? "revenue_mom_growth" : "revenue_yoy_growth";
+  }
+
+  if (sortKey === "growth_visits") {
+    return timeMode === "month" ? "visits_mom_growth" : "visits_yoy_growth";
+  }
+
+  return sortKey;
+}
+
+function getRankingSortLabel(sortKey = "", timeMode = "") {
+  const optionLabel = LOCAL_RANKING_SORTS.find((sort) => sort.key === sortKey)?.label;
+  if (!sortKey.startsWith("growth_")) return optionLabel || sortKey;
+
+  const normalizedTimeMode = normalizeTimeMode(timeMode);
+  const cadence =
+    normalizedTimeMode === "month"
+      ? "mensual"
+      : normalizedTimeMode === "historical"
+        ? "histórico"
+        : "interanual";
+  return `${optionLabel || "Crecimiento"} ${cadence}`;
+}
+
+function withRankingAvailability(options = [], availability = {}, timeMode = "") {
+  return options.map((option) => {
+    const metricKey = getRankingMetricKey(option.key, timeMode);
+    const item = availability?.[metricKey] ?? availability?.[option.key] ?? null;
+    const available = item ? item.available : true;
+
+    return {
+      ...option,
+      metricKey,
+      availability: item,
+      disabled: !available,
+      reason: item?.reason || "",
+    };
+  });
+}
+
+function capitalizeCopy(value = "") {
+  const text = String(value || "").trim();
+  return text ? `${text.slice(0, 1).toUpperCase()}${text.slice(1)}` : "";
+}
+
+function getTimeModeLabel(timeMode = "") {
+  return TIME_MODE_OPTIONS.find((option) => option.key === timeMode)?.label || timeMode;
+}
+
+function getHistoricalStartMonth(selection = {}) {
+  const rangeMonthOptions = Array.isArray(selection.rangeMonthOptions)
+    ? selection.rangeMonthOptions
+    : [];
+  return rangeMonthOptions[0]?.key || selection.rangeStartMonth || "";
+}
+
+function getHistoricalEndMonth(selection = {}) {
+  const rangeMonthOptions = Array.isArray(selection.rangeMonthOptions)
+    ? selection.rangeMonthOptions
+    : [];
+  const selectedEnd = selection.rangeEndMonth || "";
+  const hasSelectedEnd = rangeMonthOptions.some((month) => month.key === selectedEnd);
+  return (hasSelectedEnd && selectedEnd) || rangeMonthOptions[rangeMonthOptions.length - 1]?.key || selectedEnd;
+}
+
+function getHistoricalRangeLabel(startMonth = "", endMonth = "") {
+  const startLabel = formatMonthLabelFromKey(startMonth);
+  const endLabel = formatMonthLabelFromKey(endMonth);
+  if (!startLabel || !endLabel) return "";
+  return startMonth === endMonth ? startLabel : `${startLabel}–${endLabel}`;
+}
+
+function getRangeMonthCount(months = [], startMonth = "", endMonth = "") {
+  if (!startMonth || !endMonth) return 0;
+  return months.filter(
+    (month) =>
+      compareRangeMonthKeys(month.key, startMonth) >= 0 &&
+      compareRangeMonthKeys(month.key, endMonth) <= 0,
+  ).length;
+}
+
+function normalizeTimeMode(timeMode = "") {
+  // Legacy fallback for old URLs/state only. Not exposed in UI.
+  return timeMode === "ytd" ? "historical" : timeMode || "month";
+}
+
+function getMonthOptionFromKey(monthKey = "") {
+  if (!monthKey) return null;
+  const [year, month] = String(monthKey).split("-");
+  if (!year || !month) return null;
+
+  return {
+    key: monthKey,
+    date: buildMonthDate(year, Number(month)),
+    year,
+    month: Number(month),
+    label: formatMonthLabelFromKey(monthKey),
+    sortValue: new Date(buildMonthDate(year, Number(month))).getTime(),
+  };
+}
+
+function normalizeMetricRequirement(metricRequirement = "any") {
+  const requirement = String(metricRequirement || "any");
+  if (requirement === "market_share_revenue") return "revenue_share";
+  if (requirement === "market_share_visits") return "visits_share";
+  if (requirement === "monetization_gap" || requirement === "revenue_per_visit") {
+    return requirement;
+  }
+  if (requirement === "efficiency") return "efficiency";
+  if (requirement === "comparable_revenue_visits") return "comparable_revenue_visits";
+  if (requirement === "growth") return "growth";
+  if (requirement === "revenue_share" || requirement === "visits_share") return requirement;
+  if (requirement === "visits") return "visits";
+  if (requirement === "revenue") return "revenue";
+  return "any";
+}
+
+function getMetricRequirementForMetric(metricKey = "") {
+  const metric = String(metricKey || "");
+  if (!metric) return "any";
+  if (
+    metric === "visits" ||
+    metric === "indexed_visits" ||
+    metric === "rank_visits" ||
+    (metric.includes("visits_") && metric.includes("growth"))
+  ) {
+    return "visits";
+  }
+  if (
+    metric === "market_share_visits" ||
+    metric === "rank_share_visits" ||
+    metric.includes("share_visits_change")
+  ) {
+    return "visits_share";
+  }
+  if (
+    metric === "market_share_revenue" ||
+    metric === "rank_share_revenue" ||
+    metric.includes("share_revenue_change")
+  ) {
+    return "revenue_share";
+  }
+  if (metric === "revenue_per_visit") return "efficiency";
+  if (metric === "monetization_gap" || metric === "revenue_share_vs_visit_share") {
+    return "monetization_gap";
+  }
+  if (metric === "indexed_market_share_revenue") return "revenue_share";
+  if (
+    (metric.includes("revenue_") && metric.includes("growth")) ||
+    metric.includes("revenue_growth") ||
+    metric === "indexed_revenue" ||
+    metric === "rank_revenue" ||
+    metric === "revenue"
+  ) {
+    return "revenue";
+  }
+  if (metric.includes("growth")) return "growth";
+  return "any";
+}
+
+function getMetricRequirementForFilters(metricKeys = [], selectedMetric = "") {
+  if (selectedMetric) return getMetricRequirementForMetric(selectedMetric);
+  const keys = Array.isArray(metricKeys) ? metricKeys.filter(Boolean) : [];
+  if (!keys.length) return "any";
+  if (keys.some((key) => getMetricRequirementForMetric(key) === "monetization_gap")) {
+    return "monetization_gap";
+  }
+  if (keys.some((key) => getMetricRequirementForMetric(key) === "efficiency")) {
+    return "efficiency";
+  }
+  if (keys.some((key) => getMetricRequirementForMetric(key) === "revenue") &&
+      keys.some((key) => getMetricRequirementForMetric(key) === "visits")) {
+    return "comparable_revenue_visits";
+  }
+  return getMetricRequirementForMetric(keys[0]);
+}
+
+function getRequirementAvailabilityMetric(metricRequirement = "any") {
+  const requirement = normalizeMetricRequirement(metricRequirement);
+  if (requirement === "revenue" || requirement === "revenue_share") return "revenue";
+  if (requirement === "visits" || requirement === "visits_share") return "visits";
+  if (
+    requirement === "monetization_gap" ||
+    requirement === "efficiency" ||
+    requirement === "comparable_revenue_visits"
+  ) {
+    return "comparable_revenue_visits";
+  }
+  return "any";
+}
+
+function getCoverageSourceRows(rows = [], { market = "" } = {}) {
+  return preferObservedRows(
+    filterInterfaceRows(
+      rows,
+      { periodType: "monthly", market },
+      { includeBenchmark: false, includeForecasts: false, realOnly: true },
+    ),
+  );
+}
+
+function getCoverageMonthsForRequirement(rows = [], metricRequirement = "any", options = {}) {
+  const requirement = normalizeMetricRequirement(metricRequirement);
+  const sourceRows = getCoverageSourceRows(rows, options);
+  const monthMap = new Map();
+
+  if (
+    requirement === "monetization_gap" ||
+    requirement === "efficiency" ||
+    requirement === "comparable_revenue_visits"
+  ) {
+    const monthState = new Map();
+
+    sourceRows.forEach((row) => {
+      const monthKey = getGlobalContextMonthKey(row);
+      if (!monthKey) return;
+
+      const current = monthState.get(monthKey) ?? { hasRevenue: false, hasVisits: false };
+      current.hasRevenue = current.hasRevenue || hasMetricValue(row, "revenue");
+      current.hasVisits = current.hasVisits || hasMetricValue(row, "visits");
+      monthState.set(monthKey, current);
+    });
+
+    monthState.forEach((state, monthKey) => {
+      if (!state.hasRevenue || !state.hasVisits) return;
+      const monthOption = getMonthOptionFromKey(monthKey);
+      if (monthOption) monthMap.set(monthKey, monthOption);
+    });
+  } else {
+    const availabilityMetric = getRequirementAvailabilityMetric(requirement);
+
+    sourceRows.forEach((row) => {
+      const monthKey = getGlobalContextMonthKey(row);
+      if (!monthKey || monthMap.has(monthKey)) return;
+
+      const hasCoverage =
+        availabilityMetric === "any"
+          ? GLOBAL_CONTEXT_METRICS.some((metricKey) => hasMetricValue(row, metricKey))
+          : hasMetricValue(row, availabilityMetric);
+
+      if (!hasCoverage) return;
+      const monthOption = getMonthOptionFromKey(monthKey);
+      if (monthOption) monthMap.set(monthKey, monthOption);
+    });
+  }
+
+  return Array.from(monthMap.values()).sort((a, b) => compareRangeMonthKeys(a.key, b.key));
+}
+
+function getCoverageRangeForRequirement(rows = [], metricRequirement = "any", options = {}) {
+  const months = getCoverageMonthsForRequirement(rows, metricRequirement, options);
+  const first = months[0] ?? null;
+  const last = months[months.length - 1] ?? null;
+
+  return {
+    months,
+    first,
+    last,
+    label: first && last ? getHistoricalRangeLabel(first.key, last.key) : "",
+  };
+}
+
+function getHistoricalPeriodPrefix(metricRequirement = "any") {
+  const requirement = normalizeMetricRequirement(metricRequirement);
+  return requirement === "monetization_gap" ||
+    requirement === "efficiency" ||
+    requirement === "comparable_revenue_visits"
+    ? "Histórico comparable"
+    : "Histórico";
+}
+
+function getPeriodLabelFromRows(rows = [], fallback = "") {
+  return rows.find((row) => row?.period_label)?.period_label || fallback;
+}
+
+function getTimeSelectionDates(selection = {}) {
+  const selectedTimeMode = normalizeTimeMode(
+    selection.timeMode || selection.selectedTimeMode || selection.periodType,
+  );
+  const selectedYear = selection.selectedYear || "";
+  const selectedMonth = Number(selection.selectedMonth);
+  const annualEndMonth = Number(selection.annualEndMonth);
+
+  if (selectedTimeMode === "month") {
+    const date = buildMonthDate(selectedYear, selectedMonth);
+    return { startDate: date, endDate: date };
+  }
+
+  if (selectedTimeMode === "historical") {
+    return {
+      startDate: getRangeMonthDate(getHistoricalStartMonth(selection)),
+      endDate: getRangeMonthDate(getHistoricalEndMonth(selection)),
+    };
+  }
+
+  if (selectedTimeMode === "annual") {
+    return {
+      startDate: buildMonthDate(selectedYear, 1),
+      endDate: buildMonthDate(selectedYear, annualEndMonth || 12),
+    };
+  }
+
+  return {
+    startDate: getRangeMonthDate(selection.rangeStartMonth),
+    endDate: getRangeMonthDate(selection.rangeEndMonth),
+  };
+}
+
+function buildSelectedPeriod(selection = {}) {
+  const { startDate, endDate } = getTimeSelectionDates(selection);
+  const selectedTimeMode = normalizeTimeMode(
+    selection.timeMode || selection.selectedTimeMode || selection.periodType,
+  );
+  const selectedYear = selection.selectedYear || "";
+  const selectedMonth = Number(selection.selectedMonth);
+  const annualEndMonth = Number(selection.annualEndMonth);
+  const selectedMonthKey = getMonthKeyFromParts(selectedYear, selectedMonth);
+  const annualEndLabel = getDemoMonthLabel(annualEndMonth);
+  const monthOptions = selection.monthOptions || [];
+  const rangeMonthOptions = selection.rangeMonthOptions || [];
+  const historicalStartMonth = getHistoricalStartMonth(selection);
+  const historicalEndMonth = getHistoricalEndMonth(selection);
+  const historicalStartLabel = formatMonthLabelFromKey(historicalStartMonth);
+  const historicalEndLabel = formatMonthLabelFromKey(historicalEndMonth);
+  const historicalRangeLabel = getHistoricalRangeLabel(historicalStartMonth, historicalEndMonth);
+  const isFullYear = monthOptions.length === 12 && monthOptions.every((month, index) => month === index + 1);
+  const isPartialYear = selectedTimeMode === "annual" && !isFullYear;
+
+  if (!startDate || !endDate) return null;
+
+  if (selectedTimeMode === "month") {
+    if (!selectedYear || !selectedMonth) return null;
+    return {
+      key: startDate,
+      date: startDate,
+      label: formatMonthLabelFromKey(selectedMonthKey),
+      sortValue: new Date(startDate).getTime(),
+      time_mode: "month",
+      aggregation_type: "month",
+    };
+  }
+
+  if (selectedTimeMode === "historical") {
+    if (!historicalStartMonth || !historicalEndMonth) return null;
+    return {
+      key: "historical",
+      date: endDate,
+      label: "Histórico",
+      detail: `Cada módulo usa su histórico disponible. Cobertura global: ${historicalRangeLabel}.`,
+      sortValue: new Date(endDate).getTime(),
+      time_mode: "historical",
+      aggregation_type: "historical",
+      start_month_label: historicalStartLabel,
+      latest_month: Number(historicalEndMonth.slice(5, 7)),
+      latest_month_label: historicalEndLabel,
+      month_count: getRangeMonthCount(rangeMonthOptions, historicalStartMonth, historicalEndMonth),
+    };
+  }
+
+  if (selectedTimeMode === "annual") {
+    if (!selectedYear || !annualEndMonth) return null;
+    return {
+      key: `annual:${selectedYear}`,
+      date: endDate,
+      label: isPartialYear
+        ? `${selectedYear} parcial · Ene-${annualEndLabel}`
+        : `Año ${selectedYear}`,
+      detail: isPartialYear
+        ? `${selectedYear} parcial: acumulado Ene-${annualEndLabel}.`
+        : `Año ${selectedYear}: acumulado enero-diciembre.`,
+      sortValue: new Date(endDate).getTime(),
+      time_mode: "annual",
+      aggregation_type: "annual",
+      partial_year: isPartialYear,
+      latest_month: annualEndMonth,
+      latest_month_label: annualEndLabel,
+      month_count: monthOptions.length,
+    };
+  }
+
+  if (!selection.rangeStartMonth || !selection.rangeEndMonth) return null;
+
+  return {
+    key: `range:${selection.rangeStartMonth}:${selection.rangeEndMonth}`,
+    date: endDate,
+    label: `Rango · ${formatMonthLabelFromKey(selection.rangeStartMonth)}–${formatMonthLabelFromKey(
+      selection.rangeEndMonth,
+    )}`,
+    detail: "Rango calculado desde datos mensuales disponibles.",
+    sortValue: new Date(endDate).getTime(),
+    time_mode: "range",
+    aggregation_type: "range",
+    month_count: rangeMonthOptions.filter(
+      (month) =>
+        compareRangeMonthKeys(month.key, selection.rangeStartMonth) >= 0 &&
+        compareRangeMonthKeys(month.key, selection.rangeEndMonth) <= 0,
+    ).length,
+  };
+}
+
+function buildGlobalPeriod(selection = {}) {
+  const { startDate, endDate } = getTimeSelectionDates(selection);
+  const selectedTimeMode = normalizeTimeMode(selection.selectedTimeMode);
+  const selectedYear = selection.selectedYear || "";
+  const selectedMonth = Number(selection.selectedMonth);
+  const annualEndMonth = Number(selection.annualEndMonth);
+  const selectedMonthKey = getMonthKeyFromParts(selectedYear, selectedMonth);
+  const annualEndLabel = getDemoMonthLabel(annualEndMonth);
+  const monthOptions = selection.monthOptions || [];
+  const rangeMonthOptions = selection.rangeMonthOptions || [];
+  const historicalStartMonth = getHistoricalStartMonth(selection);
+  const historicalEndMonth = getHistoricalEndMonth(selection);
+  const historicalStartLabel = formatMonthLabelFromKey(historicalStartMonth);
+  const historicalEndLabel = formatMonthLabelFromKey(historicalEndMonth);
+  const historicalRangeLabel = getHistoricalRangeLabel(historicalStartMonth, historicalEndMonth);
+  const isFullYear =
+    monthOptions.length === 12 && monthOptions.every((month, index) => month === index + 1);
+  const isPartialYear = selectedTimeMode === "annual" && !isFullYear;
+
+  if (!startDate || !endDate) return null;
+
+  if (selectedTimeMode === "month") {
+    if (!selectedYear || !selectedMonth) return null;
+    return {
+      key: startDate,
+      date: startDate,
+      label: formatMonthLabelFromKey(selectedMonthKey),
+      sortValue: new Date(startDate).getTime(),
+      time_mode: "month",
+      aggregation_type: "month",
+    };
+  }
+
+  if (selectedTimeMode === "historical") {
+    if (!historicalStartMonth || !historicalEndMonth) return null;
+    return {
+      key: "historical",
+      date: endDate,
+      label: "Histórico",
+      detail: `Cada módulo usa su histórico disponible. Cobertura global: ${historicalRangeLabel}.`,
+      sortValue: new Date(endDate).getTime(),
+      time_mode: "historical",
+      aggregation_type: "historical",
+      start_month_label: historicalStartLabel,
+      latest_month: Number(historicalEndMonth.slice(5, 7)),
+      latest_month_label: historicalEndLabel,
+      month_count: getRangeMonthCount(rangeMonthOptions, historicalStartMonth, historicalEndMonth),
+    };
+  }
+
+  if (selectedTimeMode === "annual") {
+    if (!selectedYear || !annualEndMonth) return null;
+    return {
+      key: `annual:${selectedYear}`,
+      date: endDate,
+      label: isPartialYear ? `${selectedYear} parcial · Ene-${annualEndLabel}` : `Año ${selectedYear}`,
+      detail: isPartialYear
+        ? `${selectedYear} parcial: acumulado Ene-${annualEndLabel}.`
+        : `Año ${selectedYear}: acumulado enero-diciembre.`,
+      sortValue: new Date(endDate).getTime(),
+      time_mode: "annual",
+      aggregation_type: "annual",
+      partial_year: isPartialYear,
+      latest_month: annualEndMonth,
+      latest_month_label: annualEndLabel,
+      month_count: monthOptions.length,
+    };
+  }
+
+  if (!selection.rangeStartMonth || !selection.rangeEndMonth) return null;
+
+  return {
+    key: `range:${selection.rangeStartMonth}:${selection.rangeEndMonth}`,
+    date: endDate,
+    label: `Rango · ${formatMonthLabelFromKey(selection.rangeStartMonth)}–${formatMonthLabelFromKey(
+      selection.rangeEndMonth,
+    )}`,
+    detail: "Rango calculado desde datos mensuales disponibles.",
+    sortValue: new Date(endDate).getTime(),
+    time_mode: "range",
+    aggregation_type: "range",
+    month_count: rangeMonthOptions.filter(
+      (month) =>
+        compareRangeMonthKeys(month.key, selection.rangeStartMonth) >= 0 &&
+        compareRangeMonthKeys(month.key, selection.rangeEndMonth) <= 0,
+    ).length,
+  };
+}
+
+function buildRowsForPeriod(rows = [], context = {}, metricRequirement = "any", options = {}) {
+  const {
+    market = context.market || "",
+    includeBenchmark = false,
+    includeForecasts = false,
+  } = options;
+  const timeMode = normalizeTimeMode(
+    context.timeMode || context.selectedTimeMode || context.periodType,
+  );
+  const requirement = normalizeMetricRequirement(metricRequirement);
+  const sourceRows = preferObservedRows(
+    filterInterfaceRows(
+      rows,
+      {
+        periodType: "monthly",
+        market,
+      },
+      { includeBenchmark, includeForecasts, realOnly: !includeBenchmark },
+    ),
+  );
+  const selection = { ...context, selectedTimeMode: timeMode };
+  const historicalRange =
+    timeMode === "historical"
+      ? getCoverageRangeForRequirement(rows, requirement, { market })
+      : null;
+  const periodDates =
+    timeMode === "historical"
+      ? {
+          startDate: historicalRange?.first?.date || "",
+          endDate: historicalRange?.last?.date || "",
+        }
+      : getTimeSelectionDates(selection);
+  const { startDate, endDate } = periodDates;
+
+  if (!sourceRows.length || !startDate || !endDate) return [];
+
+  if (timeMode === "month") {
+    return getRowsForPeriod(sourceRows, endDate);
+  }
+
+  const aggregationType =
+    timeMode === "annual" ? "annual" : timeMode === "historical" ? "historical" : timeMode;
+  const periodRows = buildAggregatedRowsFromMonthly(sourceRows, {
+    startDate,
+    endDate,
+    aggregationType,
+    selectedMetric: requirement,
+    includeBenchmark,
+    includeForecasts,
+  });
+
+  if (timeMode !== "historical" || !historicalRange?.label) return periodRows;
+
+  const historicalPrefix = getHistoricalPeriodPrefix(requirement);
+  const periodLabel = `${historicalPrefix} · ${historicalRange.label}`;
+  const periodDetail = `${historicalPrefix} calculado desde ${historicalRange.first.label} hasta ${historicalRange.last.label}.`;
+
+  return periodRows.map((row) => ({
+    ...row,
+    period_label: periodLabel,
+    period_display_label: periodLabel,
+    period_detail: periodDetail,
+    time_mode: "historical",
+    aggregation_type: "historical",
+    metric_requirement: requirement,
+  }));
+}
+
+function buildRowsForGlobalPeriod(rows = [], globalPeriod = {}, options = {}) {
+  return buildRowsForPeriod(rows, globalPeriod, "any", options);
+}
+
+function buildRowsForTimeSelection(rows = [], selection = {}, options = {}) {
+  const {
+    market = "",
+    metricKeys = [],
+    requireAll = true,
+    selectedMetric = "",
+    includeBenchmark = false,
+    includeForecasts = false,
+  } = options;
+  const metricFilters = Array.isArray(metricKeys) ? metricKeys.filter(Boolean) : [];
+  const fallbackMetric = selectedMetric ? [selectedMetric] : [];
+  const filters = metricFilters.length ? metricFilters : fallbackMetric;
+  const metricRequirement =
+    options.metricRequirement || getMetricRequirementForFilters(filters, selectedMetric);
+  const periodRows = buildRowsForPeriod(rows, { ...selection, market }, metricRequirement, {
+    market,
+    includeBenchmark,
+    includeForecasts,
+  });
+
+  return filters.length ? filterRowsWithMetrics(periodRows, filters, requireAll) : periodRows;
+}
+
+function filterRowsForTimeSeries(rows = [], selection = {}, options = {}) {
+  const {
+    market = "",
+    metricKeys = [],
+    includeBenchmark = true,
+    includeForecasts = false,
+  } = options;
+  const { startDate, endDate } = getTimeSelectionDates(selection);
+  const startMonthKey = String(startDate || "").slice(0, 7);
+  const endMonthKey = String(endDate || "").slice(0, 7);
+  if (!startMonthKey || !endMonthKey) return [];
+
+  return preferObservedRows(
+    filterRowsWithMetrics(
+      filterInterfaceRows(
+        rows,
+        { periodType: "monthly", market },
+        { includeBenchmark, includeForecasts },
+      ),
+      metricKeys,
+      false,
+    ),
+  ).filter((row) => {
+    const monthKey = String(row?.date || "").slice(0, 7);
+    return monthKey >= startMonthKey && monthKey <= endMonthKey;
+  });
+}
+
+function buildDataCoverageItems(rows = [], { market = "" } = {}) {
+  const coverageDefinitions = [
+    {
+      key: "revenue",
+      label: "Facturación",
+      requirement: "revenue",
+      availableReason: "Datos disponibles",
+      unavailableReason: "No disponible",
+    },
+    {
+      key: "visits",
+      label: "Visitas",
+      requirement: "visits",
+      availableReason: "Datos disponibles",
+      unavailableReason: "No disponible",
+    },
+    {
+      key: "market_share_revenue",
+      label: "Cuota facturación",
+      requirement: "revenue_share",
+      availableReason: "Recalculada desde facturación",
+      unavailableReason: "Requiere facturación",
+    },
+    {
+      key: "market_share_visits",
+      label: "Cuota visitas",
+      requirement: "visits_share",
+      availableReason: "Recalculada desde visitas",
+      unavailableReason: "Requiere visitas",
+    },
+    {
+      key: "monetization_gap",
+      label: "Brecha monetización",
+      requirement: "comparable_revenue_visits",
+      availableReason: "Rango común facturación + visitas",
+      unavailableReason: "Requiere facturación + visitas",
+    },
+  ];
+
+  return coverageDefinitions.map((definition) => {
+    const coverage = getCoverageRangeForRequirement(rows, definition.requirement, { market });
+    const available = Boolean(coverage.first && coverage.last);
+
+    return {
+      key: definition.key,
+      label: definition.label,
+      available,
+      statusLabel: available ? coverage.label : "No disponible",
+      reason: available ? definition.availableReason : definition.unavailableReason,
+      first: coverage.first,
+      last: coverage.last,
+    };
+  });
+}
+
+function buildPeriodStatusItems(metricAvailability = {}) {
+  return [
+    metricAvailability.revenue,
+    metricAvailability.visits,
+    metricAvailability.market_share_revenue,
+    metricAvailability.market_share_visits,
+    metricAvailability.monetization_gap,
+  ].filter(Boolean);
+}
+
+function useScopedPeriodSelection({
+  rows = [],
+  metricKeys = [],
+  requireAll = true,
+  periodRowsValidator,
+  selectedMetric = "",
+  includeBenchmark = false,
+  includeForecasts = false,
+} = {}) {
+  const [selectedTimeMode, setSelectedTimeMode] = useState("month");
+  const [market, setMarket] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [rangeStartMonth, setRangeStartMonth] = useState("");
+  const [rangeEndMonth, setRangeEndMonth] = useState("");
+  const requestedMetricKeys = useMemo(
+    () => (Array.isArray(metricKeys) ? metricKeys.filter(Boolean) : []),
+    [metricKeys],
+  );
+  const isMetricScoped = requestedMetricKeys.length > 0 || Boolean(selectedMetric);
+  const availabilityMetric = isMetricScoped
+    ? getPrimaryAvailabilityMetric(requestedMetricKeys, selectedMetric)
+    : "";
+  const effectiveMetricKeys = useMemo(() => {
+    const keys = requestedMetricKeys;
+    if (!keys.length) return [];
+    if (keys.every((key) => key.includes("share_") && key.includes("_change_"))) {
+      return [availabilityMetric];
+    }
+    return keys;
+  }, [availabilityMetric, requestedMetricKeys]);
+  const filteredRows = useMemo(
+    () =>
+      filterRowsWithMetrics(
+        rows,
+        effectiveMetricKeys,
+        effectiveMetricKeys.length ? requireAll : false,
+      ),
+    [effectiveMetricKeys, requireAll, rows],
+  );
+
+  const markets = useMemo(
+    () => getMarkets(filteredRows, "monthly", { includeBenchmark, includeForecasts }),
+    [filteredRows, includeBenchmark, includeForecasts],
+  );
+
+  useEffect(() => {
+    if (!markets.length) {
+      setMarket("");
+      return;
+    }
+
+    if (!market || !markets.includes(market)) {
+      setMarket(markets[0]);
+    }
+  }, [market, markets]);
+
+  const metricAvailabilityOptions = useMemo(
+    () => ({ market, includeBenchmark: false, includeForecasts, mode: selectedTimeMode }),
+    [includeForecasts, market, selectedTimeMode],
+  );
+  const availableYears = useMemo(
+    () =>
+      isMetricScoped
+        ? getAvailableYears(filteredRows, availabilityMetric, metricAvailabilityOptions)
+        : getGlobalAvailableYears(filteredRows, metricAvailabilityOptions),
+    [availabilityMetric, filteredRows, isMetricScoped, metricAvailabilityOptions],
+  );
+
+  useEffect(() => {
+    if (!TIME_MODE_KEYS.includes(selectedTimeMode)) {
+      setSelectedTimeMode("month");
+    }
+  }, [selectedTimeMode]);
+
+  useEffect(() => {
+    if (!availableYears.length) {
+      setSelectedYear("");
+      return;
+    }
+
+    if (!selectedYear || !availableYears.includes(selectedYear)) {
+      setSelectedYear(availableYears[0]);
+    }
+  }, [availableYears, selectedTimeMode, selectedYear]);
+
+  const monthOptions = useMemo(
+    () =>
+      isMetricScoped
+        ? getAvailableMonthsForYear(
+            filteredRows,
+            selectedYear,
+            availabilityMetric,
+            metricAvailabilityOptions,
+          )
+        : getGlobalAvailableMonthsForYear(filteredRows, selectedYear, metricAvailabilityOptions),
+    [availabilityMetric, filteredRows, isMetricScoped, metricAvailabilityOptions, selectedYear],
+  );
+
+  useEffect(() => {
+    if (!monthOptions.length) {
+      setSelectedMonth("");
+      return;
+    }
+
+    const latestMonth = monthOptions[monthOptions.length - 1];
+    if (!selectedMonth || !monthOptions.includes(Number(selectedMonth))) {
+      setSelectedMonth(String(latestMonth));
+    }
+  }, [monthOptions, selectedMonth]);
+
+  const rangeBounds = useMemo(
+    () =>
+      isMetricScoped
+        ? getAvailableRangeBounds(filteredRows, availabilityMetric, metricAvailabilityOptions)
+        : getGlobalAvailableRangeBounds(filteredRows, metricAvailabilityOptions),
+    [availabilityMetric, filteredRows, isMetricScoped, metricAvailabilityOptions],
+  );
+  const rangeMonthOptions = rangeBounds.months;
+
+  useEffect(() => {
+    if (!rangeMonthOptions.length) {
+      setRangeStartMonth("");
+      setRangeEndMonth("");
+      return;
+    }
+
+    const first = rangeBounds.first?.key || rangeMonthOptions[0].key;
+    const last = rangeBounds.last?.key || rangeMonthOptions[rangeMonthOptions.length - 1].key;
+
+    if (!rangeStartMonth || !rangeMonthOptions.some((month) => month.key === rangeStartMonth)) {
+      setRangeStartMonth(first);
+    }
+
+    if (!rangeEndMonth || !rangeMonthOptions.some((month) => month.key === rangeEndMonth)) {
+      setRangeEndMonth(last);
+    }
+  }, [rangeBounds.first?.key, rangeBounds.last?.key, rangeEndMonth, rangeMonthOptions, rangeStartMonth]);
+
+  useEffect(() => {
+    if (selectedTimeMode !== "range") return;
+    if (!rangeStartMonth || !rangeEndMonth) return;
+    if (compareRangeMonthKeys(rangeStartMonth, rangeEndMonth) <= 0) return;
+
+    setRangeEndMonth(rangeStartMonth);
+  }, [rangeEndMonth, rangeStartMonth, selectedTimeMode]);
+
+  const annualEndMonth = monthOptions.includes(12)
+    ? 12
+    : monthOptions[monthOptions.length - 1] || "";
+  const timeSelection = useMemo(
+    () => ({
+      selectedTimeMode: normalizeTimeMode(selectedTimeMode),
+      timeMode: normalizeTimeMode(selectedTimeMode),
+      selectedYear,
+      selectedMonth: Number(selectedMonth),
+      annualEndMonth: Number(annualEndMonth),
+      rangeStartMonth,
+      rangeEndMonth,
+      monthOptions,
+      rangeMonthOptions,
+    }),
+    [
+      annualEndMonth,
+      monthOptions,
+      rangeMonthOptions,
+      rangeEndMonth,
+      rangeStartMonth,
+      selectedMonth,
+      selectedTimeMode,
+      selectedYear,
+    ],
+  );
+  const selectedPeriod = useMemo(() => buildGlobalPeriod(timeSelection), [timeSelection]);
+  const globalContext = useMemo(
+    () => ({
+      market,
+      timeMode: normalizeTimeMode(selectedTimeMode),
+      selectedTimeMode: normalizeTimeMode(selectedTimeMode),
+      selectedYear,
+      selectedMonth: Number(selectedMonth) || null,
+      rangeStart: rangeStartMonth,
+      rangeEnd: rangeEndMonth,
+      rangeStartMonth,
+      rangeEndMonth,
+      selectedPeriod,
+      periodLabel: selectedPeriod?.label || "",
+    }),
+    [
+      market,
+      rangeEndMonth,
+      rangeStartMonth,
+      selectedMonth,
+      selectedPeriod,
+      selectedTimeMode,
+      selectedYear,
+    ],
+  );
+  const periodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(filteredRows, timeSelection, {
+        market,
+        metricKeys: effectiveMetricKeys,
+        requireAll,
+        selectedMetric: isMetricScoped ? availabilityMetric : "",
+        includeBenchmark,
+        includeForecasts,
+      }),
+    [
+      availabilityMetric,
+      filteredRows,
+      effectiveMetricKeys,
+      includeBenchmark,
+      includeForecasts,
+      isMetricScoped,
+      market,
+      requireAll,
+      timeSelection,
+    ],
+  );
+  const validPeriodRows = useMemo(() => {
+    if (!periodRowsValidator || periodRowsValidator(periodRows)) return periodRows;
+    return [];
+  }, [periodRows, periodRowsValidator]);
+  const latestAvailableMonth = rangeBounds.last;
+  const metricLabel = capitalizeCopy(getMetricCopy(availabilityMetric));
+  const metricAvailability = useMemo(
+    () =>
+      getMetricAvailability(validPeriodRows, filteredRows, {
+        market,
+        selectedPeriod,
+      }),
+    [filteredRows, market, selectedPeriod, validPeriodRows],
+  );
+  const availabilityItems = useMemo(
+    () => buildDataCoverageItems(filteredRows, { market }),
+    [filteredRows, market],
+  );
+  const periodStatusItems = useMemo(
+    () => buildPeriodStatusItems(metricAvailability),
+    [metricAvailability],
+  );
+  const dataNote = useMemo(() => {
+    if (!isMetricScoped) {
+      if (!latestAvailableMonth) return "No hay datos reales disponibles para este mercado.";
+      if (selectedTimeMode !== "month" && selectedPeriod?.detail) return selectedPeriod.detail;
+      return `Datos reales disponibles hasta ${latestAvailableMonth.label}.`;
+    }
+    if (selectedTimeMode === "annual" && !availableYears.length) {
+      return `No hay años completos Ene-Dic para ${metricLabel.toLowerCase()}.`;
+    }
+    if (!latestAvailableMonth) return "No hay datos disponibles para esta métrica.";
+    if (selectedTimeMode === "annual" && selectedPeriod) {
+      return selectedPeriod.partial_year
+        ? `${selectedYear} parcial: acumulado Ene-${selectedPeriod.latest_month_label}.`
+        : `Año ${selectedYear}: acumulado enero-diciembre.`;
+    }
+    if (selectedTimeMode === "historical" && selectedPeriod) {
+      return selectedPeriod.detail || "Histórico calculado desde los datos mensuales disponibles.";
+    }
+    if (selectedTimeMode === "range" && selectedPeriod) {
+      return selectedPeriod.detail || "Rango calculado desde datos mensuales disponibles.";
+    }
+
+    return `${metricLabel} disponible hasta ${latestAvailableMonth.label}.`;
+  }, [
+    availableYears.length,
+    isMetricScoped,
+    latestAvailableMonth,
+    metricLabel,
+    selectedPeriod,
+    selectedPeriod?.latest_month_label,
+    selectedPeriod?.partial_year,
+    selectedTimeMode,
+    selectedYear,
+  ]);
+  const periodOptions = useMemo(
+    () => [
+      selectedPeriod,
+    ].filter(Boolean),
+    [selectedPeriod],
+  );
+
+  const setSafeTimeMode = (mode) => {
+    if (!TIME_MODE_KEYS.includes(mode)) return;
+    setSelectedTimeMode(mode);
+  };
+
+  const selectableRangeEndMonths = useMemo(
+    () =>
+      rangeMonthOptions.filter(
+        (month) => !rangeStartMonth || compareRangeMonthKeys(month.key, rangeStartMonth) >= 0,
+      ),
+    [rangeMonthOptions, rangeStartMonth],
+  );
+  const selectableRangeStartMonths = useMemo(
+    () =>
+      rangeMonthOptions.filter(
+        (month) => !rangeEndMonth || compareRangeMonthKeys(month.key, rangeEndMonth) <= 0,
+      ),
+    [rangeEndMonth, rangeMonthOptions],
+  );
+
+  return {
+    market,
+    markets,
+    onMarketChange: setMarket,
+    selectedTimeMode,
+    timeModeOptions: TIME_MODE_OPTIONS,
+    onTimeModeChange: setSafeTimeMode,
+    selectedYear,
+    onSelectedYearChange: setSelectedYear,
+    selectedMonth: String(selectedMonth || ""),
+    onSelectedMonthChange: setSelectedMonth,
+    rangeStartMonth,
+    onRangeStartMonthChange: setRangeStartMonth,
+    rangeEndMonth,
+    onRangeEndMonthChange: setRangeEndMonth,
+    availableYears,
+    monthOptions,
+    rangeMonthOptions,
+    selectableRangeStartMonths,
+    selectableRangeEndMonths,
+    dataNote,
+    availabilityItems,
+    periodStatusItems,
+    datasetCoverageItems: availabilityItems,
+    metricAvailability,
+    selectedMetric: availabilityMetric,
+    periodType: normalizeTimeMode(selectedTimeMode) === "month" ? "monthly" : normalizeTimeMode(selectedTimeMode),
+    periodTypes: TIME_MODE_KEYS,
+    onPeriodTypeChange: setSafeTimeMode,
+    sourcePeriodType: "monthly",
+    selectedPeriod,
+    periodLabel: selectedPeriod?.label || "",
+    selectedPeriodKey: selectedPeriod?.key || "",
+    onSelectedPeriodChange: () => {},
+    periodOptions,
+    periodRows: validPeriodRows,
+    rawPeriodRows: periodRows,
+    timeSelection,
+    globalContext,
+  };
+}
+
+function EmptyState({ title, message, actions = [] }) {
   return (
     <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-black/15 bg-[#fbf8f5] p-8 text-center">
       <div>
         <p className="text-sm font-semibold text-black">{title}</p>
         {message && <p className="mt-2 text-sm leading-6 text-neutral-500">{message}</p>}
+        {actions.length > 0 && (
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className="empty-state-action"
+                onClick={action.onClick}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+function ForecastCaveat({ className = "" }) {
+  return <span className={`forecast-caveat ${className}`}>Forecast = proyección. No debe leerse como dato observado.</span>;
 }
 
 function SelectField({ label, value, onChange, children, disabled = false, className = "" }) {
@@ -486,11 +1971,79 @@ function SelectField({ label, value, onChange, children, disabled = false, class
   );
 }
 
+function withAvailability(options = [], availability = {}) {
+  return options.map((option) => {
+    const item = availability?.[option.key] ?? null;
+    const available = item ? item.available : true;
+
+    return {
+      ...option,
+      availability: item,
+      disabled: !available,
+      reason: item?.reason || "",
+    };
+  });
+}
+
+function getPreferredAvailableOption(options = [], preferredKeys = []) {
+  const preferred = preferredKeys
+    .map((key) => options.find((option) => option.key === key && !option.disabled))
+    .find(Boolean);
+
+  return preferred ?? options.find((option) => !option.disabled) ?? null;
+}
+
+function getSelectOptionLabel(option = {}) {
+  if (!option.disabled) return `${option.label} · disponible`;
+
+  return [option.label, "no disponible", option.reason].filter(Boolean).join(" · ");
+}
+
+function AvailabilityList({ items = [] }) {
+  if (!items.length) return null;
+
+  return (
+    <ul className="data-coverage-list">
+      {items.map((item) => (
+        <li
+          key={item.key}
+          className={`data-coverage-item ${item.available ? "data-coverage-item-ok" : ""}`}
+        >
+          <span>{item.label}</span>
+          <strong>{item.statusLabel}</strong>
+          {item.reason && <small>{item.reason}</small>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DataCoveragePanel({ periodItems = [], coverageItems = [] }) {
+  if (!periodItems.length && !coverageItems.length) return null;
+
+  return (
+    <section className="data-coverage-panel" aria-label="Estado y cobertura de datos">
+      {periodItems.length > 0 && (
+        <div className="data-coverage-section">
+          <p className="analysis-label">Estado del periodo seleccionado</p>
+          <AvailabilityList items={periodItems} />
+        </div>
+      )}
+      {coverageItems.length > 0 && (
+        <div className="data-coverage-section">
+          <p className="analysis-label">Cobertura general del dataset</p>
+          <AvailabilityList items={coverageItems} />
+        </div>
+      )}
+    </section>
+  );
+}
+
 function StatusShell({ title, message }) {
   return (
     <main className="app-shell">
       <div className="mx-auto max-w-3xl">
-        <Panel eyebrow="Benchmark Intelligence" title={benchmarkDashboardConfig.title}>
+        <Panel eyebrow="Inteligencia competitiva" title="Focus Brand">
           <EmptyState title={title} message={message} />
         </Panel>
       </div>
@@ -498,12 +2051,20 @@ function StatusShell({ title, message }) {
   );
 }
 
-function BrandLogo() {
-  return <img className="brand-logo" src={APP_LOGO_SRC} alt="Focus Brand" />;
+function FocusLogo() {
+  if (FOCUS_LOGO_SRC) {
+    return <img className="brand-logo" src={FOCUS_LOGO_SRC} alt="Focus Brand" />;
+  }
+
+  return (
+    <span className="brand-logo brand-logo-fallback" aria-label="Focus Brand">
+      FB
+    </span>
+  );
 }
 
 function getCompanyFallbackLabel(label, companyId) {
-  const displayLabel = label || companyId || "Entity";
+  const displayLabel = label || companyId || "Empresa";
 
   return String(displayLabel).trim().slice(0, 1).toUpperCase() || "?";
 }
@@ -594,6 +2155,68 @@ function ChartTooltipShell({ title, children }) {
   );
 }
 
+function isIndexedMetric(metricKey = "") {
+  return String(metricKey).startsWith("indexed_");
+}
+
+function getIndexedSourceMetric(metricKey = "") {
+  return INDEXED_SOURCE_METRICS[metricKey] || metricKey;
+}
+
+function getIndexedMetricDisplayLabel(metricKey = "") {
+  const sourceMetric = getIndexedSourceMetric(metricKey);
+  return sourceMetric === "revenue" ? "facturación" : "visitas";
+}
+
+function formatIndexedTooltipValue(value) {
+  const number = safeNumber(value);
+  if (number === null) return "";
+  const indexValue = formatNumber(number, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return `Índice: ${indexValue}`;
+}
+
+function getIndexedTooltipDetails(point = {}, fallbackValue = null, metricKey = "") {
+  const sourceMetric = point.sourceMetric || getIndexedSourceMetric(metricKey);
+  const currentValue = safeNumber(point.actualValue);
+  const baseValue = safeNumber(point.baseValue);
+  const indexValue = safeNumber(fallbackValue);
+  const changeVsBase =
+    currentValue !== null && baseValue !== null && baseValue > 0
+      ? currentValue / baseValue - 1
+      : indexValue !== null
+        ? indexValue / 100 - 1
+        : null;
+
+  return [
+    currentValue !== null ? `Valor actual: ${formatMetric(currentValue, sourceMetric)}` : "",
+    point.baseLabel ? `Base: ${point.baseLabel}` : "",
+    baseValue !== null ? `Valor base: ${formatMetric(baseValue, sourceMetric)}` : "",
+    changeVsBase !== null ? `Cambio vs base: ${formatSignedPercent(changeVsBase)}` : "",
+  ].filter(Boolean);
+}
+
+function getAnnualGrowthTooltipDetails(point = {}, metricKey = "") {
+  const sourceMetric = point.sourceMetric || getGrowthBaseMetricKey(metricKey);
+  const currentValue = safeNumber(point.currentValue ?? point.actualValue);
+  const previousValue = safeNumber(point.previousValue);
+
+  return [
+    point.comparisonLabel ? `Comparativa: ${point.comparisonLabel}` : "",
+    point.monthRange ? `Periodo comparable: ${point.monthRange}` : "",
+    currentValue !== null ? `Valor actual: ${formatMetric(currentValue, sourceMetric)}` : "",
+    previousValue !== null ? `Año anterior: ${formatMetric(previousValue, sourceMetric)}` : "",
+  ].filter(Boolean);
+}
+
+function formatIndexedAxisTick(value) {
+  const number = safeNumber(value);
+  if (number === null) return "";
+  return formatNumber(number, { maximumFractionDigits: 0 });
+}
+
 function MultiSeriesTooltip({ active, payload = [], label, metricKey, seriesById }) {
   if (!active || !payload.length) return null;
 
@@ -603,12 +2226,28 @@ function MultiSeriesTooltip({ active, payload = [], label, metricKey, seriesById
       if (value === null) return null;
 
       const companyInfo = seriesById.get(normalizeCompanyId(item.dataKey)) ?? {};
+      const point =
+        item.payload?.__points?.[companyInfo.company_id || item.dataKey] ||
+        item.payload?.__points?.[normalizeCompanyId(item.dataKey)] ||
+        {};
+      const isIndexed = isIndexedMetric(metricKey);
+      const isGrowth = isGrowthMetric(metricKey);
 
       return {
         id: companyInfo.company_id || item.dataKey,
         name: companyInfo.display_name || item.name,
         color: companyInfo.company_color || item.color || "#6F6864",
         value,
+        valueLabel: isIndexed
+          ? formatIndexedTooltipValue(value)
+          : isGrowth
+            ? formatSignedPercent(value)
+            : formatMetric(value, metricKey),
+        details: isIndexed
+          ? getIndexedTooltipDetails(point, value, metricKey)
+          : isGrowth
+            ? getAnnualGrowthTooltipDetails(point, metricKey)
+            : [],
       };
     })
     .filter(Boolean);
@@ -616,7 +2255,7 @@ function MultiSeriesTooltip({ active, payload = [], label, metricKey, seriesById
   if (!rows.length) return null;
 
   return (
-    <ChartTooltipShell title={`Period: ${label}`}>
+    <ChartTooltipShell title={`Período: ${formatChartPeriodLabel(label)}`}>
       {rows.map((row) => (
         <div key={`${row.id}-${row.value}`} className="chart-tooltip-row">
           <span className="chart-tooltip-company">
@@ -628,7 +2267,12 @@ function MultiSeriesTooltip({ active, payload = [], label, metricKey, seriesById
             />
             <span>{row.name}</span>
           </span>
-          <span className="chart-tooltip-value">{formatMetric(row.value, metricKey)}</span>
+          <span className="chart-tooltip-value">
+            {row.valueLabel}
+            {row.details.map((detail) => (
+              <small key={`${row.id}-${detail}`}>{detail}</small>
+            ))}
+          </span>
         </div>
       ))}
     </ChartTooltipShell>
@@ -663,21 +2307,21 @@ function SingleMetricTooltip({ active, payload = [], metricKey, totalValue = nul
         </span>
         <span className="chart-tooltip-value">
           {isGrowthMetric(metricKey) ? formatSignedPercent(value) : formatMetric(value, metricKey)}
-          {share !== null ? ` - ${formatPercent(share)}` : ""}
+          {share !== null ? ` · ${formatPercent(share)}` : ""}
         </span>
       </div>
       {hasGrowthBreakdown && (
         <div className="chart-tooltip-yoy">
           <span>
-            <small>Pre</small>
+            <small>Antes</small>
             {formatMetric(entry.previousValue, entry.baseMetricKey)}
           </span>
           <span>
-            <small>Growth</small>
+            <small>Crecimiento</small>
             {formatSignedPercent(entry.growthValue)}
           </span>
           <span>
-            <small>Post</small>
+            <small>Ahora</small>
             {formatMetric(entry.currentValue, entry.baseMetricKey)}
           </span>
         </div>
@@ -791,15 +2435,15 @@ function LoadingShell() {
   return (
     <main className="app-shell">
       <div className="mx-auto max-w-7xl">
-        <section className="surface-card border-t-4 border-t-focus-500 p-6 md:p-8">
+        <section className="surface-card border-t-4 border-t-accent-500 p-6 md:p-8">
           <div className="brand-lockup">
-            <BrandLogo />
-            <span className="metric-pill">Competitive Intelligence</span>
+            <FocusLogo />
+            <span className="metric-pill">Inteligencia competitiva</span>
           </div>
           <h1 className="mt-6 text-3xl font-semibold text-black md:text-5xl">
-            Benchmark Dashboard
+            Comparativa competitiva
           </h1>
-          <p className="mt-4 text-sm text-neutral-600">Loading benchmark data.</p>
+          <p className="mt-4 text-sm text-neutral-600">Cargando datos del análisis.</p>
         </section>
       </div>
     </main>
@@ -809,33 +2453,39 @@ function LoadingShell() {
 function AppHeader({
   view,
   onGoBenchmark,
+  onOpenPlayers,
+  onOpenBattleArena,
+  onOpenForecast,
   generatedAt,
   rowCount,
 }) {
   const isProfile = view === "profile";
   const isForecast = view === "forecast";
+  const isBattle = view === "battle";
   const title = isProfile
-    ? "Company Profile"
+    ? "Ficha individual"
     : isForecast
-      ? "Market Forecast"
-      : "Competitive Benchmark";
+      ? "Proyección de mercado"
+      : isBattle
+        ? "Battle Arena"
+      : "Comparativa competitiva";
 
   return (
-    <header className="surface-card border-t-4 border-t-focus-500 p-5 md:p-7">
+    <header className="surface-card border-t-4 border-t-accent-500 p-5 md:p-7">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="brand-lockup">
-            <BrandLogo />
-            <span className="metric-pill">Competitive Intelligence</span>
+            <FocusLogo />
+            <span className="metric-pill">Inteligencia competitiva</span>
           </div>
           <h1 className="mt-5 text-3xl font-semibold text-black md:text-5xl">
             {title}
           </h1>
         </div>
         <div className="grid gap-1 text-sm text-neutral-500 sm:grid-cols-[auto_auto] lg:text-right">
-          <span>Updated</span>
+          <span>Actualizado</span>
           <span className="font-medium text-black">{generatedAt}</span>
-          <span>Interface rows</span>
+          <span>Filas interface</span>
           <span className="font-medium text-black">{rowCount}</span>
         </div>
       </div>
@@ -845,15 +2495,39 @@ function AppHeader({
           <button
             type="button"
             onClick={onGoBenchmark}
-            className={isProfile ? "section-link" : "primary-action"}
+            className={!isProfile && !isForecast && !isBattle ? "primary-action" : "section-link"}
           >
-            Benchmark
+            Panel principal
+          </button>
+          <button
+            type="button"
+            onClick={onOpenPlayers}
+            className={isProfile ? "primary-action" : "section-link"}
+          >
+            Players
+          </button>
+          <button
+            type="button"
+            onClick={onOpenBattleArena}
+            className={isBattle ? "primary-action" : "section-link"}
+          >
+            Battle Arena
+          </button>
+          <button
+            type="button"
+            onClick={onOpenForecast}
+            className={isForecast ? "primary-action" : "section-link"}
+          >
+            Forecast
           </button>
           {isProfile && (
-            <span className="metric-pill bg-white text-black">Company Profile</span>
+            <span className="metric-pill bg-white text-black">Ficha por empresa</span>
           )}
           {isForecast && (
-            <span className="metric-pill bg-white text-black">Forecast</span>
+            <span className="metric-pill bg-white text-black">Proyección</span>
+          )}
+          {isBattle && (
+            <span className="metric-pill bg-white text-black">Rondas comparativas</span>
           )}
         </div>
       </div>
@@ -877,17 +2551,17 @@ function CompanyLegend({
   return (
     <details className="legend-disclosure">
       <summary className="legend-summary">
-        <span>Visible series {activeCount}/{series.length}</span>
-        <span className="legend-summary-hint">Edit selection</span>
+        <span>Series visibles {activeCount}/{series.length}</span>
+        <span className="legend-summary-hint">Editar selección</span>
       </summary>
 
       <div className="legend-panel">
         <div className="flex flex-wrap gap-2">
           <button type="button" className="legend-action" onClick={onShowAll}>
-            All
+            Todos
           </button>
           <button type="button" className="legend-action" onClick={onHideAll}>
-            None
+            Ninguno
           </button>
         </div>
 
@@ -989,6 +2663,7 @@ function MetricChart({
   chartData,
   emptyTitle,
   hiddenCompanyIds = EMPTY_HIDDEN_COMPANY_IDS,
+  yAxisReversed = false,
 }) {
   const activeSeries = useMemo(
     () =>
@@ -1013,7 +2688,7 @@ function MetricChart({
   );
 
   return (
-    <Panel eyebrow="Timeline" title={title}>
+    <Panel eyebrow="Evolución" title={title}>
       <div className="h-[340px] min-w-0 w-full">
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -1034,7 +2709,7 @@ function MetricChart({
                   stroke="#E4032C"
                   strokeDasharray="4 4"
                   label={{
-                    value: "Forecast",
+                    value: "Proyección",
                     position: "insideTopRight",
                     fill: "#E4032C",
                     fontSize: 11,
@@ -1046,6 +2721,7 @@ function MetricChart({
                 dataKey="label"
                 minTickGap={28}
                 tick={{ fill: "#6F6864", fontSize: 12 }}
+                tickFormatter={formatChartPeriodLabel}
                 tickLine={false}
                 axisLine={false}
               />
@@ -1055,6 +2731,7 @@ function MetricChart({
                 tickLine={false}
                 axisLine={false}
                 width={82}
+                reversed={yAxisReversed}
               />
               <Tooltip
                 cursor={{ stroke: "rgba(0,0,0,0.18)" }}
@@ -1092,26 +2769,27 @@ function MetricChart({
           </ResponsiveContainer>
         ) : hasSourceData ? (
           <EmptyState
-            title="No active competitors."
-            message="Enable at least one competitor from the series selector."
+            title="No hay competidores activos."
+            message="Activa al menos un competidor desde el selector de gráficas."
           />
         ) : (
           <EmptyState
             title={emptyTitle}
-            message="Null, empty, or non-numeric values are excluded from the chart."
+            message="Selecciona otro período o mercado con histórico comparable para mostrar la evolución."
           />
         )}
       </div>
       {forecastWindow && (
-        <div className="mt-3">
-          <span className="forecast-chip">Forecast from {forecastWindow.start.label}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="forecast-chip">Proyección desde {forecastWindow.start.label}</span>
+          <ForecastCaveat />
         </div>
       )}
     </Panel>
   );
 }
 
-function PeriodTypeSegment({ label = "View", value, onChange, periodTypes = [] }) {
+function PeriodTypeSegment({ label = "Vista", value, onChange, periodTypes = [] }) {
   if (periodTypes.length <= 1) return null;
 
   return (
@@ -1125,7 +2803,7 @@ function PeriodTypeSegment({ label = "View", value, onChange, periodTypes = [] }
             onClick={() => onChange(type)}
             className={`segmented-button ${value === type ? "segmented-button-active" : ""}`}
           >
-            {PERIOD_TYPE_LABELS[type] || type}
+            {PERIOD_TYPE_LABELS[type] || getTimeModeLabel(type)}
           </button>
         ))}
       </div>
@@ -1138,7 +2816,7 @@ function MarketSelect({ market, onMarketChange, markets, className = "" }) {
 
   return (
     <SelectField
-      label="Market"
+      label="Mercado"
       value={market}
       onChange={onMarketChange}
       className={`compact-select ${className}`}
@@ -1152,6 +2830,205 @@ function MarketSelect({ market, onMarketChange, markets, className = "" }) {
   );
 }
 
+function getSelectedPeriodOption(periodOptions = [], selectedPeriodKey = "") {
+  return periodOptions.find((period) => period.key === selectedPeriodKey) ?? null;
+}
+
+function AnnualPeriodNote({ periodType, periodOptions = [], selectedPeriodKey = "" }) {
+  if (periodType !== "annual") return null;
+
+  const selectedPeriod = getSelectedPeriodOption(periodOptions, selectedPeriodKey);
+  const selectedYear = String(selectedPeriod?.date || "").slice(0, 4) ||
+    String(selectedPeriod?.key || "").replace(/^annual:/, "");
+  const detail = selectedPeriod?.partial_year
+    ? `${selectedYear} parcial · Ene-${selectedPeriod.latest_month_label}`
+    : "Año completo · Ene-Dic";
+
+  return <p className="period-context-note">{detail}</p>;
+}
+
+function TimeModeSegment({ value, onChange, options = TIME_MODE_OPTIONS }) {
+  return (
+    <div className="compact-segment-group temporal-view-segment">
+      <p className="analysis-label mb-2">Vista</p>
+      <div className="segmented-control temporal-mode-control">
+        {options.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => onChange(option.key)}
+            className={`segmented-button ${value === option.key ? "segmented-button-active" : ""}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MonthSelect({ label, value, onChange, months = [], disabled = false }) {
+  return (
+    <SelectField
+      label={label}
+      value={value}
+      onChange={onChange}
+      disabled={disabled || !months.length}
+      className="compact-select compact-month-select"
+    >
+      {months.map((month) => (
+        <option key={month} value={month}>
+          {getDemoMonthLabel(month)}
+        </option>
+      ))}
+    </SelectField>
+  );
+}
+
+function RangeMonthSelect({ label, value, onChange, months = [], disabled = false }) {
+  return (
+    <SelectField
+      label={label}
+      value={value}
+      onChange={onChange}
+      disabled={disabled || !months.length}
+      className="compact-select"
+    >
+      {months.map((month) => (
+        <option key={month.key} value={month.key}>
+          {month.label}
+        </option>
+      ))}
+    </SelectField>
+  );
+}
+
+function TemporalControls({
+  market,
+  onMarketChange,
+  markets,
+  selectedTimeMode,
+  onTimeModeChange,
+  timeModeOptions = TIME_MODE_OPTIONS,
+  selectedYear,
+  onSelectedYearChange,
+  availableYears = [],
+  selectedMonth,
+  onSelectedMonthChange,
+  monthOptions = [],
+  rangeStartMonth,
+  onRangeStartMonthChange,
+  rangeEndMonth,
+  onRangeEndMonthChange,
+  rangeMonthOptions = [],
+  selectableRangeStartMonths = rangeMonthOptions,
+  selectableRangeEndMonths = rangeMonthOptions,
+  dataNote = "",
+  periodLabel = "",
+  availabilityItems = [],
+  periodStatusItems = [],
+  datasetCoverageItems = availabilityItems,
+}) {
+  const hasYears = availableYears.length > 0;
+  const showContextControls = selectedTimeMode !== "historical";
+  const isPartialAnnualSelection =
+    selectedTimeMode === "annual" && /parcial/i.test(String(periodLabel));
+  const periodSummaryNote = isPartialAnnualSelection
+    ? "Acumulado parcial, no año cerrado."
+    : "";
+  const trailingDataNote = isPartialAnnualSelection ? "" : dataNote;
+
+  return (
+    <div className="period-control-stack temporal-control-stack">
+      <div className="temporal-control-row temporal-control-row-primary">
+        <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
+
+        <TimeModeSegment
+          value={selectedTimeMode}
+          onChange={onTimeModeChange}
+          options={timeModeOptions}
+        />
+      </div>
+
+      {showContextControls && (
+        <div className="temporal-control-row temporal-control-row-context">
+          {selectedTimeMode === "month" && (
+            <>
+              <SelectField
+                label="Año"
+                value={selectedYear}
+                onChange={onSelectedYearChange}
+                disabled={!hasYears}
+                className="compact-select compact-year-select"
+              >
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </SelectField>
+              <MonthSelect
+                label="Mes"
+                value={selectedMonth}
+                onChange={onSelectedMonthChange}
+                months={monthOptions}
+              />
+            </>
+          )}
+
+          {selectedTimeMode === "annual" && (
+            <SelectField
+              label="Año"
+              value={selectedYear}
+              onChange={onSelectedYearChange}
+              disabled={!hasYears}
+              className="compact-select compact-year-select"
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </SelectField>
+          )}
+
+          {selectedTimeMode === "range" && (
+            <>
+              <RangeMonthSelect
+                label="Desde"
+                value={rangeStartMonth}
+                onChange={onRangeStartMonthChange}
+                months={selectableRangeStartMonths}
+              />
+              <RangeMonthSelect
+                label="Hasta"
+                value={rangeEndMonth}
+                onChange={onRangeEndMonthChange}
+                months={selectableRangeEndMonths}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {periodLabel && (
+        <div className="period-summary-card">
+          <span>Periodo seleccionado</span>
+          <strong>{periodLabel}</strong>
+          {periodSummaryNote && <small>{periodSummaryNote}</small>}
+        </div>
+      )}
+
+      <DataCoveragePanel
+        periodItems={periodStatusItems}
+        coverageItems={datasetCoverageItems}
+      />
+
+      {trailingDataNote && <p className="period-context-note">{trailingDataNote}</p>}
+    </div>
+  );
+}
+
 function RankingControls({
   market,
   onMarketChange,
@@ -1162,53 +3039,200 @@ function RankingControls({
   selectedPeriodKey,
   onSelectedPeriodChange,
   periodOptions,
+  selectedTimeMode,
+  onTimeModeChange,
+  timeModeOptions,
+  selectedYear,
+  onSelectedYearChange,
+  availableYears,
+  selectedMonth,
+  onSelectedMonthChange,
+  monthOptions,
+  rangeStartMonth,
+  onRangeStartMonthChange,
+  rangeEndMonth,
+  onRangeEndMonthChange,
+  rangeMonthOptions,
+  selectableRangeStartMonths,
+  selectableRangeEndMonths,
+  dataNote,
   rankingSort,
   onRankingSortChange,
   rankingSortOptions = RANKING_SORTS,
+  sortLabel = "Orden",
 }) {
-  return (
-    <div className="block-controls">
-      <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
-
-      <PeriodTypeSegment
-        value={periodType}
-        onChange={onPeriodTypeChange}
-        periodTypes={periodTypes}
+  if (selectedTimeMode) {
+    return (
+      <TemporalControls
+        market={market}
+        onMarketChange={onMarketChange}
+        markets={markets}
+        selectedTimeMode={selectedTimeMode}
+        onTimeModeChange={onTimeModeChange}
+        timeModeOptions={timeModeOptions}
+        selectedYear={selectedYear}
+        onSelectedYearChange={onSelectedYearChange}
+        availableYears={availableYears}
+        selectedMonth={selectedMonth}
+        onSelectedMonthChange={onSelectedMonthChange}
+        monthOptions={monthOptions}
+        rangeStartMonth={rangeStartMonth}
+        onRangeStartMonthChange={onRangeStartMonthChange}
+        rangeEndMonth={rangeEndMonth}
+        onRangeEndMonthChange={onRangeEndMonthChange}
+        rangeMonthOptions={rangeMonthOptions}
+        selectableRangeStartMonths={selectableRangeStartMonths}
+        selectableRangeEndMonths={selectableRangeEndMonths}
+        dataNote={dataNote}
       />
+    );
+  }
 
-      <SelectField
-        label={PERIOD_TYPE_LABELS[periodType] || "Period"}
-        value={selectedPeriodKey}
-        onChange={onSelectedPeriodChange}
-        disabled={!periodOptions.length}
-        className="compact-select"
-      >
-        {periodOptions.map((period) => (
-          <option key={period.key} value={period.key}>
-            {period.label}
-          </option>
-        ))}
-      </SelectField>
+  return (
+    <div className="period-control-stack">
+      <div className="block-controls">
+        <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
 
-      <SelectField
-        label="Sort by"
-        value={rankingSort}
-        onChange={onRankingSortChange}
-        className="compact-select"
-      >
-        {rankingSortOptions.map((sort) => (
-          <option key={sort.key} value={sort.key}>
-            {sort.label}
-          </option>
-        ))}
-      </SelectField>
+        <PeriodTypeSegment
+          value={periodType}
+          onChange={onPeriodTypeChange}
+          periodTypes={periodTypes}
+        />
+
+        <SelectField
+          label={PERIOD_TYPE_LABELS[periodType] || "Período"}
+          value={selectedPeriodKey}
+          onChange={onSelectedPeriodChange}
+          disabled={!periodOptions.length}
+          className="compact-select"
+        >
+          {periodOptions.map((period) => (
+            <option key={period.key} value={period.key}>
+              {period.label}
+            </option>
+          ))}
+        </SelectField>
+
+        <SelectField
+          label={sortLabel}
+          value={rankingSort}
+          onChange={onRankingSortChange}
+          className="compact-select"
+        >
+          {rankingSortOptions.map((sort) => (
+            <option key={sort.key} value={sort.key}>
+              {sort.label}
+            </option>
+          ))}
+        </SelectField>
+      </div>
+      <AnnualPeriodNote
+        periodType={periodType}
+        periodOptions={periodOptions}
+        selectedPeriodKey={selectedPeriodKey}
+      />
+    </div>
+  );
+}
+
+function PeriodContextControls({
+  market,
+  onMarketChange,
+  markets,
+  periodType,
+  onPeriodTypeChange,
+  periodTypes,
+  selectedPeriodKey,
+  onSelectedPeriodChange,
+  periodOptions,
+  selectedTimeMode,
+  onTimeModeChange,
+  timeModeOptions,
+  selectedYear,
+  onSelectedYearChange,
+  availableYears,
+  selectedMonth,
+  onSelectedMonthChange,
+  monthOptions,
+  rangeStartMonth,
+  onRangeStartMonthChange,
+  rangeEndMonth,
+  onRangeEndMonthChange,
+  rangeMonthOptions,
+  selectableRangeStartMonths,
+  selectableRangeEndMonths,
+  dataNote,
+  availabilityItems,
+  periodStatusItems,
+  datasetCoverageItems,
+}) {
+  if (selectedTimeMode) {
+    return (
+      <TemporalControls
+        market={market}
+        onMarketChange={onMarketChange}
+        markets={markets}
+        selectedTimeMode={selectedTimeMode}
+        onTimeModeChange={onTimeModeChange}
+        timeModeOptions={timeModeOptions}
+        selectedYear={selectedYear}
+        onSelectedYearChange={onSelectedYearChange}
+        availableYears={availableYears}
+        selectedMonth={selectedMonth}
+        onSelectedMonthChange={onSelectedMonthChange}
+        monthOptions={monthOptions}
+        rangeStartMonth={rangeStartMonth}
+        onRangeStartMonthChange={onRangeStartMonthChange}
+        rangeEndMonth={rangeEndMonth}
+        onRangeEndMonthChange={onRangeEndMonthChange}
+        rangeMonthOptions={rangeMonthOptions}
+        selectableRangeStartMonths={selectableRangeStartMonths}
+        selectableRangeEndMonths={selectableRangeEndMonths}
+        dataNote={dataNote}
+        availabilityItems={availabilityItems}
+        periodStatusItems={periodStatusItems}
+        datasetCoverageItems={datasetCoverageItems}
+      />
+    );
+  }
+
+  return (
+    <div className="period-control-stack">
+      <div className="block-controls">
+        <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
+
+        <PeriodTypeSegment
+          value={periodType}
+          onChange={onPeriodTypeChange}
+          periodTypes={periodTypes}
+        />
+
+        <SelectField
+          label={PERIOD_TYPE_LABELS[periodType] || "Período"}
+          value={selectedPeriodKey}
+          onChange={onSelectedPeriodChange}
+          disabled={!periodOptions.length}
+          className="compact-select"
+        >
+          {periodOptions.map((period) => (
+            <option key={period.key} value={period.key}>
+              {period.label}
+            </option>
+          ))}
+        </SelectField>
+      </div>
+      <AnnualPeriodNote
+        periodType={periodType}
+        periodOptions={periodOptions}
+        selectedPeriodKey={selectedPeriodKey}
+      />
     </div>
   );
 }
 
 function ForecastControls({
-  forecastScenarios,
-  forecastScenario,
+  forecastScenarios = [],
+  forecastScenario = "",
   onForecastScenarioChange,
   market,
   onMarketChange,
@@ -1216,32 +3240,201 @@ function ForecastControls({
   periodType,
   onPeriodTypeChange,
   periodTypes,
+  showMarketAndPeriod = true,
 }) {
+  const scenarioOptions = useMemo(() => {
+    const scenarioSet = new Set(
+      forecastScenarios
+        .map((scenario) => getForecastScenario({ forecast_scenario: scenario }))
+        .filter(Boolean),
+    );
+
+    return Array.from(scenarioSet).sort((a, b) => {
+      const aIndex = FORECAST_SCENARIO_ORDER.indexOf(a);
+      const bIndex = FORECAST_SCENARIO_ORDER.indexOf(b);
+      if (aIndex !== -1 || bIndex !== -1) {
+        return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+      }
+      return a.localeCompare(b);
+    });
+  }, [forecastScenarios]);
+  const selectedScenario = getForecastScenario({ forecast_scenario: forecastScenario });
+  const scenarioSwitchOptions = scenarioOptions.map((scenario) => ({
+    key: scenario,
+    label: getForecastScenarioLabel(scenario),
+  }));
+
   return (
     <div className="block-controls">
-      {forecastScenarios.length > 1 && (
-        <SelectField
-          label="Scenario"
-          value={forecastScenario}
-          onChange={onForecastScenarioChange}
-          className="compact-select"
-        >
-          {forecastScenarios.map((scenario) => (
-            <option key={scenario} value={scenario}>
-              {getForecastScenarioLabel(scenario)}
-            </option>
-          ))}
-        </SelectField>
+      <MetricSwitch
+        options={scenarioSwitchOptions}
+        value={selectedScenario}
+        onChange={onForecastScenarioChange}
+        label="Escenario forecast"
+      />
+
+      {showMarketAndPeriod && (
+        <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
       )}
 
-      <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
+      {showMarketAndPeriod && (
+        <PeriodTypeSegment
+          label="Vista"
+          value={periodType}
+          onChange={onPeriodTypeChange}
+          periodTypes={periodTypes}
+        />
+      )}
+    </div>
+  );
+}
 
-      <PeriodTypeSegment
-        label="View"
-        value={periodType}
-        onChange={onPeriodTypeChange}
-        periodTypes={periodTypes}
+function ForecastCoveragePanel({ periodItems = [], coverageItems = [] }) {
+  if (!periodItems.length && !coverageItems.length) return null;
+
+  return (
+    <section className="data-coverage-panel" aria-label="Estado y cobertura del forecast">
+      {periodItems.length > 0 && (
+        <div className="data-coverage-section">
+          <p className="analysis-label">Estado del forecast seleccionado</p>
+          <AvailabilityList items={periodItems} />
+        </div>
+      )}
+      {coverageItems.length > 0 && (
+        <div className="data-coverage-section">
+          <p className="analysis-label">Cobertura del forecast</p>
+          <AvailabilityList items={coverageItems} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ForecastContextControls({
+  forecastScenarios = [],
+  forecastScenario = "",
+  onForecastScenarioChange,
+  market,
+  onMarketChange,
+  markets = [],
+  selectedTimeMode,
+  onTimeModeChange,
+  selectedYear,
+  onSelectedYearChange,
+  availableYears = [],
+  selectedMonth,
+  onSelectedMonthChange,
+  monthOptions = [],
+  rangeStartMonth,
+  onRangeStartMonthChange,
+  rangeEndMonth,
+  onRangeEndMonthChange,
+  rangeMonthOptions = [],
+  selectableRangeStartMonths = rangeMonthOptions,
+  selectableRangeEndMonths = rangeMonthOptions,
+  periodLabel = "",
+  periodDetail = "",
+  periodStatusItems = [],
+  coverageItems = [],
+  dataNote = "",
+}) {
+  const hasYears = availableYears.length > 0;
+  const showContextControls = selectedTimeMode !== "horizon";
+
+  return (
+    <div className="period-control-stack temporal-control-stack">
+      <ForecastControls
+        forecastScenarios={forecastScenarios}
+        forecastScenario={forecastScenario}
+        onForecastScenarioChange={onForecastScenarioChange}
+        market={market}
+        onMarketChange={onMarketChange}
+        markets={markets}
+        showMarketAndPeriod={false}
       />
+
+      <div className="temporal-control-row temporal-control-row-primary">
+        <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
+
+        <TimeModeSegment
+          value={selectedTimeMode}
+          onChange={onTimeModeChange}
+          options={FORECAST_TIME_MODE_OPTIONS}
+        />
+      </div>
+
+      {showContextControls && (
+        <div className="temporal-control-row temporal-control-row-context">
+          {selectedTimeMode === "month" && (
+            <>
+              <SelectField
+                label="Año"
+                value={selectedYear}
+                onChange={onSelectedYearChange}
+                disabled={!hasYears}
+                className="compact-select compact-year-select"
+              >
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </SelectField>
+              <MonthSelect
+                label="Mes forecast"
+                value={selectedMonth}
+                onChange={onSelectedMonthChange}
+                months={monthOptions}
+              />
+            </>
+          )}
+
+          {selectedTimeMode === "annual" && (
+            <SelectField
+              label="Año forecast"
+              value={selectedYear}
+              onChange={onSelectedYearChange}
+              disabled={!hasYears}
+              className="compact-select compact-year-select"
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </SelectField>
+          )}
+
+          {selectedTimeMode === "range" && (
+            <>
+              <RangeMonthSelect
+                label="Desde forecast"
+                value={rangeStartMonth}
+                onChange={onRangeStartMonthChange}
+                months={selectableRangeStartMonths}
+              />
+              <RangeMonthSelect
+                label="Hasta forecast"
+                value={rangeEndMonth}
+                onChange={onRangeEndMonthChange}
+                months={selectableRangeEndMonths}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {periodLabel && (
+        <div className="period-summary-card">
+          <span>Periodo forecast seleccionado</span>
+          <strong>{periodLabel}</strong>
+          {periodDetail && <small>{periodDetail}</small>}
+        </div>
+      )}
+
+      <ForecastCoveragePanel periodItems={periodStatusItems} coverageItems={coverageItems} />
+
+      {dataNote && <p className="period-context-note">{dataNote}</p>}
     </div>
   );
 }
@@ -1258,60 +3451,72 @@ function ChartRangeControls({
   selectedChartYear,
   onSelectedChartYearChange,
   chartYears,
+  chartYearOptions = [],
 }) {
-  const hasYears = chartYears.length > 0;
+  const yearOptions = chartYearOptions.length
+    ? chartYearOptions
+    : chartYears.map((year) => ({ key: year, label: year }));
+  const selectedYearOption = getSelectedPeriodOption(yearOptions, selectedChartYear);
+  const hasYears = yearOptions.length > 0;
+  const rangeNote =
+    chartRangeMode === "year" && selectedYearOption?.partial_year
+      ? `${selectedYearOption.key} parcial · Ene-${selectedYearOption.latest_month_label}`
+      : "";
 
   return (
-    <div className="block-controls">
-      <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
+    <div className="period-control-stack">
+      <div className="block-controls">
+        <MarketSelect market={market} onMarketChange={onMarketChange} markets={markets} />
 
-      <PeriodTypeSegment
-        label="Series"
-        value={periodType}
-        onChange={onPeriodTypeChange}
-        periodTypes={periodTypes}
-      />
+        <PeriodTypeSegment
+          label="Serie"
+          value={periodType}
+          onChange={onPeriodTypeChange}
+          periodTypes={periodTypes}
+        />
 
-      <div className="compact-segment-group">
-        <p className="analysis-label mb-2">Range</p>
-        <div className="segmented-control">
-          {[
-            { key: "all", label: "All time" },
-            { key: "year", label: "Year" },
-          ].map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => onChartRangeModeChange(option.key)}
-              disabled={option.key === "year" && !hasYears}
-              className={`segmented-button ${
-                chartRangeMode === option.key ? "segmented-button-active" : ""
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="compact-segment-group chart-range-segment">
+          <p className="analysis-label mb-2">Rango visual del gráfico</p>
+          <div className="segmented-control">
+            {[
+              { key: "all", label: "Todo el histórico disponible" },
+              { key: "year", label: "Año seleccionado" },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onChartRangeModeChange(option.key)}
+                disabled={option.key === "year" && !hasYears}
+                className={`segmented-button ${
+                  chartRangeMode === option.key ? "segmented-button-active" : ""
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {chartRangeMode === "year" && (
-        <SelectField
-          label="Year"
-          value={selectedChartYear}
-          onChange={(year) => {
-            onSelectedChartYearChange(year);
-            onChartRangeModeChange("year");
-          }}
-          disabled={!hasYears}
-          className="compact-select compact-year-select"
-        >
-          {chartYears.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </SelectField>
-      )}
+        {chartRangeMode === "year" && (
+          <SelectField
+            label="Año"
+            value={selectedChartYear}
+            onChange={(year) => {
+              onSelectedChartYearChange(year);
+              onChartRangeModeChange("year");
+            }}
+            disabled={!hasYears}
+            className="compact-select compact-year-select"
+          >
+            {yearOptions.map((year) => (
+              <option key={year.key} value={year.key}>
+                {year.label}
+              </option>
+            ))}
+          </SelectField>
+        )}
+      </div>
+      {rangeNote && <p className="period-context-note">{rangeNote}</p>}
     </div>
   );
 }
@@ -1348,13 +3553,30 @@ function normalizeGrowthRate(value) {
   const number = safeNumber(value);
   if (number === null) return null;
 
-  return Math.abs(number) > 1 ? number / 100 : number;
+  return number;
 }
 
 function getGrowthBreakdown(row, growthMetricKey) {
   if (!isGrowthMetric(growthMetricKey)) return null;
 
   const baseMetricKey = getGrowthBaseMetricKey(growthMetricKey);
+  const explicitPreviousValue = safeNumber(row?.[`${baseMetricKey}_growth_previous_value`]);
+  const explicitCurrentValue = safeNumber(row?.[`${baseMetricKey}_growth_current_value`]);
+  const explicitGrowthValue = safeNumber(row?.[growthMetricKey]);
+
+  if (
+    explicitPreviousValue !== null &&
+    explicitCurrentValue !== null &&
+    explicitGrowthValue !== null
+  ) {
+    return {
+      baseMetricKey,
+      previousValue: explicitPreviousValue,
+      growthValue: explicitGrowthValue,
+      currentValue: explicitCurrentValue,
+    };
+  }
+
   const currentValue = safeNumber(row?.[baseMetricKey]);
   const growthValue = safeNumber(row?.[growthMetricKey]);
   const growthRate = normalizeGrowthRate(growthValue);
@@ -1378,7 +3600,11 @@ function formatSignedPercent(value) {
   const number = safeNumber(value);
   if (number === null) return formatPercent(value);
 
-  return `${number > 0 ? "+" : ""}${formatPercent(number)}`;
+  const normalized = number * 100;
+  return `${number > 0 ? "+" : ""}${new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(normalized)}%`;
 }
 
 function hasAnyMetric(rows = [], metricKey) {
@@ -1397,6 +3623,104 @@ function getMetricCopy(metricKey) {
   return EXECUTIVE_METRIC_LABELS[metricKey] || metricKey;
 }
 
+function isHistoricalPeriodLabel(periodLabel = "") {
+  return String(periodLabel || "").startsWith("Histórico");
+}
+
+function getGrowthMetricCopy(metricKey = "", periodLabel = "") {
+  const baseLabel = metricKey.includes("revenue") ? "facturación" : "visitas";
+  if (isHistoricalPeriodLabel(periodLabel)) return `crecimiento histórico de ${baseLabel}`;
+  if (metricKey.includes("_mom_")) return `crecimiento mensual de ${baseLabel}`;
+  return `crecimiento interanual de ${baseLabel}`;
+}
+
+function getFocusBrandGrowthKpiLabel(periodLabel = "") {
+  return isHistoricalPeriodLabel(periodLabel)
+    ? "Crecimiento histórico Focus Brand"
+    : "Crecimiento interanual Focus Brand";
+}
+
+function getPeriodNarrativeLabel(periodLabel = "") {
+  const label = String(periodLabel || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(label)) {
+    return formatMonthLabelFromKey(label.slice(0, 7));
+  }
+  return label.replace(/^Año\s+/i, "").trim();
+}
+
+const CHART_MONTH_TOKEN_MAP = {
+  ene: 1,
+  enero: 1,
+  jan: 1,
+  january: 1,
+  feb: 2,
+  febrero: 2,
+  february: 2,
+  mar: 3,
+  marzo: 3,
+  march: 3,
+  abr: 4,
+  abril: 4,
+  apr: 4,
+  april: 4,
+  may: 5,
+  mayo: 5,
+  jun: 6,
+  junio: 6,
+  june: 6,
+  jul: 7,
+  julio: 7,
+  july: 7,
+  ago: 8,
+  agosto: 8,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  septiembre: 9,
+  september: 9,
+  oct: 10,
+  octubre: 10,
+  october: 10,
+  nov: 11,
+  noviembre: 11,
+  november: 11,
+  dic: 12,
+  diciembre: 12,
+  dec: 12,
+  december: 12,
+};
+
+function getChartMonthKey(value = "") {
+  const label = String(value ?? "").trim();
+  const isoMatch = label.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}`;
+
+  const textMatch = label.match(/^([A-Za-zÁÉÍÓÚÜáéíóúüÑñ.]+)\s+(\d{4})$/);
+  if (!textMatch) return "";
+
+  const monthToken = textMatch[1]
+    .replace(/\./g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const month = CHART_MONTH_TOKEN_MAP[monthToken];
+  if (!month) return "";
+
+  return `${textMatch[2]}-${String(month).padStart(2, "0")}`;
+}
+
+function formatChartPeriodLabel(value = "") {
+  const monthKey = getChartMonthKey(value);
+  if (monthKey) return formatMonthLabelFromKey(monthKey);
+  return String(value ?? "");
+}
+
+function formatDisplayPeriodLabel(value = "") {
+  const label = String(value ?? "");
+  return formatChartPeriodLabel(label);
+}
+
 function sumMetric(rows = [], metricKey) {
   return rows.reduce((total, row) => {
     const value = safeNumber(row?.[metricKey]);
@@ -1404,9 +3728,14 @@ function sumMetric(rows = [], metricKey) {
   }, 0);
 }
 
-function getPrimaryMetricContext(rows = []) {
+function getPrimaryMetricContext(rows = [], preferredMetric = "revenue") {
   const hasRevenue = hasAnyMetric(rows, "revenue");
-  const primaryMetric = hasRevenue ? "revenue" : "visits";
+  const hasVisits = hasAnyMetric(rows, "visits");
+  const primaryMetric = preferredMetric === "visits" && hasVisits
+    ? "visits"
+    : hasRevenue
+      ? "revenue"
+      : "visits";
   const shareMetric =
     primaryMetric === "revenue" && hasAnyMetric(rows, "market_share_revenue")
       ? "market_share_revenue"
@@ -1418,15 +3747,23 @@ function getPrimaryMetricContext(rows = []) {
 
   return {
     primaryMetric,
-    primaryLabel: primaryMetric === "revenue" ? "revenue" : "visits",
+    primaryLabel: primaryMetric === "revenue" ? "facturación" : "visitas",
     shareMetric,
     growthMetric,
   };
 }
 
 function getShareChangeMetric(rows = [], preferredMetric = "revenue") {
-  const revenueCandidates = ["share_revenue_change_yoy", "share_revenue_change_mom"];
-  const visitsCandidates = ["share_visits_change_yoy", "share_visits_change_mom"];
+  const row = rows.find(Boolean) ?? {};
+  const timeMode = row.time_mode || row.aggregation_type || row.period_type || "";
+  const suffixes =
+    timeMode === "annual"
+      ? ["yoy", "range", "mom"]
+      : timeMode === "month" || timeMode === "monthly"
+        ? ["yoy", "mom", "range"]
+        : ["range", "yoy", "mom"];
+  const revenueCandidates = suffixes.map((suffix) => `share_revenue_change_${suffix}`);
+  const visitsCandidates = suffixes.map((suffix) => `share_visits_change_${suffix}`);
   const orderedCandidates =
     preferredMetric === "revenue"
       ? [...revenueCandidates, ...visitsCandidates]
@@ -1437,6 +3774,32 @@ function getShareChangeMetric(rows = [], preferredMetric = "revenue") {
 
 function getShareChangeMode(metricKey = "") {
   return metricKey.includes("revenue") ? "revenue" : "visits";
+}
+
+function getShareChangeContextLabel(metricKey = "", rows = []) {
+  if (!metricKey) return "";
+
+  const shareLabel = metricKey.includes("revenue")
+    ? "Cuota facturación"
+    : "Cuota visitas";
+  const row = rows.find(Boolean) ?? {};
+  const year = row.year || String(row.date || "").slice(0, 4);
+  const timeMode = row.time_mode || row.aggregation_type || row.period_type || "";
+  let comparisonLabel = "";
+
+  if (metricKey.includes("_yoy")) {
+    comparisonLabel = timeMode === "annual" && year
+      ? `variación anual agregada ${year} vs ${Number(year) - 1}`
+      : "vs mismo mes del año anterior";
+  } else if (metricKey.includes("_mom")) {
+    comparisonLabel = "vs mes anterior";
+  } else if (metricKey.includes("_range")) {
+    comparisonLabel = timeMode === "historical"
+      ? "cambio entre primer y último periodo disponible"
+      : "cambio entre inicio y final del rango";
+  }
+
+  return [shareLabel, comparisonLabel].filter(Boolean).join(" · ");
 }
 
 function getShareChangeRows(rows = [], metricKey = "") {
@@ -1474,10 +3837,13 @@ function getShareWinnersLosers(rows = [], metricKey = "") {
 function formatMetricDelta(metricKey, value) {
   if (
     metricKey?.includes("market_share") ||
-    metricKey?.includes("share_") ||
-    metricKey?.includes("growth")
+    metricKey?.includes("share_")
   ) {
     return formatPp(value);
+  }
+
+  if (metricKey?.includes("growth")) {
+    return formatPercentagePoints(value);
   }
 
   return formatMetric(value, metricKey);
@@ -1487,20 +3853,22 @@ function formatVsBenchmark(focusValue, benchmarkValue, metricKey) {
   const focusNumber = safeNumber(focusValue);
   const benchmarkNumber = safeNumber(benchmarkValue);
 
-  if (focusNumber === null || benchmarkNumber === null) return "No comparable benchmark";
+  if (focusNumber === null || benchmarkNumber === null) return "Sin promedio comparable";
 
   const delta = focusNumber - benchmarkNumber;
-  if (Math.abs(delta) < 0.000001) return "On par with Market Average";
+  if (Math.abs(delta) < 0.000001) return "En línea con el promedio del mercado medido";
 
-  const direction = delta > 0 ? "above" : "below";
+  const direction = delta > 0 ? "por encima del" : "por debajo del";
   const formattedDelta =
-    metricKey?.includes("market_share") || metricKey?.includes("growth")
+    metricKey?.includes("market_share")
       ? formatPp(delta)
+      : metricKey?.includes("growth")
+        ? formatPercentagePoints(delta)
       : benchmarkNumber !== 0
         ? formatSignedPercent(delta / Math.abs(benchmarkNumber))
         : formatMetricDelta(metricKey, delta);
 
-  return `${formattedDelta} ${direction} Market Average`;
+  return `${formattedDelta} ${direction} promedio del mercado medido`;
 }
 
 function getBenchmarkComparisonItems(focusRow, benchmarkRow, preferredMetric) {
@@ -1531,6 +3899,101 @@ function getBenchmarkComparisonItems(focusRow, benchmarkRow, preferredMetric) {
     .slice(0, 3);
 }
 
+function getBenchmarkDirectionSentence(focusRow, benchmarkRow, metricKey) {
+  const focusNumber = safeNumber(focusRow?.[metricKey]);
+  const benchmarkNumber = safeNumber(benchmarkRow?.[metricKey]);
+
+  if (focusNumber === null || benchmarkNumber === null) return "";
+
+  const delta = focusNumber - benchmarkNumber;
+  const relation = Math.abs(delta) < 0.000001
+    ? "en línea con el"
+    : delta > 0
+      ? "superior al"
+      : "inferior al";
+
+  if (metricKey === "revenue" || metricKey === "market_share_revenue") {
+    return `Focus Brand mantiene una cuota de facturación ${relation} promedio del mercado medido.`;
+  }
+
+  if (metricKey === "visits" || metricKey === "market_share_visits") {
+    return `Focus Brand mantiene una cuota de visitas ${relation} promedio del mercado medido.`;
+  }
+
+  if (metricKey === "revenue_per_visit") {
+    const efficiencyRelation = Math.abs(delta) < 0.000001
+      ? "en línea con el"
+      : delta > 0
+        ? "por encima del"
+        : "por debajo del";
+    return `Focus Brand monetiza por visita ${efficiencyRelation} promedio del mercado medido.`;
+  }
+
+  return `Focus Brand se mantiene ${relation} promedio del mercado medido.`;
+}
+
+function getLeaderMetricLabel(metricKey, fallbackLabel) {
+  if (metricKey === "visits") return "las visitas";
+  if (metricKey === "revenue") return "la facturación";
+  return `la ${fallbackLabel}`;
+}
+
+function buildExecutiveHeadline({
+  leader,
+  context,
+  selectedPeriod,
+  shareWinners,
+  focusShare,
+  benchmarkSentence,
+}) {
+  const periodLabel = selectedPeriod?.label || "el período seleccionado";
+  const narrativePeriodLabel = getPeriodNarrativeLabel(periodLabel);
+  const isHistorical = isHistoricalPeriodLabel(periodLabel);
+  const mainParts = [];
+
+  if (isHistorical) {
+    const leaderCopy = leader
+      ? `En ${narrativePeriodLabel}, ${getCompanyLabel(leader)} acumula el mayor volumen de ${context.primaryLabel}`
+      : `En ${narrativePeriodLabel}, no hay un líder claro de ${context.primaryLabel}`;
+    const focusShareCopy =
+      focusShare !== null
+        ? `Focus Brand cierra con ${formatMetric(focusShare, context.shareMetric)} de ${getMetricCopy(context.shareMetric)}`
+        : "";
+    const shareMoveCopy = shareWinners.topGainer
+      ? sameCompany(shareWinners.topGainer.id, OWN_COMPANY_ID)
+        ? `mejora ${formatPp(shareWinners.topGainer.value, { signed: false })} en la ventana`
+        : `${shareWinners.topGainer.name} es quien más gana cuota: ${formatPp(shareWinners.topGainer.value, { signed: false })}`
+      : "";
+    const historicalSecondSentence = [focusShareCopy, shareMoveCopy].filter(Boolean).join(" y ");
+
+    return [
+      `${leaderCopy}.`,
+      historicalSecondSentence ? `${historicalSecondSentence}.` : "",
+      benchmarkSentence,
+    ].filter(Boolean).slice(0, 3).join(" ");
+  }
+
+  if (leader) {
+    mainParts.push(`${getCompanyLabel(leader)} lidera ${getLeaderMetricLabel(context.primaryMetric, context.primaryLabel)} en ${narrativePeriodLabel}`);
+  }
+
+  if (shareWinners.topGainer) {
+    mainParts.push(
+      `${shareWinners.topGainer.name} gana ${formatPp(shareWinners.topGainer.value, { signed: false })}`,
+    );
+  } else if (focusShare !== null) {
+    mainParts.push(
+      `Focus Brand alcanza ${formatMetric(focusShare, context.shareMetric)} de ${getMetricCopy(context.shareMetric)}`,
+    );
+  }
+
+  const firstSentence = mainParts.length
+    ? `${mainParts[0]}${mainParts[1] ? `, mientras ${mainParts[1]}` : ""}.`
+    : "No hay datos suficientes para una lectura ejecutiva robusta en este período.";
+
+  return [firstSentence, benchmarkSentence].filter(Boolean).slice(0, 2).join(" ");
+}
+
 function getCompetitiveRisks(rows = [], context = {}) {
   const focusRow = getCompanyRow(rows, OWN_COMPANY_ID);
   if (!focusRow) return [];
@@ -1555,8 +4018,8 @@ function getCompetitiveRisks(rows = [], context = {}) {
     if (shareThreat) {
       risks.push({
         id: `share-${shareThreat.row.company_id}`,
-        title: "Share pressure",
-        body: `${getCompanyLabel(shareThreat.row)} gains ${formatPp(shareThreat.value)} in ${getMetricCopy(shareChangeMetric)}.`,
+        title: "Presión competitiva",
+        body: `${getCompanyLabel(shareThreat.row)} gana ${formatPp(shareThreat.value)} de ${getMetricCopy(shareChangeMetric)}${context.shareChangeContext ? ` · ${context.shareChangeContext}` : ""}.`,
         row: shareThreat.row,
       });
     }
@@ -1573,10 +4036,19 @@ function getCompetitiveRisks(rows = [], context = {}) {
       .find((entry) => focusGrowth === null || entry.value > focusGrowth);
 
     if (growthThreat) {
+      const averagePreviousValue = getAveragePreviousValueForMetric(
+        rows,
+        context.growthMetric === "revenue_yoy_growth" ? "revenue" : "visits",
+      );
+      const previousValue = getGrowthBreakdown(growthThreat.row, context.growthMetric)?.previousValue;
+      const lowBaseCaveat =
+        isLowBaseMomentum(previousValue, averagePreviousValue) && growthThreat.value > 1
+          ? " Crecimiento sobre base inicial pequeÃ±a; revisar impacto absoluto."
+          : "";
       risks.push({
         id: `growth-${growthThreat.row.company_id}`,
-        title: "Superior momentum",
-        body: `${getCompanyLabel(growthThreat.row)} grows ${formatSignedPercent(growthThreat.value)} in ${getMetricCopy(context.growthMetric)}.`,
+        title: "Crecimiento superior",
+        body: `${getCompanyLabel(growthThreat.row)} crece ${formatSignedPercent(growthThreat.value)} en ${getGrowthMetricCopy(context.growthMetric, context.periodLabel)}.${lowBaseCaveat}`,
         row: growthThreat.row,
       });
     }
@@ -1592,10 +4064,15 @@ function getCompetitiveRisks(rows = [], context = {}) {
       .sort((a, b) => b.value - a.value)[0];
 
     if (efficiencyThreat) {
+      const threatVisits = safeNumber(efficiencyThreat.row?.visits);
+      const caveat =
+        efficiencyThreat.value >= 10 || (threatVisits !== null && threatVisits < 1_000_000)
+          ? " Dato sensible a base de tráfico/cobertura; revisar antes de usar como conclusión ejecutiva."
+          : "";
       risks.push({
         id: `efficiency-${efficiencyThreat.row.company_id}`,
-        title: "Better monetization",
-        body: `${getCompanyLabel(efficiencyThreat.row)} achieves ${formatCurrencyDecimal(efficiencyThreat.value)} per visit vs ${formatCurrencyDecimal(focusRpv)} for Focus Brand.`,
+        title: "Mejor monetización",
+        body: `${getCompanyLabel(efficiencyThreat.row)} logra ${formatCurrencyDecimal(efficiencyThreat.value)} por visita frente a ${formatCurrencyDecimal(focusRpv)} de Focus Brand.${caveat}`,
         row: efficiencyThreat.row,
       });
     }
@@ -1611,13 +4088,13 @@ function getDataTrustBadges(rows = []) {
     const dataType = normalizeCompanyId(row?.data_type);
     const source = String(row?.source || "");
 
-    if (dataType === "actual") badges.set("actual", "actual");
-    if (dataType === "estimated") badges.set("estimated", "estimated");
-    if (dataType === "forecast") badges.set("forecast", "forecast");
-    if (dataType === "calculated") badges.set("calculated", "calculated");
-    if (/calculated|calculado/i.test(source)) badges.set("calculated", "calculated");
-    if (/demo|sample|synthetic/i.test(source)) badges.set("demo", "demo");
-    if (/api|connector|endpoint/i.test(source)) badges.set("connector", "connector");
+    if (dataType === "actual") badges.set("actual", "dato real");
+    if (dataType === "estimated") badges.set("estimated", "estimado");
+    if (dataType === "forecast") badges.set("forecast", "proyección");
+    if (dataType === "calculated") badges.set("calculated", "calculado");
+    if (/mock_source/i.test(source)) badges.set("mock_source", "Mock benchmark dataset");
+    if (/ecdb/i.test(source)) badges.set("ecdb", "ECDB");
+    if (/calculated|calculado/i.test(source)) badges.set("calculated", "calculado");
   });
 
   return Array.from(badges.entries())
@@ -1625,8 +4102,13 @@ function getDataTrustBadges(rows = []) {
     .slice(0, 4);
 }
 
-function buildExecutiveSnapshot(realRows = [], comparisonRows = [], selectedPeriod = null) {
-  const context = getPrimaryMetricContext(realRows);
+function buildExecutiveSnapshot(
+  realRows = [],
+  comparisonRows = [],
+  selectedPeriod = null,
+  preferredMetric = "revenue",
+) {
+  const context = getPrimaryMetricContext(realRows, preferredMetric);
   const shareChangeMetric = getShareChangeMetric(realRows, context.primaryMetric);
   const shareWinners = getShareWinnersLosers(realRows, shareChangeMetric);
   const focusRow = getCompanyRow(realRows, OWN_COMPANY_ID);
@@ -1645,30 +4127,20 @@ function buildExecutiveSnapshot(realRows = [], comparisonRows = [], selectedPeri
     benchmarkRow,
     context.primaryMetric,
   );
-  const risks = getCompetitiveRisks(realRows, { ...context, shareChangeMetric });
-  const headlineParts = [];
-
-  if (leader) {
-    headlineParts.push(
-      `${getCompanyLabel(leader)} leads in ${context.primaryLabel} for ${selectedPeriod?.label || "the selected period"}`,
-    );
-  }
-
-  if (shareWinners.topGainer) {
-    headlineParts.push(
-      `${shareWinners.topGainer.name} gains ${formatPp(shareWinners.topGainer.value)} in share`,
-    );
-  } else if (focusShare !== null) {
-    headlineParts.push(`Focus Brand holds ${formatMetric(focusShare, context.shareMetric)} of ${getMetricCopy(context.shareMetric)}`);
-  }
-
-  if (benchmarkComparisons[0]) {
-    headlineParts.push(benchmarkComparisons[0].deltaLabel);
-  }
-
-  const headline = headlineParts.length
-    ? `${headlineParts.join(". ")}.`
-    : "Select a period with comparable data to read the market.";
+  const risks = getCompetitiveRisks(realRows, {
+    ...context,
+    shareChangeMetric,
+    shareChangeContext: getShareChangeContextLabel(shareChangeMetric, realRows),
+    periodLabel: selectedPeriod?.label || "",
+  });
+  const headline = buildExecutiveHeadline({
+    leader,
+    context,
+    selectedPeriod,
+    shareWinners,
+    focusShare,
+    benchmarkSentence: getBenchmarkDirectionSentence(focusRow, benchmarkRow, context.primaryMetric),
+  });
 
   return {
     ...context,
@@ -1691,10 +4163,10 @@ function buildExecutiveSnapshot(realRows = [], comparisonRows = [], selectedPeri
 
 function getEfficiencyBadge(gap) {
   const value = safeNumber(gap);
-  if (value === null) return "No data";
-  if (value > 0.005) return "High efficiency";
-  if (value < -0.005) return "Traffic under-monetized";
-  return "Balanced";
+  if (value === null) return "Sin dato";
+  if (value > 0.005) return "Alta eficiencia";
+  if (value < -0.005) return "Oportunidad de monetización";
+  return "Equilibrado";
 }
 
 function getMonetizationRows(rows = []) {
@@ -1730,35 +4202,45 @@ function getMedian(values = []) {
     : (numbers[middle - 1] + numbers[middle]) / 2;
 }
 
-function getBattleDeltaLabel(metric, focusValue, targetValue) {
+function getBattleDeltaLabel(metric, focusValue, targetValue, focusLabel = "Player", targetLabel = "rival") {
   const focusNumber = safeNumber(focusValue);
   const targetNumber = safeNumber(targetValue);
-  if (focusNumber === null || targetNumber === null) return "No comparable data";
+  if (focusNumber === null || targetNumber === null) return "Sin dato comparable";
 
   const delta = focusNumber - targetNumber;
-  if (Math.abs(delta) < 0.000001) return "Tied";
+  if (Math.abs(delta) < 0.000001) return `${focusLabel} y ${targetLabel} empatan en esta métrica`;
 
-  if (metric.deltaType === "pp") {
-    return `${formatPp(delta)} Focus vs target`;
+  const baseWins = delta > 0;
+  const winnerLabel = baseWins ? focusLabel : targetLabel;
+  const loserLabel = baseWins ? targetLabel : focusLabel;
+  const loserValue = baseWins ? targetNumber : focusNumber;
+  const absoluteDelta = Math.abs(delta);
+
+  if (metric.deltaType === "sharePoints") {
+    return `${winnerLabel} aventaja a ${loserLabel} en ${formatPp(absoluteDelta, { signed: false })}`;
   }
 
-  if (targetNumber !== 0) {
-    return `${formatSignedPercent(delta / Math.abs(targetNumber))} Focus vs target`;
+  if (metric.deltaType === "points") {
+    return `${winnerLabel} aventaja a ${loserLabel} en ${formatPercentagePoints(absoluteDelta, { signed: false })}`;
   }
 
-  return `Diff. ${formatMetric(delta, metric.key)}`;
+  if (loserValue !== 0) {
+    return `${winnerLabel} tiene un ${formatPercent(absoluteDelta / Math.abs(loserValue))} más que ${loserLabel}`;
+  }
+
+  return `${winnerLabel} supera a ${loserLabel} en ${formatMetric(absoluteDelta, metric.key)}`;
 }
 
-function getBattleWinner(metric, focusRow, targetRow) {
+function getBattleWinner(metric, focusRow, targetRow, focusLabel = "Focus Brand") {
   const focusValue = safeNumber(focusRow?.[metric.key]);
   const targetValue = safeNumber(targetRow?.[metric.key]);
   if (focusValue === null || targetValue === null) return "N/A";
-  if (Math.abs(focusValue - targetValue) < 0.000001) return "Tied";
-  return focusValue > targetValue ? "Focus" : getCompanyLabel(targetRow);
+  if (Math.abs(focusValue - targetValue) < 0.000001) return "Empate";
+  return focusValue > targetValue ? focusLabel : getCompanyLabel(targetRow);
 }
 
 function getStrategicConclusion(snapshot) {
-  if (!snapshot) return "Select a period with comparable data to close the read.";
+  if (!snapshot) return "Selecciona un período con datos comparables para cerrar la lectura.";
 
   const risk = snapshot.risks[0];
   if (risk) {
@@ -1766,14 +4248,24 @@ function getStrategicConclusion(snapshot) {
   }
 
   if (snapshot.shareWinners?.topGainer) {
-    return `${snapshot.shareWinners.topGainer.name} is the most relevant competitive move; cross-check against Focus Brand and Market Average.`;
+    return `${snapshot.shareWinners.topGainer.name} marca el movimiento competitivo más relevante. Conviene compararlo con Focus Brand y el promedio del mercado medido.`;
   }
 
   if (snapshot.leader) {
-    return `${getCompanyLabel(snapshot.leader)} holds the primary position for the period in ${snapshot.primaryLabel}.`;
+    return `${getCompanyLabel(snapshot.leader)} concentra la lectura principal del período por ${snapshot.primaryLabel}.`;
   }
 
-  return "Insufficient signals for a strategic conclusion without forcing the read.";
+  return "No hay señales suficientes para una conclusión estratégica sin forzar la lectura.";
+}
+
+function formatPositionDelta(value) {
+  const number = safeNumber(value);
+  if (number === null) return "N/A";
+  if (Math.abs(number) < 0.000001) return "sin cambio";
+  const rounded = Math.round(number);
+  const sign = rounded > 0 ? "+" : "-";
+  const unit = Math.abs(rounded) === 1 ? "posiciÃ³n" : "posiciones";
+  return `${sign}${formatNumber(Math.abs(rounded), { maximumFractionDigits: 0 })} ${unit}`;
 }
 
 function getPieData(rows = [], metricKey, maxSlices = 5) {
@@ -1792,7 +4284,7 @@ function getPieData(rows = [], metricKey, maxSlices = 5) {
   const restValue = restRows.reduce((total, row) => total + row.value, 0);
 
   return restValue > 0
-    ? [...topRows, { id: "rest", name: "Other", value: restValue, color: "#D8D2CD" }]
+    ? [...topRows, { id: "rest", name: "Resto", value: restValue, color: "#D8D2CD" }]
     : topRows;
 }
 
@@ -1806,7 +4298,7 @@ function RankingPieChart({ rows, metricKey, title }) {
   return (
     <aside className="ranking-side-card" aria-label={title}>
       <div>
-        <p className="analysis-label text-focus-500">Distribution</p>
+        <p className="analysis-label text-accent-500">Distribución</p>
         <h3 className="mt-2 text-lg font-semibold text-black">{title}</h3>
       </div>
 
@@ -1859,8 +4351,8 @@ function RankingPieChart({ rows, metricKey, title }) {
         </>
       ) : (
         <EmptyState
-          title="No positive data for distribution chart."
-          message="The current ranking does not have enough values to calculate a distribution."
+          title="Sin datos positivos para el pie."
+          message="El ranking actual no tiene valores suficientes para calcular una distribución."
         />
       )}
     </aside>
@@ -1884,16 +4376,41 @@ function getBarData(rows = [], metricKey, maxItems = 8) {
     .slice(0, maxItems);
 }
 
+function getGrowthAxisTicks(values = []) {
+  const numericValues = values.filter((value) => Number.isFinite(value));
+  if (!numericValues.length) return [-1, 0, 1];
+
+  const min = Math.min(0, ...numericValues);
+  const max = Math.max(0, ...numericValues);
+  const step = 0.25;
+  const start = Math.floor(min / step) * step;
+  const end = Math.max(step, Math.ceil(max / step) * step);
+  const ticks = [];
+
+  for (let value = start; value <= end + 0.000001; value += step) {
+    ticks.push(Number(value.toFixed(2)));
+  }
+
+  return ticks;
+}
+
 function RankingBarChart({ rows, metricKey, title }) {
   const barData = useMemo(() => getBarData(rows, metricKey), [metricKey, rows]);
   const showGrowthBreakdown = isGrowthMetric(metricKey);
+  const growthTicks = useMemo(
+    () => (showGrowthBreakdown ? getGrowthAxisTicks(barData.map((row) => row.value)) : []),
+    [barData, showGrowthBreakdown],
+  );
   const domain = useMemo(() => {
+    if (showGrowthBreakdown && growthTicks.length) {
+      return [growthTicks[0], growthTicks[growthTicks.length - 1]];
+    }
     const values = barData.map((row) => row.value);
     const min = Math.min(0, ...values);
     const max = Math.max(0, ...values);
 
     return min === max ? [-1, 1] : [min, max];
-  }, [barData]);
+  }, [barData, growthTicks, showGrowthBreakdown]);
   const entriesById = useMemo(() => {
     const entriesMap = new Map();
     barData.forEach((entry) => {
@@ -1905,7 +4422,7 @@ function RankingBarChart({ rows, metricKey, title }) {
   return (
     <aside className="ranking-side-card" aria-label={title}>
       <div>
-        <p className="analysis-label text-focus-500">Comparison</p>
+        <p className="analysis-label text-accent-500">Comparativa</p>
         <h3 className="mt-2 text-lg font-semibold text-black">{title}</h3>
       </div>
 
@@ -1926,6 +4443,7 @@ function RankingBarChart({ rows, metricKey, title }) {
                 tickFormatter={(value) =>
                   showGrowthBreakdown ? formatSignedPercent(value) : formatMetric(value, metricKey)
                 }
+                ticks={showGrowthBreakdown ? growthTicks : undefined}
                 tickLine={false}
                 axisLine={false}
               />
@@ -1952,8 +4470,8 @@ function RankingBarChart({ rows, metricKey, title }) {
         </div>
       ) : (
         <EmptyState
-          title="No data for comparison chart."
-          message="The current ranking does not have enough values to represent this metric."
+          title="Sin datos para la comparativa."
+          message="El ranking actual no tiene valores suficientes para representar esta métrica."
         />
       )}
 
@@ -1977,7 +4495,7 @@ function RankingBarChart({ rows, metricKey, title }) {
                     {formatMetric(entry.previousValue, entry.baseMetricKey)}
                   </span>
                   <span>
-                    <small>Growth</small>
+                    <small>Crec.</small>
                     {formatSignedPercent(entry.growthValue ?? entry.value)}
                   </span>
                   <span>
@@ -2018,20 +4536,29 @@ function RankingSideVisual({ rows, sortKey, sortLabel }) {
 function BenchmarkRankingPanel({
   rows,
   sortKey,
+  sortLabel,
   selectedPeriod,
+  availability,
+  emptyActions = [],
   onOpenProfile,
 }) {
-  const sortLabel = RANKING_SORTS.find((sort) => sort.key === sortKey)?.label || sortKey;
+  const resolvedSortLabel = sortLabel || getMetricCopy(sortKey);
   const topRows = rows.slice(0, 8);
+  const emptyTitle = `No hay datos de ${resolvedSortLabel.toLowerCase()} para ${
+    selectedPeriod?.label || "este periodo"
+  }.`;
+  const emptyMessage = availability?.lastAvailablePeriod
+    ? `Último dato disponible: ${availability.lastAvailablePeriod.label}.`
+    : availability?.reason || "Selecciona un periodo con empresas reales y datos disponibles.";
 
   return (
     <Panel
       eyebrow="Ranking"
-      title="Period ranking"
+      title="Ranking del período"
     >
       {selectedPeriod && (
         <p className="mb-4 text-sm text-neutral-500">
-          {selectedPeriod.label}. Top companies by {sortLabel}.
+          {selectedPeriod.label}. Top empresas por {resolvedSortLabel}.
         </p>
       )}
 
@@ -2046,12 +4573,12 @@ function BenchmarkRankingPanel({
                   key={`${row.company_id}-${row.date}-ranking-card`}
                   type="button"
                   onClick={() => onOpenProfile(row.company_id)}
-                  className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 bg-white px-4 py-3 text-left transition hover:bg-[#fbf8f5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus-500 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4"
-                  aria-label={`Open profile for ${getCompanyLabel(row)}`}
+                  className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 bg-white px-4 py-3 text-left transition hover:bg-[#fbf8f5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-accent-500 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4"
+                  aria-label={`Abrir ficha de ${getCompanyLabel(row)}`}
                 >
                   <span
                     className={`flex h-10 w-10 items-center justify-center rounded-sm text-sm font-semibold ${
-                      index === 0 ? "bg-focus-500 text-white" : "bg-[#fbf8f5] text-black"
+                      index === 0 ? "bg-accent-500 text-white" : "bg-[#fbf8f5] text-black"
                     }`}
                   >
                     #{index + 1}
@@ -2067,7 +4594,7 @@ function BenchmarkRankingPanel({
                       <span className="truncate font-semibold text-black">{getCompanyLabel(row)}</span>
                     </span>
                     <span className="mt-1 block truncate text-xs uppercase text-neutral-500">
-                      {row.segment || row.market || "Competitor"}
+                      {row.segment || row.market || "Competidor"}
                     </span>
                     <DataTypeBadge row={row} />
                   </span>
@@ -2078,12 +4605,12 @@ function BenchmarkRankingPanel({
                         : formatMetric(row?.[sortKey], sortKey)}
                     </span>
                     <span className="mt-1 block text-xs font-semibold uppercase text-neutral-500">
-                      {sortLabel}
+                      {resolvedSortLabel}
                     </span>
                     {growthBreakdown && (
                       <span className="ranking-row-yoy">
-                        <span>Pre {formatMetric(growthBreakdown.previousValue, growthBreakdown.baseMetricKey)}</span>
-                        <span>Post {formatMetric(growthBreakdown.currentValue, growthBreakdown.baseMetricKey)}</span>
+                        <span>Antes {formatMetric(growthBreakdown.previousValue, growthBreakdown.baseMetricKey)}</span>
+                        <span>Ahora {formatMetric(growthBreakdown.currentValue, growthBreakdown.baseMetricKey)}</span>
                       </span>
                     )}
                   </span>
@@ -2092,12 +4619,13 @@ function BenchmarkRankingPanel({
             })}
           </div>
 
-          <RankingSideVisual rows={rows} sortKey={sortKey} sortLabel={sortLabel} />
+          <RankingSideVisual rows={rows} sortKey={sortKey} sortLabel={resolvedSortLabel} />
         </div>
       ) : (
         <EmptyState
-          title="No rows for this ranking."
-          message="Adjust filters or date range to recover the latest available period."
+          title={emptyTitle}
+          message={emptyMessage}
+          actions={emptyActions}
         />
       )}
     </Panel>
@@ -2108,19 +4636,19 @@ function RankingTable({
   rows,
   selectedPeriod,
   onOpenProfile,
-  title = "Full ranking table",
+  title = "Tabla completa del ranking",
   description,
 }) {
   const hasForecastRows = rows.some(isForecastRow);
 
   return (
     <Panel
-      eyebrow="Detail"
+      eyebrow="Detalle"
       title={title}
     >
       {selectedPeriod && (
         <p className="mb-4 text-sm text-neutral-500">
-          {description || `Selected period: ${selectedPeriod.label}. Detailed ranking by company.`}
+          {description || `Período seleccionado: ${selectedPeriod.label}. Ranking detallado por empresas.`}
         </p>
       )}
       {rows.length ? (
@@ -2128,16 +4656,16 @@ function RankingTable({
           <table className="w-full min-w-[1080px] border-collapse text-sm">
             <thead>
               <tr className="border-y border-black/10 bg-[#fbf8f5] text-left text-xs uppercase text-neutral-500">
-                <th className="px-3 py-3 font-semibold">Rank</th>
-                <th className="px-3 py-3 font-semibold">Company</th>
-                <th className="px-3 py-3 text-right font-semibold">Revenue</th>
-                <th className="px-3 py-3 text-right font-semibold">Visits</th>
-                <th className="px-3 py-3 text-right font-semibold">Revenue share</th>
-                <th className="px-3 py-3 text-right font-semibold">Visit share</th>
-                <th className="px-3 py-3 text-right font-semibold">Rev / visit</th>
-                <th className="px-3 py-3 font-semibold">Priority</th>
-                {hasForecastRows && <th className="px-3 py-3 font-semibold">Type</th>}
-                <th className="px-3 py-3 text-right font-semibold">Profile</th>
+                <th className="px-3 py-3 font-semibold">Posición</th>
+                <th className="px-3 py-3 font-semibold">Empresa</th>
+                <th className="px-3 py-3 text-right font-semibold">Facturación</th>
+                <th className="px-3 py-3 text-right font-semibold">Visitas</th>
+                <th className="px-3 py-3 text-right font-semibold">Cuota facturación</th>
+                <th className="px-3 py-3 text-right font-semibold">Cuota visitas</th>
+                <th className="px-3 py-3 text-right font-semibold">Facturación por visita</th>
+                <th className="px-3 py-3 font-semibold">Prioridad</th>
+                {hasForecastRows && <th className="px-3 py-3 font-semibold">Tipo</th>}
+                <th className="px-3 py-3 text-right font-semibold">Ficha</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/10">
@@ -2197,9 +4725,9 @@ function RankingTable({
                         onOpenProfile(row.company_id);
                       }}
                       className="primary-action"
-                      aria-label={`Open profile for ${getCompanyLabel(row)}`}
+                      aria-label={`Abrir ficha de ${getCompanyLabel(row)}`}
                     >
-                      Open
+                      Abrir
                     </button>
                   </td>
                 </tr>
@@ -2209,61 +4737,11 @@ function RankingTable({
         </div>
       ) : (
         <EmptyState
-          title="No rows for this ranking."
-          message="Adjust filters or date range to recover the latest available period."
+          title="No hay datos comparables para esta tabla."
+          message="Selecciona un período con datos disponibles para las empresas reales."
         />
       )}
     </Panel>
-  );
-}
-
-function ForecastPreview({ forecastRows, forecastScenarioLabel, onOpenForecast }) {
-  const forecastPeriods = useMemo(
-    () => getAvailablePeriods(forecastRows, { includeForecasts: true, realOnly: true }),
-    [forecastRows],
-  );
-  const firstForecastPeriod = forecastPeriods[0] ?? null;
-  const lastForecastPeriod = forecastPeriods[forecastPeriods.length - 1] ?? null;
-  const lastForecastRows = useMemo(
-    () => getRowsForPeriod(forecastRows, lastForecastPeriod?.key),
-    [lastForecastPeriod?.key, forecastRows],
-  );
-  const forecastCompanies = useMemo(
-    () => getUniqueCompanies(forecastRows, { includeForecasts: true }),
-    [forecastRows],
-  );
-  const focusForecastRow = useMemo(
-    () => lastForecastRows.find((row) => sameCompany(row.company_id, OWN_COMPANY_ID)) ?? null,
-    [lastForecastRows],
-  );
-
-  if (!forecastRows.length || !firstForecastPeriod) return null;
-
-  const horizonLabel =
-    firstForecastPeriod.key === lastForecastPeriod?.key
-      ? firstForecastPeriod.label
-      : `${firstForecastPeriod.label} - ${lastForecastPeriod?.label}`;
-
-  return (
-    <button
-      type="button"
-      className="forecast-entry"
-      onClick={onOpenForecast}
-      aria-label="Open forecast detail"
-    >
-      <span className="forecast-entry-kicker">Forecast</span>
-      <span className="forecast-entry-copy">
-        <span className="forecast-entry-title">Market Forecast</span>
-        <span className="forecast-entry-detail">
-          {horizonLabel} - {forecastCompanies.length} companies - Scenario: {forecastScenarioLabel}
-        </span>
-      </span>
-      <span className="forecast-entry-metric">
-        <span>{formatCompact(focusForecastRow?.visits)}</span>
-        <span>Focus visits</span>
-      </span>
-      <span className="forecast-entry-action">View detail</span>
-    </button>
   );
 }
 
@@ -2271,8 +4749,8 @@ function ForecastRankingList({ rows, onOpenProfile }) {
   if (!rows.length) {
     return (
       <EmptyState
-        title="No forecast rows for this period."
-        message="Change the scenario or return to the benchmark to review another context."
+        title="Proyección no disponible para esta selección."
+        message="Cambia el escenario o vuelve al panel para revisar otro contexto."
       />
     );
   }
@@ -2286,7 +4764,7 @@ function ForecastRankingList({ rows, onOpenProfile }) {
             type="button"
             onClick={() => onOpenProfile(row.company_id)}
             className="clean-list-row"
-            aria-label={`Open profile for ${getCompanyLabel(row)}`}
+            aria-label={`Abrir ficha de ${getCompanyLabel(row)}`}
           >
             <span
               className={`rank-token ${index === 0 ? "rank-token-lead" : ""}`}
@@ -2304,7 +4782,7 @@ function ForecastRankingList({ rows, onOpenProfile }) {
                 <span className="truncate font-semibold text-black">{getCompanyLabel(row)}</span>
               </span>
               <span className="mt-1 block truncate text-xs uppercase text-neutral-500">
-                {row.segment || row.market || "Competitor"}
+                {row.segment || row.market || "Competidor"}
               </span>
             </span>
             <span className="text-right">
@@ -2312,14 +4790,14 @@ function ForecastRankingList({ rows, onOpenProfile }) {
                 {formatCompact(row.visits)}
               </span>
               <span className="mt-1 block text-xs font-semibold uppercase text-neutral-500">
-                Forecast visits
+                Visitas proyectadas
               </span>
             </span>
           </button>
         ))}
       </div>
 
-      <RankingPieChart rows={rows} metricKey="visits" title="Forecast visits" />
+      <RankingPieChart rows={rows} metricKey="visits" title="Visitas proyectadas" />
     </div>
   );
 }
@@ -2339,20 +4817,149 @@ function ForecastDetailView({
   onBack,
   onOpenProfile,
 }) {
+  const [selectedForecastTimeMode, setSelectedForecastTimeMode] = useState("horizon");
+  const [selectedForecastYear, setSelectedForecastYear] = useState("");
+  const [selectedForecastMonth, setSelectedForecastMonth] = useState("");
+  const [forecastRangeStartMonth, setForecastRangeStartMonth] = useState("");
+  const [forecastRangeEndMonth, setForecastRangeEndMonth] = useState("");
   const forecastRows = useMemo(() => getForecastRows(rows), [rows]);
+  const forecastMonthOptions = useMemo(() => getForecastMonthOptions(forecastRows), [forecastRows]);
+  const forecastYears = useMemo(() => getForecastAvailableYears(forecastMonthOptions), [forecastMonthOptions]);
+  const forecastRangeMonthOptions = useMemo(
+    () => getForecastRangeMonthOptions(forecastMonthOptions),
+    [forecastMonthOptions],
+  );
+
+  useEffect(() => {
+    if (!FORECAST_TIME_MODE_KEYS.includes(selectedForecastTimeMode)) {
+      setSelectedForecastTimeMode("horizon");
+    }
+  }, [selectedForecastTimeMode]);
+
+  useEffect(() => {
+    if (!forecastYears.length) {
+      setSelectedForecastYear("");
+      return;
+    }
+
+    if (!selectedForecastYear || !forecastYears.includes(selectedForecastYear)) {
+      setSelectedForecastYear(forecastYears[0]);
+    }
+  }, [forecastYears, selectedForecastYear]);
+
+  const forecastMonthOptionsForYear = useMemo(
+    () => getForecastMonthsForYear(forecastMonthOptions, selectedForecastYear),
+    [forecastMonthOptions, selectedForecastYear],
+  );
+
+  useEffect(() => {
+    if (!forecastMonthOptionsForYear.length) {
+      setSelectedForecastMonth("");
+      return;
+    }
+
+    const latestMonth = forecastMonthOptionsForYear[forecastMonthOptionsForYear.length - 1];
+    if (!selectedForecastMonth || !forecastMonthOptionsForYear.includes(Number(selectedForecastMonth))) {
+      setSelectedForecastMonth(String(latestMonth));
+    }
+  }, [forecastMonthOptionsForYear, selectedForecastMonth]);
+
+  useEffect(() => {
+    if (!forecastRangeMonthOptions.length) {
+      setForecastRangeStartMonth("");
+      setForecastRangeEndMonth("");
+      return;
+    }
+
+    const first = forecastRangeMonthOptions[0].key;
+    const last = forecastRangeMonthOptions[forecastRangeMonthOptions.length - 1].key;
+
+    if (
+      !forecastRangeStartMonth ||
+      !forecastRangeMonthOptions.some((month) => month.key === forecastRangeStartMonth)
+    ) {
+      setForecastRangeStartMonth(first);
+    }
+
+    if (
+      !forecastRangeEndMonth ||
+      !forecastRangeMonthOptions.some((month) => month.key === forecastRangeEndMonth)
+    ) {
+      setForecastRangeEndMonth(last);
+    }
+  }, [forecastRangeEndMonth, forecastRangeMonthOptions, forecastRangeStartMonth]);
+
+  useEffect(() => {
+    if (selectedForecastTimeMode !== "range") return;
+    if (!forecastRangeStartMonth || !forecastRangeEndMonth) return;
+    if (compareRangeMonthKeys(forecastRangeStartMonth, forecastRangeEndMonth) <= 0) return;
+
+    setForecastRangeEndMonth(forecastRangeStartMonth);
+  }, [forecastRangeEndMonth, forecastRangeStartMonth, selectedForecastTimeMode]);
+
+  const selectedForecastWindow = useMemo(
+    () =>
+      getForecastSelectionWindow(
+        {
+          selectedTimeMode: selectedForecastTimeMode,
+          selectedYear: selectedForecastYear,
+          selectedMonth: Number(selectedForecastMonth),
+          rangeStartMonth: forecastRangeStartMonth,
+          rangeEndMonth: forecastRangeEndMonth,
+        },
+        forecastMonthOptions,
+      ),
+    [
+      forecastMonthOptions,
+      forecastRangeEndMonth,
+      forecastRangeStartMonth,
+      selectedForecastMonth,
+      selectedForecastTimeMode,
+      selectedForecastYear,
+    ],
+  );
   const forecastPeriods = useMemo(
     () => getAvailablePeriods(forecastRows, { includeForecasts: true, realOnly: true }),
     [forecastRows],
   );
   const firstForecastPeriod = forecastPeriods[0] ?? null;
   const lastForecastPeriod = forecastPeriods[forecastPeriods.length - 1] ?? null;
+  const selectedForecastMonthlyRows = useMemo(
+    () => filterRowsByForecastWindow(forecastRows, selectedForecastWindow),
+    [forecastRows, selectedForecastWindow],
+  );
+  const selectedForecastPeriodRows = useMemo(
+    () => getForecastPeriodRowsForWindow(forecastRows, selectedForecastWindow),
+    [forecastRows, selectedForecastWindow],
+  );
+  const selectedForecastPeriod = useMemo(() => {
+    if (!selectedForecastWindow) return null;
+
+    const isHorizon = selectedForecastWindow.mode === "horizon";
+    return {
+      key: isHorizon
+        ? `forecast-close:${selectedForecastWindow.endMonth}`
+        : `forecast:${selectedForecastWindow.mode}:${selectedForecastWindow.startMonth}:${selectedForecastWindow.endMonth}`,
+      date: selectedForecastWindow.endDate,
+      label: isHorizon ? `Cierre ${selectedForecastWindow.closeLabel}` : selectedForecastWindow.label,
+      detail: selectedForecastWindow.detail,
+      sortValue: new Date(selectedForecastWindow.endDate).getTime(),
+    };
+  }, [selectedForecastWindow]);
+  const selectedForecastPeriods = useMemo(
+    () => getAvailablePeriods(selectedForecastMonthlyRows, { includeForecasts: true, realOnly: true }),
+    [selectedForecastMonthlyRows],
+  );
+  const firstSelectedForecastPeriod = selectedForecastPeriods[0] ?? firstForecastPeriod;
+  const lastSelectedForecastPeriod =
+    selectedForecastPeriods[selectedForecastPeriods.length - 1] ?? lastForecastPeriod;
   const firstForecastRows = useMemo(
-    () => getRowsForPeriod(forecastRows, firstForecastPeriod?.key),
-    [firstForecastPeriod?.key, forecastRows],
+    () => getRowsForPeriod(selectedForecastMonthlyRows, firstSelectedForecastPeriod?.key),
+    [firstSelectedForecastPeriod?.key, selectedForecastMonthlyRows],
   );
   const lastForecastRows = useMemo(
-    () => getRowsForPeriod(forecastRows, lastForecastPeriod?.key),
-    [lastForecastPeriod?.key, forecastRows],
+    () => getRowsForPeriod(selectedForecastMonthlyRows, lastSelectedForecastPeriod?.key),
+    [lastSelectedForecastPeriod?.key, selectedForecastMonthlyRows],
   );
   const forecastCompanies = useMemo(
     () => getUniqueCompanies(forecastRows, { includeForecasts: true }),
@@ -2367,8 +4974,8 @@ function ForecastDetailView({
     [lastForecastRows],
   );
   const topForecastRows = useMemo(
-    () => getRankingRows(lastForecastRows, "visits", { includeForecasts: true }).slice(0, 8),
-    [lastForecastRows],
+    () => getRankingRows(selectedForecastPeriodRows, "visits", { includeForecasts: true }).slice(0, 8),
+    [selectedForecastPeriodRows],
   );
   const defaultVisibleCompanyIds = useMemo(() => {
     const ids = topForecastRows.slice(0, 5).map((row) => row.company_id);
@@ -2380,12 +4987,12 @@ function ForecastDetailView({
     return ids;
   }, [topForecastRows]);
   const visitsSeries = useMemo(
-    () => groupSeriesByCompetitor(rows, "visits", [], { includeForecasts: true }),
-    [rows],
+    () => groupSeriesByCompetitor(selectedForecastMonthlyRows, "visits", [], { includeForecasts: true }),
+    [selectedForecastMonthlyRows],
   );
   const revenueSeries = useMemo(
-    () => groupSeriesByCompetitor(rows, "revenue", [], { includeForecasts: true }),
-    [rows],
+    () => groupSeriesByCompetitor(selectedForecastMonthlyRows, "revenue", [], { includeForecasts: true }),
+    [selectedForecastMonthlyRows],
   );
   const visitsChartData = useMemo(() => toMultiLineChartData(visitsSeries), [visitsSeries]);
   const revenueChartData = useMemo(() => toMultiLineChartData(revenueSeries), [revenueSeries]);
@@ -2394,16 +5001,41 @@ function ForecastDetailView({
     [revenueSeries, visitsSeries],
   );
   const forecastVisibility = useCompanyVisibility(forecastLegendSeries, defaultVisibleCompanyIds);
+  const forecastCoverageItems = useMemo(
+    () => [
+      getForecastCoverageItem(forecastRows, "visits", "Forecast visitas"),
+      getForecastCoverageItem(forecastRows, "revenue", "Forecast facturación"),
+    ],
+    [forecastRows],
+  );
+  const forecastPeriodStatusItems = useMemo(
+    () => getForecastPeriodStatusItems(selectedForecastPeriodRows),
+    [selectedForecastPeriodRows],
+  );
+  const selectableRangeStartMonths = useMemo(
+    () =>
+      forecastRangeMonthOptions.filter(
+        (month) => !forecastRangeEndMonth || compareRangeMonthKeys(month.key, forecastRangeEndMonth) <= 0,
+      ),
+    [forecastRangeEndMonth, forecastRangeMonthOptions],
+  );
+  const selectableRangeEndMonths = useMemo(
+    () =>
+      forecastRangeMonthOptions.filter(
+        (month) => !forecastRangeStartMonth || compareRangeMonthKeys(month.key, forecastRangeStartMonth) >= 0,
+      ),
+    [forecastRangeMonthOptions, forecastRangeStartMonth],
+  );
 
-  if (!forecastRows.length || !firstForecastPeriod) {
+  if (!forecastRows.length || !firstForecastPeriod || !selectedForecastWindow) {
     return (
       <div className="space-y-6">
         <button type="button" className="section-link" onClick={onBack}>
-          Back to benchmark
+          Volver al panel
         </button>
         <EmptyState
-          title="No forecast available."
-          message="The current snapshot does not include forecast rows for the selected context."
+          title="No hay proyección disponible."
+          message="Los datos actuales no incluyen proyección para el contexto seleccionado."
         />
       </div>
     );
@@ -2415,59 +5047,95 @@ function ForecastDetailView({
       : `${firstForecastPeriod.label} - ${lastForecastPeriod?.label}`;
 
   return (
-    <div className="space-y-6">
-      <section className="forecast-detail-hero">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <button type="button" className="section-link" onClick={onBack}>
-              Back to benchmark
-            </button>
-            <p className="analysis-label mt-6 text-focus-500">Forecast</p>
-            <h2 className="mt-2 text-3xl font-semibold text-black md:text-4xl">
-              Market Forecast
-            </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600">
-              {horizonLabel}. {forecastScenarioLabel} scenario covering visits and revenue.
+    <div className="home-temporal-layout">
+      <aside className="temporal-sidebar" aria-label="Controles temporales de forecast">
+        <section className="global-temporal-panel forecast-temporal-panel">
+          <div className="global-temporal-copy">
+            <p className="analysis-label text-accent-500">Contexto forecast</p>
+            <h2>Dónde y cuándo proyectamos</h2>
+            <p>
+              Este selector controla escenario, mercado y fechas del forecast. Forecast =
+              proyección, no dato observado.
             </p>
           </div>
-
-          <ForecastControls
+          <ForecastContextControls
             forecastScenarios={forecastScenarios}
             forecastScenario={forecastScenario}
             onForecastScenarioChange={onForecastScenarioChange}
             market={forecastMarket}
             onMarketChange={onForecastMarketChange}
             markets={forecastMarkets}
-            periodType={forecastPeriodType}
-            onPeriodTypeChange={onForecastPeriodTypeChange}
-            periodTypes={forecastPeriodTypes}
+            selectedTimeMode={selectedForecastTimeMode}
+            onTimeModeChange={setSelectedForecastTimeMode}
+            selectedYear={selectedForecastYear}
+            onSelectedYearChange={setSelectedForecastYear}
+            availableYears={forecastYears}
+            selectedMonth={selectedForecastMonth}
+            onSelectedMonthChange={setSelectedForecastMonth}
+            monthOptions={forecastMonthOptionsForYear}
+            rangeStartMonth={forecastRangeStartMonth}
+            onRangeStartMonthChange={setForecastRangeStartMonth}
+            rangeEndMonth={forecastRangeEndMonth}
+            onRangeEndMonthChange={setForecastRangeEndMonth}
+            rangeMonthOptions={forecastRangeMonthOptions}
+            selectableRangeStartMonths={selectableRangeStartMonths}
+            selectableRangeEndMonths={selectableRangeEndMonths}
+            periodLabel={selectedForecastWindow.label}
+            periodDetail={selectedForecastWindow.detail}
+            periodStatusItems={forecastPeriodStatusItems}
+            coverageItems={forecastCoverageItems}
+            dataNote={`Horizonte disponible: ${horizonLabel}. Escenario ${forecastScenarioLabel}.`}
           />
+        </section>
+      </aside>
+
+      <div className="home-content-stack">
+      <section className="forecast-detail-hero">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <button type="button" className="section-link" onClick={onBack}>
+              Volver al panel
+            </button>
+            <p className="analysis-label mt-6 text-accent-500">Proyección</p>
+            <h2 className="mt-2 text-3xl font-semibold text-black md:text-4xl">
+              Proyección de mercado
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600">
+              Horizonte disponible: {horizonLabel}. Selección: {selectedForecastWindow.label}.
+              Escenario {forecastScenarioLabel}. Muestra visitas y facturación esperadas.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <TrustBadges badges={getDataTrustBadges(forecastRows)} />
+              <ForecastCaveat />
+            </div>
+          </div>
+
         </div>
 
         <dl className="forecast-stat-strip">
           <div>
-            <dt>Horizon</dt>
-            <dd>{forecastPeriods.length} periods</dd>
+            <dt>Horizonte</dt>
+            <dd>{forecastPeriods.length} períodos</dd>
           </div>
           <div>
-            <dt>Companies</dt>
-            <dd>{forecastCompanies.length}</dd>
+            <dt>Selección</dt>
+            <dd>{selectedForecastWindow.monthCount} períodos</dd>
           </div>
           <div>
-            <dt>Focus Brand start</dt>
+            <dt>Focus Brand inicio</dt>
             <dd>{formatCompact(focusStartRow?.visits)}</dd>
           </div>
           <div>
-            <dt>Focus Brand end</dt>
+            <dt>Focus Brand cierre</dt>
             <dd>{formatCompact(focusEndRow?.visits)}</dd>
           </div>
         </dl>
       </section>
 
       <ContentSection
-        eyebrow="Trend"
-        title="Forecast by competitor"
-        detail={forecastScenarioLabel}
+        eyebrow="Evolución"
+        title="Proyección por competidor"
+        detail={selectedForecastWindow.label}
       >
         <CompanyLegend
           series={forecastLegendSeries}
@@ -2479,45 +5147,50 @@ function ForecastDetailView({
 
         <section className="grid gap-6 xl:grid-cols-2">
           <MetricChart
-            title="Forecast visits"
+            title="Proyección de visitas"
             metricKey="visits"
             series={visitsSeries}
             chartData={visitsChartData}
-            emptyTitle="No visits data for this forecast."
+            emptyTitle="No hay datos de visitas para esta proyección."
             hiddenCompanyIds={forecastVisibility.hiddenCompanyIds}
           />
           <MetricChart
-            title="Forecast revenue"
+            title="Proyección de facturación"
             metricKey="revenue"
             series={revenueSeries}
             chartData={revenueChartData}
-            emptyTitle="No revenue data for this forecast."
+            emptyTitle="No hay datos de facturación para esta proyección."
             hiddenCompanyIds={forecastVisibility.hiddenCompanyIds}
           />
         </section>
       </ContentSection>
 
       <ContentSection
-        eyebrow="Forecast ranking"
-        title="Last forecast period"
-        detail={lastForecastPeriod?.label}
+        eyebrow="Ranking de proyección"
+        title={selectedForecastWindow.mode === "horizon" ? "Cierre proyectado" : "Periodo forecast seleccionado"}
+        detail={selectedForecastPeriod?.label}
       >
         <ForecastRankingList rows={topForecastRows} onOpenProfile={onOpenProfile} />
       </ContentSection>
 
       <ContentSection
-        eyebrow="Detail"
-        title="Tabla forecast"
-        detail={lastForecastPeriod?.label}
+        eyebrow="Detalle"
+        title="Tabla de forecast"
+        detail={selectedForecastPeriod?.label}
       >
         <RankingTable
-          rows={lastForecastRows}
-          selectedPeriod={lastForecastPeriod}
+          rows={selectedForecastPeriodRows}
+          selectedPeriod={selectedForecastPeriod}
           onOpenProfile={onOpenProfile}
-          title="Forecast table by company"
-          description={`Forecast period: ${lastForecastPeriod?.label}. Full detail by competitor.`}
+          title="Tabla de forecast por empresa"
+          description={
+            selectedForecastWindow.mode === "horizon"
+              ? `Cierre proyectado: ${selectedForecastWindow.closeLabel}. Horizonte disponible: ${horizonLabel}.`
+              : `Periodo forecast: ${selectedForecastWindow.label}. Detalle completo por competidor.`
+          }
         />
       </ContentSection>
+    </div>
     </div>
   );
 }
@@ -2527,53 +5200,16 @@ function ContentSection({ eyebrow, title, detail, action, children }) {
     <section className="content-section">
       <div className="content-section-header">
         <div>
-          <p className="analysis-label text-focus-500">{eyebrow}</p>
+          <p className="analysis-label text-accent-500">{eyebrow}</p>
           <h2 className="mt-2 text-2xl font-semibold text-black">{title}</h2>
         </div>
         <div className="content-section-actions">
           {action}
-          {detail && <span className="scope-pill">{detail}</span>}
+          {detail && !action && <span className="scope-pill">{detail}</span>}
         </div>
       </div>
       {children}
     </section>
-  );
-}
-
-function InsightFeed({ items = [] }) {
-  if (!items.length) {
-    return (
-      <EmptyState
-        title="No insights for this selection."
-        message="The dashboard avoids generating insights for benchmarks or forecasts without real competitive signals."
-      />
-    );
-  }
-
-  return (
-    <div className="insight-grid">
-      {items.map((item) => (
-        <article key={item.id} className="insight-card">
-          <div className="flex min-w-0 items-start gap-3">
-            <CompanyMark
-              companyId={item.company_id}
-              label={item.company_name || item.title}
-              color={item.company_color}
-              className="company-mark-row"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-black">{item.title}</p>
-              {item.body && <p className="mt-2 text-sm leading-6 text-neutral-600">{item.body}</p>}
-            </div>
-          </div>
-          <div className="insight-meta">
-            {item.period_label && <span>{item.period_label}</span>}
-            {item.priority && <span>{item.priority}</span>}
-            {item.metric && <span>{item.metric}</span>}
-          </div>
-        </article>
-      ))}
-    </div>
   );
 }
 
@@ -2591,10 +5227,11 @@ function TrustBadges({ badges = [] }) {
   );
 }
 
-function ExecutiveMoverList({ title, items = [], emptyMessage }) {
+function ExecutiveMoverList({ title, metricLabel = "", items = [], emptyMessage }) {
   return (
     <div className="executive-list-card">
       <p className="analysis-label">{title}</p>
+      {metricLabel && <p className="executive-list-context">{metricLabel}</p>}
       {items.length ? (
         <div className="mt-3 space-y-2">
           {items.slice(0, 3).map((item) => (
@@ -2609,7 +5246,7 @@ function ExecutiveMoverList({ title, items = [], emptyMessage }) {
                 <span className="truncate font-semibold text-black">{item.name}</span>
               </span>
               <span className={item.value >= 0 ? "value-positive" : "value-negative"}>
-                {formatPp(item.value)}
+                {formatPp(item.value, { compact: true })}
               </span>
             </div>
           ))}
@@ -2627,7 +5264,7 @@ function BenchmarkComparisonStrip({ items = [] }) {
       <div className="executive-benchmark-strip">
         <p className="text-sm font-semibold text-black">Market Average</p>
         <p className="mt-1 text-sm text-neutral-500">
-          No comparable metrics against Market Average for this period.
+          No hay métricas comparables contra el promedio del mercado medido para este período.
         </p>
       </div>
     );
@@ -2636,8 +5273,11 @@ function BenchmarkComparisonStrip({ items = [] }) {
   return (
     <div className="executive-benchmark-strip">
       <div>
-        <p className="analysis-label">Visual benchmark</p>
-        <h3 className="mt-1 text-lg font-semibold text-black">Focus vs Market Average</h3>
+        <p className="analysis-label">Market Average</p>
+        <h3 className="mt-1 text-lg font-semibold text-black">Focus Brand frente al promedio del mercado medido</h3>
+        <p className="mt-1 text-xs leading-5 text-neutral-500">
+          Benchmark calculado, no empresa real.
+        </p>
       </div>
       <div className="executive-benchmark-grid">
         {items.map((item) => (
@@ -2655,7 +5295,7 @@ function BenchmarkComparisonStrip({ items = [] }) {
 function CompetitiveRiskList({ risks = [] }) {
   return (
     <div className="executive-list-card">
-      <p className="analysis-label">Competitive risks</p>
+      <p className="analysis-label">Riesgos competitivos</p>
       {risks.length ? (
         <div className="mt-3 space-y-3">
           {risks.map((risk) => (
@@ -2675,48 +5315,85 @@ function CompetitiveRiskList({ risks = [] }) {
         </div>
       ) : (
         <p className="mt-3 text-sm leading-6 text-neutral-500">
-          No alerts with sufficient data for this period.
+          No hay alertas con datos suficientes para este periodo.
         </p>
       )}
     </div>
   );
 }
 
-function ExecutiveMarketHome({ snapshot, rows = [] }) {
+function ExecutiveMarketHome({
+  snapshot,
+  rows = [],
+  selectedMetric = "revenue",
+  lastAvailableLabel = "",
+  emptyActions = [],
+}) {
   if (!rows.length) {
+    const metricLabel = getMetricCopy(selectedMetric);
+    const periodLabel = snapshot?.periodLabel || "este periodo";
+    if (selectedMetric) {
+      return (
+        <EmptyState
+          title={`No hay datos de ${metricLabel} para ${periodLabel}.`}
+          message={
+            lastAvailableLabel
+              ? `Último dato disponible: ${lastAvailableLabel}.`
+              : "Selecciona otro periodo o cambia la métrica local."
+          }
+          actions={emptyActions}
+        />
+      );
+    }
     return (
       <EmptyState
-        title="Select a period with comparable data."
-        message="The executive home requires real observed competitors; forecast and benchmark rows are excluded from this view."
+        title="Selecciona un período con datos comparables."
+        message="Selecciona un período con datos reales de competidores."
       />
     );
   }
 
   const totalLabel =
-    snapshot.primaryMetric === "revenue" ? "Total market revenue" : "Total market visits";
+    snapshot.primaryMetric === "revenue" ? "Facturación mercado medido" : "Visitas mercado medido";
+  const hasRevenueInPeriod = hasAnyMetric(rows, "revenue");
+  const metricBasisNote =
+    snapshot.primaryMetric === "visits" && !hasRevenueInPeriod
+      ? "No hay facturación disponible para este periodo; la lectura se basa en tráfico."
+      : `Métrica principal: ${snapshot.primaryMetric === "revenue" ? "Facturación" : "Visitas"}.`;
   const focusShareDetail = snapshot.benchmarkComparisons.find(
     (item) => item.key === snapshot.shareMetric,
   )?.deltaLabel;
   const shareChangeLabel = snapshot.shareChangeMetric
     ? getMetricCopy(snapshot.shareChangeMetric)
-    : "share";
+    : "cuota";
+  const shareChangeContextLabel = getShareChangeContextLabel(snapshot.shareChangeMetric, rows);
+  const focusShareLabel =
+    snapshot.shareMetric === "market_share_visits"
+      ? "Cuota visitas de Focus Brand"
+      : "Cuota facturación de Focus Brand";
+  const focusGrowthLabel = getFocusBrandGrowthKpiLabel(snapshot.periodLabel);
+  const growthDetailLabel = getGrowthMetricCopy(snapshot.growthMetric, snapshot.periodLabel);
 
   return (
-    <Panel eyebrow="Executive Home" title="What is happening in the market">
+    <Panel eyebrow="Inicio ejecutivo" title="Qué está pasando en el mercado">
       <div className="executive-hero">
         <div className="min-w-0">
-          <p className="analysis-label text-focus-500">Executive read</p>
+          <p className="analysis-label text-accent-500">Lectura ejecutiva</p>
           <h2 className="mt-2 text-2xl font-semibold leading-tight text-black md:text-3xl">
             {snapshot.headline}
           </h2>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {snapshot.periodLabel && <span className="scope-pill">{snapshot.periodLabel}</span>}
+            <span className="scope-pill">
+              Lectura basada en {snapshot.primaryMetric === "revenue" ? "facturación" : "visitas"}
+            </span>
             <TrustBadges badges={snapshot.badges} />
           </div>
+          <p className="mt-3 text-sm leading-6 text-neutral-600">{metricBasisNote}</p>
         </div>
         <div className="executive-hero-aside">
-          <span>Strategic question</span>
-          <strong>Who leads, who gains share, and where does the focus stand vs the market.</strong>
+          <span>Pregunta estratégica</span>
+          <strong>Quién lidera, quién gana cuota y dónde queda Focus Brand frente al mercado.</strong>
         </div>
       </div>
 
@@ -2724,32 +5401,32 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
         <KpiCard
           label={totalLabel}
           value={snapshot.totalMarketValue !== null ? formatMetric(snapshot.totalMarketValue, snapshot.primaryMetric) : "N/A"}
-          detail={`${rows.length} real competitors measured`}
+          detail={`${rows.length} competidores reales medidos`}
           accentColor="#000000"
         />
         <KpiCard
-          label="Focus Brand market share"
+          label={focusShareLabel}
           value={formatMetric(snapshot.focusShare, snapshot.shareMetric)}
           detail={focusShareDetail || getMetricCopy(snapshot.shareMetric)}
           accentColor="#000000"
         />
         <KpiCard
-          label="Focus Brand YoY growth"
+          label={focusGrowthLabel}
           value={snapshot.focusGrowth !== null ? formatSignedPercent(snapshot.focusGrowth) : "N/A"}
           detail={
             snapshot.focusGrowth !== null
-              ? getMetricCopy(snapshot.growthMetric)
-              : "No YoY available for this period"
+              ? growthDetailLabel
+              : `Sin ${focusGrowthLabel.toLowerCase()} disponible para este periodo`
           }
           accentColor="#000000"
         />
         <KpiCard
-          label="Top share gainer/loser"
+          label="Mayor movimiento de cuota"
           value={snapshot.shareWinners.topGainer ? formatPp(snapshot.shareWinners.topGainer.value) : "N/A"}
           detail={
             snapshot.shareWinners.topGainer
-              ? `Gains: ${snapshot.shareWinners.topGainer.name}${snapshot.shareWinners.topLoser ? ` / Loses: ${snapshot.shareWinners.topLoser.name}` : ""}`
-              : `No data for ${shareChangeLabel}`
+              ? `${shareChangeContextLabel || shareChangeLabel}: gana ${snapshot.shareWinners.topGainer.name}${snapshot.shareWinners.topLoser ? ` / pierde ${snapshot.shareWinners.topLoser.name}` : ""}`
+              : `Sin datos de ${shareChangeLabel}`
           }
           accentColor="#E4032C"
         />
@@ -2758,14 +5435,16 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
       <section className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,0.9fr)]">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
           <ExecutiveMoverList
-            title="Top winners"
+            title="Mayores subidas de cuota"
+            metricLabel={shareChangeContextLabel}
             items={snapshot.shareWinners.gainers}
-            emptyMessage="No share gainers detected."
+            emptyMessage="No hay ganadores de cuota detectables."
           />
           <ExecutiveMoverList
-            title="Top losers"
+            title="Mayores bajadas de cuota"
+            metricLabel={shareChangeContextLabel}
             items={snapshot.shareWinners.losers}
-            emptyMessage="No share losers detected."
+            emptyMessage="No hay perdedores de cuota detectables."
           />
         </div>
         <BenchmarkComparisonStrip items={snapshot.benchmarkComparisons} />
@@ -2775,7 +5454,7 @@ function ExecutiveMarketHome({ snapshot, rows = [] }) {
   );
 }
 
-function MetricSwitch({ options = [], value, onChange, label = "Metric" }) {
+function MetricSwitch({ options = [], value, onChange, label = "Métrica" }) {
   if (options.length <= 1) return null;
 
   return (
@@ -2787,9 +5466,13 @@ function MetricSwitch({ options = [], value, onChange, label = "Metric" }) {
             key={option.key}
             type="button"
             onClick={() => onChange(option.key)}
+            disabled={option.disabled}
+            title={option.disabled && option.reason ? `${option.label}: ${option.reason}` : option.label}
+            aria-label={getSelectOptionLabel(option)}
             className={`segmented-button ${value === option.key ? "segmented-button-active" : ""}`}
           >
-            {option.label}
+            <span>{option.label}</span>
+            {option.disabled && option.reason && <small>{option.reason}</small>}
           </button>
         ))}
       </div>
@@ -2797,164 +5480,832 @@ function MetricSwitch({ options = [], value, onChange, label = "Metric" }) {
   );
 }
 
-function IndexedGrowthRace({ rows = [], rangeLabel = "All time" }) {
-  const availableMetrics = useMemo(
-    () =>
-      INDEXED_METRIC_OPTIONS.filter((option) => {
-        const series = groupSeriesByCompetitor(rows, option.key).filter(
-          (companySeries) => companySeries.points.length >= 2,
-        );
-        return series.length >= 2 && toMultiLineChartData(series).length >= 2;
-      }),
-    [rows],
+function getWindowRangeLabel(startMonth = "", endMonth = "") {
+  const start = getMonthParts(startMonth);
+  const end = getMonthParts(endMonth);
+  const startLabel = getDemoMonthLabel(start.month);
+  const endLabel = getDemoMonthLabel(end.month);
+  if (!start.year || !end.year || !startLabel || !endLabel) return "";
+  if (startMonth === endMonth) return `${startLabel} ${start.year}`;
+  if (start.year === end.year) return `${startLabel}-${endLabel} ${end.year}`;
+  return `${startLabel} ${start.year}-${endLabel} ${end.year}`;
+}
+
+function getIndexedRowSortValue(row = {}) {
+  const monthKey = getGlobalContextMonthKey(row);
+  if (!monthKey) return 0;
+  const [year, month] = monthKey.split("-");
+  return new Date(buildMonthDate(year, month)).getTime();
+}
+
+function getVisibleTimeSeriesWindow(rows = [], context = {}, metricKey = "indexed_visits") {
+  const metric = getIndexedSourceMetric(metricKey);
+  const rawTimeMode = context.timeMode || context.selectedTimeMode || context.periodType;
+  const timeMode = rawTimeMode ? normalizeTimeMode(rawTimeMode) : "all";
+  const market = context.market || "";
+  const sourceRows = preferObservedRows(
+    filterInterfaceRows(
+      rows,
+      { periodType: "monthly", market },
+      { includeBenchmark: true, includeForecasts: false },
+    ),
+  )
+    .filter((row) => {
+      const value = safeNumber(row?.[metric]);
+      return value !== null && value > 0;
+    })
+    .sort((a, b) => getIndexedRowSortValue(a) - getIndexedRowSortValue(b));
+
+  if (timeMode === "month") {
+    const { startDate } = getTimeSelectionDates(context);
+    const monthKey = String(startDate || "").slice(0, 7);
+    return {
+      rows: [],
+      startMonth: monthKey,
+      endMonth: monthKey,
+      label: monthKey ? getWindowRangeLabel(monthKey, monthKey) : "",
+      timeMode,
+      isSinglePoint: true,
+    };
+  }
+
+  let startDate = "";
+  let endDate = "";
+
+  if (timeMode === "historical") {
+    const range = getCoverageRangeForRequirement(rows, metric, { market });
+    startDate = range.first?.date || "";
+    endDate = range.last?.date || "";
+  } else if (timeMode === "annual" || timeMode === "range") {
+    const dates = getTimeSelectionDates(context);
+    startDate = dates.startDate || "";
+    endDate = dates.endDate || "";
+  } else {
+    startDate = sourceRows[0]?.date || "";
+    endDate = sourceRows[sourceRows.length - 1]?.date || "";
+  }
+
+  const startMonth = String(startDate || "").slice(0, 7);
+  const endMonth = String(endDate || "").slice(0, 7);
+  const windowRows = sourceRows.filter((row) => {
+    const monthKey = getGlobalContextMonthKey(row);
+    return monthKey >= startMonth && monthKey <= endMonth;
+  });
+  const metricLabel = getIndexedMetricDisplayLabel(metricKey);
+  const label =
+    timeMode === "historical"
+      ? `histórico disponible de ${metricLabel}`
+      : getWindowRangeLabel(startMonth, endMonth);
+
+  return {
+    rows: windowRows,
+    startMonth,
+    endMonth,
+    label,
+    timeMode,
+    isSinglePoint: startMonth && startMonth === endMonth,
+  };
+}
+
+function buildIndexedSeries(rows = [], options = {}) {
+  const {
+    metric = "indexed_visits",
+    context = {},
+    companies = [],
+  } = options;
+  const sourceMetric = getIndexedSourceMetric(metric);
+  const companySet = new Set((companies || []).map(normalizeCompanyId).filter(Boolean));
+  const window = getVisibleTimeSeriesWindow(rows, context, metric);
+  const groupedRows = new Map();
+
+  window.rows.forEach((row) => {
+    const companyId = normalizeCompanyId(row.company_id);
+    if (!companyId || (companySet.size && !companySet.has(companyId))) return;
+    const value = safeNumber(row?.[sourceMetric]);
+    if (value === null || value <= 0) return;
+    const group = groupedRows.get(companyId) || [];
+    group.push(row);
+    groupedRows.set(companyId, group);
+  });
+
+  const series = Array.from(groupedRows.entries())
+    .map(([, companyRows]) => {
+      const sortedRows = companyRows
+        .slice()
+        .sort((a, b) => getIndexedRowSortValue(a) - getIndexedRowSortValue(b));
+      const baseRow = sortedRows.find((row) => {
+        const value = safeNumber(row?.[sourceMetric]);
+        return value !== null && value > 0;
+      });
+      const baseValue = safeNumber(baseRow?.[sourceMetric]);
+      if (!baseRow || baseValue === null || baseValue <= 0) return null;
+
+      const baseMonth = getGlobalContextMonthKey(baseRow);
+      const baseLabel = formatMonthLabelFromKey(baseMonth);
+      const latestRow = sortedRows[sortedRows.length - 1] || baseRow;
+      const points = sortedRows
+        .map((row) => {
+          const currentValue = safeNumber(row?.[sourceMetric]);
+          if (currentValue === null || currentValue <= 0) return null;
+          const monthKey = getGlobalContextMonthKey(row);
+          const indexValue = (currentValue / baseValue) * 100;
+          if (!Number.isFinite(indexValue)) return null;
+
+          return {
+            date: buildMonthDate(row.year, row.month) || row.date,
+            label: formatMonthLabelFromKey(monthKey) || row.period_label || row.date,
+            period_key: monthKey,
+            sortValue: getIndexedRowSortValue(row),
+            value: indexValue,
+            actualValue: currentValue,
+            baseValue,
+            baseDate: baseRow.date,
+            baseLabel,
+            baseMonth,
+            sourceMetric,
+            changeVsBase: currentValue / baseValue - 1,
+          };
+        })
+        .filter(Boolean);
+
+      if (points.length < 2) return null;
+
+      return {
+        company_id: latestRow.company_id,
+        display_name: latestRow.display_name || latestRow.company_name || latestRow.company_id,
+        company_color: isBenchmarkRow(latestRow) ? "#94A3B8" : latestRow.company_color,
+        type: latestRow.type,
+        data_type: latestRow.data_type,
+        value_type: latestRow.value_type,
+        visual_role: latestRow.visual_role,
+        baseMonth,
+        baseLabel,
+        baseValue,
+        sourceMetric,
+        points,
+      };
+    })
+    .filter(Boolean);
+
+  const hasLateBases = series.some((companySeries) => companySeries.baseMonth !== window.startMonth);
+
+  return {
+    series,
+    window,
+    hasLateBases,
+  };
+}
+
+function getIndexedAxisTicks(chartData = [], series = []) {
+  const companyIds = new Set(series.map((companySeries) => companySeries.company_id));
+  const values = chartData.flatMap((row) =>
+    Array.from(companyIds)
+      .map((companyId) => safeNumber(row?.[companyId]))
+      .filter((value) => value !== null && Number.isFinite(value)),
   );
-  const defaultMetric = availableMetrics.find((option) => option.key === "indexed_revenue")?.key
-    || availableMetrics.find((option) => option.key === "indexed_visits")?.key
-    || availableMetrics[0]?.key
-    || "";
-  const [selectedMetric, setSelectedMetric] = useState(defaultMetric);
+  const maxValue = values.length ? Math.max(...values) : 200;
+  const upper = Math.max(200, Math.ceil(maxValue / 50) * 50);
+  const ticks = [];
+  for (let value = 0; value <= upper; value += 50) ticks.push(value);
+  return ticks.includes(100) ? ticks : [...ticks, 100].sort((a, b) => a - b);
+}
+
+function getAnnualGrowthMetricKey(metricKey = "indexed_visits") {
+  const sourceMetric = getIndexedSourceMetric(metricKey);
+  return sourceMetric === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
+}
+
+function getYearMonthNumber(row = {}) {
+  const month = safeNumber(row.month);
+  if (month !== null) return month;
+  const monthKey = getGlobalContextMonthKey(row);
+  return monthKey ? Number(monthKey.slice(5, 7)) : null;
+}
+
+function buildAnnualYoYGrowthSeries(rows = [], options = {}) {
+  const {
+    metric = "indexed_visits",
+    context = {},
+    companies = [],
+  } = options;
+  const sourceMetric = getIndexedSourceMetric(metric);
+  const companySet = new Set((companies || []).map(normalizeCompanyId).filter(Boolean));
+  const market = context.market || "";
+  const sourceRows = preferObservedRows(
+    filterInterfaceRows(
+      rows,
+      { periodType: "monthly", market },
+      { includeBenchmark: true, includeForecasts: false },
+    ),
+  ).filter((row) => {
+    const companyId = normalizeCompanyId(row.company_id);
+    const value = safeNumber(row?.[sourceMetric]);
+    return companyId && (!companySet.size || companySet.has(companyId)) && value !== null && value > 0;
+  });
+  const groups = new Map();
+
+  sourceRows.forEach((row) => {
+    const companyId = normalizeCompanyId(row.company_id);
+    const year = Number(row.year || String(row.date || "").slice(0, 4));
+    const month = getYearMonthNumber(row);
+    const value = safeNumber(row?.[sourceMetric]);
+    if (!companyId || !year || !month || value === null || value <= 0) return;
+
+    const companyGroup = groups.get(companyId) ?? {
+      company_id: row.company_id,
+      display_name: getCompanyLabel(row),
+      company_color: isBenchmarkRow(row) ? "#94A3B8" : row.company_color,
+      type: row.type,
+      value_type: row.value_type,
+      visual_role: row.visual_role,
+      years: new Map(),
+    };
+    const yearGroup = companyGroup.years.get(year) ?? { year, months: new Map() };
+    yearGroup.months.set(month, value);
+    companyGroup.years.set(year, yearGroup);
+    groups.set(companyId, companyGroup);
+  });
+
+  const series = Array.from(groups.values())
+    .map((companyGroup) => {
+      const points = Array.from(companyGroup.years.keys())
+        .sort((a, b) => a - b)
+        .map((year) => {
+          const currentGroup = companyGroup.years.get(year);
+          const previousGroup = companyGroup.years.get(year - 1);
+          if (!currentGroup || !previousGroup) return null;
+
+          const currentMonths = Array.from(currentGroup.months.keys()).sort((a, b) => a - b);
+          const comparableMonths = currentMonths.filter((month) => previousGroup.months.has(month));
+          if (!comparableMonths.length) return null;
+
+          const currentValue = comparableMonths.reduce(
+            (total, month) => total + (safeNumber(currentGroup.months.get(month)) ?? 0),
+            0,
+          );
+          const previousValue = comparableMonths.reduce(
+            (total, month) => total + (safeNumber(previousGroup.months.get(month)) ?? 0),
+            0,
+          );
+          if (!previousValue || currentValue <= 0) return null;
+
+          const firstMonth = comparableMonths[0];
+          const lastMonth = comparableMonths.at(-1);
+          const monthRange =
+            comparableMonths.length === 12
+              ? "año completo"
+              : `${getDemoMonthLabel(firstMonth)}-${getDemoMonthLabel(lastMonth)}`;
+          const isPartial = comparableMonths.length < 12;
+
+          return {
+            date: `${year}-12-01`,
+            label: isPartial ? `${year} parcial` : String(year),
+            period_key: String(year),
+            sortValue: year,
+            value: currentValue / previousValue - 1,
+            actualValue: currentValue,
+            currentValue,
+            previousValue,
+            previousYear: year - 1,
+            year,
+            monthCount: comparableMonths.length,
+            monthRange,
+            sourceMetric,
+            comparisonLabel: `${year} vs ${year - 1}`,
+            isPartial,
+          };
+        })
+        .filter(Boolean);
+
+      return points.length
+        ? {
+            ...companyGroup,
+            points,
+          }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+  return {
+    series,
+    hasPartialYears: series.some((companySeries) => companySeries.points.some((point) => point.isPartial)),
+  };
+}
+
+function getMomentumGrowthMetric(metricKey = "visits") {
+  return metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
+}
+
+function getMomentumMetricLabel(metricKey = "visits") {
+  return metricKey === "revenue" ? "facturación" : "visitas";
+}
+
+function calculateMomentumGrowth(currentValue, previousValue) {
+  const current = safeNumber(currentValue);
+  const previous = safeNumber(previousValue);
+  if (current === null || previous === null || previous <= 0) return null;
+  return current / previous - 1;
+}
+
+function getMomentumPeriodRows(rows = [], context = {}, metricKey = "visits") {
+  return buildRowsForTimeSelection(rows, context, {
+    market: context.market,
+    metricKeys: [metricKey],
+    requireAll: true,
+    selectedMetric: metricKey,
+  });
+}
+
+function getMomentumComparisonLabel(context = {}) {
+  const timeMode = normalizeTimeMode(context.timeMode || context.selectedTimeMode);
+  const selectedYear = Number(context.selectedYear);
+  const selectedMonth = Number(context.selectedMonth);
+  const annualEndMonth = Number(context.annualEndMonth);
+
+  if (timeMode === "month") {
+    const monthLabel = getDemoMonthLabel(selectedMonth);
+    return monthLabel && selectedYear
+      ? `${monthLabel} ${selectedYear - 1}`
+      : "mismo mes del año anterior";
+  }
+
+  if (timeMode === "annual") {
+    if (!selectedYear) return "año anterior comparable";
+    const endLabel = getDemoMonthLabel(annualEndMonth);
+    return annualEndMonth && annualEndMonth < 12 && endLabel
+      ? `Ene-${endLabel} ${selectedYear - 1}`
+      : `${selectedYear - 1}`;
+  }
+
+  if (timeMode === "range") return "mismo rango del año anterior";
+  if (timeMode === "historical") return "primer vs último dato disponible";
+  return "periodo comparable";
+}
+
+function getMomentumWindowLabel(periodRows = [], context = {}, fallback = "") {
+  return getPeriodLabelFromRows(periodRows, context.selectedPeriod?.label || fallback || "Periodo seleccionado");
+}
+
+function isLowBaseMomentum(previousValue, averagePreviousValue) {
+  const previous = safeNumber(previousValue);
+  if (previous === null) return false;
+  const absoluteThreshold = 1_000_000;
+  const relativeThreshold =
+    averagePreviousValue && averagePreviousValue > 0 ? averagePreviousValue * 0.25 : 0;
+  return previous < Math.max(absoluteThreshold, relativeThreshold);
+}
+
+function isHistoricalContext(context = {}) {
+  const rawTimeMode = context.timeMode || context.selectedTimeMode || context.periodType;
+  return normalizeTimeMode(rawTimeMode) === "historical";
+}
+
+function buildMomentumEntries(rows = [], options = {}) {
+  const { metric = "visits", reading = "vs_market", context = {}, maxItems = 8 } = options;
+  const isHistorical = isHistoricalContext(context);
+  const normalizedReading = reading === "vs_market" && isHistorical ? "absolute" : reading;
+  const growthMetric = getMomentumGrowthMetric(metric);
+  const periodRows = getMomentumPeriodRows(rows, context, metric)
+    .filter(isRealCompanyRow)
+    .filter((row) => !isBenchmarkRow(row) && !isForecastRow(row));
+  const periodLabel = getMomentumWindowLabel(periodRows, context);
+  const comparableLabel = getMomentumComparisonLabel(context);
+
+  const comparableEntries = periodRows
+    .map((row) => {
+      const breakdown = getGrowthBreakdown(row, growthMetric);
+      const currentValue = safeNumber(breakdown?.currentValue ?? row?.[metric]);
+      const previousValue = safeNumber(breakdown?.previousValue);
+      const growth = safeNumber(breakdown?.growthValue ?? row?.[growthMetric]);
+
+      if (
+        currentValue === null ||
+        previousValue === null ||
+        previousValue <= 0 ||
+        growth === null
+      ) {
+        return null;
+      }
+
+      const absoluteDelta = currentValue - previousValue;
+
+      return {
+        id: row.company_id,
+        name: getCompanyLabel(row),
+        row,
+        color: row.company_color || "#6F6864",
+        metric,
+        currentValue,
+        previousValue,
+        absoluteDelta,
+        growth,
+      };
+    })
+    .filter(Boolean);
+
+  const averagePreviousValue =
+    comparableEntries.length
+      ? sumMetric(comparableEntries, "previousValue") / comparableEntries.length
+      : null;
+  const benchmarkOutlierIds = new Set();
+  const benchmarkEntries = comparableEntries.filter((entry) => {
+    const lowBase = isLowBaseMomentum(entry.previousValue, averagePreviousValue);
+    const isOutlier = lowBase && entry.growth > 1;
+    if (isOutlier) benchmarkOutlierIds.add(normalizeCompanyId(entry.id));
+    return !isOutlier;
+  });
+  const benchmarkCurrentRows = periodRows.filter(
+    (row) => !benchmarkOutlierIds.has(normalizeCompanyId(row.company_id)),
+  );
+  const currentMarketValue = sumMetric(benchmarkCurrentRows, metric);
+  const previousMarketValue = sumMetric(benchmarkEntries, "previousValue");
+  const marketGrowth = isHistorical
+    ? null
+    : calculateMomentumGrowth(currentMarketValue, previousMarketValue);
+
+  const entries = comparableEntries
+    .map((entry) => {
+      const vsMarket =
+        marketGrowth !== null && entry.growth !== null ? entry.growth - marketGrowth : null;
+      const sortValue =
+        normalizedReading === "absolute"
+          ? entry.absoluteDelta
+          : normalizedReading === "yoy"
+            ? entry.growth
+            : vsMarket;
+
+      return {
+        ...entry,
+        vsMarket,
+        sortValue,
+        isLowBase: isLowBaseMomentum(entry.previousValue, averagePreviousValue),
+      };
+    })
+    .filter((entry) => safeNumber(entry.sortValue) !== null)
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, maxItems);
+
+  let emptyReason = "";
+  if (!periodRows.length) {
+    emptyReason = "No disponible para este periodo.";
+  } else if (!comparableEntries.length) {
+    emptyReason = "No hay periodo comparable suficiente para calcular crecimiento interanual.";
+  } else if (normalizedReading === "vs_market" && marketGrowth === null) {
+    emptyReason = "No hay crecimiento de mercado comparable para este periodo.";
+  }
+
+  return {
+    entries,
+    periodRows,
+    periodLabel,
+    comparableLabel,
+    marketGrowth,
+    metric,
+    reading: normalizedReading,
+    emptyReason,
+  };
+}
+
+function formatSignedMetricDelta(value, metricKey = "visits") {
+  const number = safeNumber(value);
+  if (number === null) return "N/A";
+  const sign = number > 0 ? "+" : number < 0 ? "-" : "";
+  if (metricKey === "revenue") return `${sign}${formatBattleCurrency(Math.abs(number))}`;
+  return `${sign}${formatMetric(Math.abs(number), metricKey)}`;
+}
+
+function formatProfileMomentumValue(value, metricKey = "visits") {
+  if (metricKey === "revenue") return formatBattleCurrency(value);
+  return formatMetric(value, metricKey);
+}
+
+function formatMomentumPrimaryValue(entry = {}, reading = "vs_market") {
+  if (reading === "absolute") {
+    return `${formatSignedMetricDelta(entry.absoluteDelta, entry.metric)} · ${formatSignedPercent(entry.growth)}`;
+  }
+  if (reading === "yoy") {
+    return `${formatSignedPercent(entry.growth)} · ${formatSignedMetricDelta(entry.absoluteDelta, entry.metric)}`;
+  }
+  return `${formatPercentagePoints(entry.vsMarket)} vs mercado`;
+}
+
+function getMomentumReadingDescription(reading = "absolute", options = {}) {
+  const { isHistorical = false } = options;
+  if (reading === "vs_market") {
+    return "Compara el crecimiento de cada empresa con el crecimiento del mercado medido.";
+  }
+
+  if (reading === "yoy") {
+    return "Ordenado por porcentaje de crecimiento. Revisa el volumen añadido para separar impacto real de efecto base.";
+  }
+
+  return isHistorical
+    ? "Ordenado por volumen añadido entre el primer y el último dato disponible. El porcentaje muestra el crecimiento relativo."
+    : "Ordenado por volumen añadido frente al periodo comparable. El porcentaje muestra el crecimiento relativo.";
+}
+
+function getMomentumExecutiveInsight(momentum = {}, reading = "absolute", metricKey = "visits") {
+  const entries = momentum.entries || [];
+  const topEntry = entries[0];
+  if (!topEntry) return "";
+
+  const metricLabel = getMomentumMetricLabel(metricKey);
+  const comparable = momentum.comparableLabel || "el periodo comparable";
+
+  if (reading === "absolute") {
+    const comparisonCopy = comparable.includes("primer vs último")
+      ? "desde el primer dato disponible"
+      : `frente a ${comparable}`;
+    return `${topEntry.name} lidera el crecimiento real de ${metricLabel} con ${formatSignedMetricDelta(
+      topEntry.absoluteDelta,
+      metricKey,
+    )} ${comparisonCopy}.`;
+  }
+
+  if (reading === "vs_market") {
+    const focus = entries.find((entry) => sameCompany(entry.id, OWN_COMPANY_ID));
+    const peer_a = entries.find((entry) => sameCompany(entry.id, "peer_a"));
+
+    if (focus && peer_a) {
+      const focusDirection = focus.vsMarket >= 0 ? "por encima" : "por debajo";
+      const peer_aCopy =
+        peer_a.growth >= 0 && peer_a.vsMarket < 0
+          ? "Northline crece, pero por debajo del ritmo medio"
+          : peer_a.vsMarket >= 0
+            ? "Northline también crece por encima del mercado"
+            : "Northline queda por debajo del mercado";
+      return `Focus Brand crece ${focusDirection} del mercado medido; ${peer_aCopy}.`;
+    }
+
+    return `${topEntry.name} lidera frente al mercado con ${formatPercentagePoints(
+      topEntry.vsMarket,
+    )}.`;
+  }
+
+  const hasLowBaseEntries = entries.some((entry) => entry.isLowBase);
+  return hasLowBaseEntries
+    ? `${topEntry.name} lidera en porcentaje, pero los casos con asterisco parten de una base inicial pequeña.`
+    : `${topEntry.name} lidera en crecimiento porcentual con ${formatSignedPercent(topEntry.growth)}.`;
+}
+
+const LOW_BASE_TOOLTIP =
+  "Base inicial pequeña.";
+
+function LowBaseAsterisk({ className = "" }) {
+  return (
+    <span
+      className={`momentum-low-base-asterisk ${className}`}
+      title={LOW_BASE_TOOLTIP}
+      aria-label={LOW_BASE_TOOLTIP}
+    >
+      *
+    </span>
+  );
+}
+
+function getMomentumCardStats(entry = {}, reading = "absolute", metricKey = "visits", marketGrowth = null) {
+  const marketDifference =
+    marketGrowth !== null && entry.vsMarket !== null
+      ? { label: "Vs mercado", value: formatPercentagePoints(entry.vsMarket, { compact: true }) }
+      : null;
+
+  if (reading === "vs_market") {
+    return [
+      { label: "Empresa", value: formatSignedPercent(entry.growth) },
+      { label: "Mercado", value: marketGrowth !== null ? formatSignedPercent(marketGrowth) : "N/A" },
+      { label: "Antes", value: formatMetric(entry.previousValue, metricKey) },
+      { label: "Ahora", value: formatMetric(entry.currentValue, metricKey) },
+    ];
+  }
+
+  if (reading === "yoy") {
+    return [
+      { label: "Antes", value: formatMetric(entry.previousValue, metricKey) },
+      { label: "Ahora", value: formatMetric(entry.currentValue, metricKey) },
+      { label: "Volumen", value: formatSignedMetricDelta(entry.absoluteDelta, metricKey) },
+      marketDifference,
+    ].filter(Boolean);
+  }
+
+  return [
+    { label: "Antes", value: formatMetric(entry.previousValue, metricKey) },
+    { label: "Ahora", value: formatMetric(entry.currentValue, metricKey) },
+    marketDifference,
+  ].filter(Boolean);
+}
+
+function MomentumCardList({
+  entries = [],
+  reading = "absolute",
+  metricKey = "visits",
+  marketGrowth = null,
+  onOpenProfile,
+}) {
+  const hasLowBaseEntries = entries.some((entry) => entry.isLowBase);
+
+  return (
+    <div className="momentum-card-list" aria-label="Ranking de momentum">
+      {reading === "vs_market" && marketGrowth !== null && (
+        <div className="momentum-market-benchmark">
+          <span>Mercado medido</span>
+          <strong>{formatSignedPercent(marketGrowth)}</strong>
+          <small>Benchmark del crecimiento total del periodo seleccionado.</small>
+        </div>
+      )}
+      <div className="momentum-cards">
+        {entries.map((entry, index) => {
+          const accentColor = entry.color || "#6F6864";
+          const RowTag = onOpenProfile ? "button" : "div";
+          const statItems = getMomentumCardStats(entry, reading, metricKey, marketGrowth);
+
+          return (
+            <RowTag
+              key={`${entry.id}-${reading}-card`}
+              type={onOpenProfile ? "button" : undefined}
+              onClick={onOpenProfile ? () => onOpenProfile(entry.id) : undefined}
+              className="momentum-card-row"
+              style={{ "--company-color": accentColor }}
+            >
+              <span className={`rank-token ${index === 0 ? "rank-token-lead" : ""}`}>
+                #{index + 1}
+              </span>
+              <span className="momentum-card-main">
+                <span className="momentum-card-header">
+                  <span className="momentum-card-name">
+                    <CompanyMark
+                      companyId={entry.id}
+                      label={entry.name}
+                      color={entry.color}
+                      className="company-mark-legend"
+                    />
+                    <span className="truncate">
+                      {entry.name}
+                      {entry.isLowBase && reading !== "yoy" && <LowBaseAsterisk />}
+                    </span>
+                  </span>
+                  <strong className="momentum-card-value">
+                    {formatMomentumPrimaryValue(entry, reading)}
+                    {entry.isLowBase && reading === "yoy" && <LowBaseAsterisk />}
+                  </strong>
+                </span>
+                <span className="momentum-card-stats">
+                  {statItems.map((item) => (
+                    <span key={`${entry.id}-${reading}-${item.label}`} className="momentum-card-stat">
+                      <small>{item.label}</small>
+                      <strong>{item.value}</strong>
+                    </span>
+                  ))}
+                </span>
+              </span>
+            </RowTag>
+          );
+        })}
+      </div>
+      {hasLowBaseEntries && (
+        <p className="momentum-low-base-note">
+          * Crecimiento porcentual elevado sobre una base inicial pequeña; revisar volumen añadido antes de concluir.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function GrowthMomentum({ rows = [], context = {}, rangeLabel = "", onOpenProfile }) {
+  const [selectedMetric, setSelectedMetric] = useState("visits");
+  const [selectedReading, setSelectedReading] = useState("absolute");
+  const isHistoricalMomentum = isHistoricalContext(context);
+
+  const metricOptions = useMemo(
+    () =>
+      MOMENTUM_METRIC_OPTIONS.map((option) => {
+        const periodRows = getMomentumPeriodRows(rows, context, option.key);
+        const available = periodRows.some((row) => hasMetricValue(row, option.key));
+
+        return {
+          ...option,
+          disabled: !available,
+          reason: available ? "" : "No disponible para este periodo",
+        };
+      }),
+    [context, rows],
+  );
+  const defaultMetric =
+    getPreferredAvailableOption(metricOptions, ["visits", "revenue"])?.key || "";
+  const readingOptions = useMemo(
+    () => MOMENTUM_READING_OPTIONS,
+    [],
+  );
 
   useEffect(() => {
-    if (!availableMetrics.length) {
+    const selectedOption = metricOptions.find((option) => option.key === selectedMetric);
+    if (!defaultMetric) {
       setSelectedMetric("");
       return;
     }
-
-    if (!selectedMetric || !availableMetrics.some((option) => option.key === selectedMetric)) {
+    if (!selectedMetric || selectedOption?.disabled) {
       setSelectedMetric(defaultMetric);
     }
-  }, [availableMetrics, defaultMetric, selectedMetric]);
+  }, [defaultMetric, metricOptions, selectedMetric]);
 
-  const metricKey = selectedMetric || defaultMetric;
-  const series = useMemo(
+  useEffect(() => {
+    const selectedOption = readingOptions.find((option) => option.key === selectedReading);
+    if (!selectedReading || !selectedOption || selectedOption.disabled) {
+      setSelectedReading("absolute");
+    }
+  }, [readingOptions, selectedReading]);
+
+  const metricKey = selectedMetric || defaultMetric || "visits";
+  const momentum = useMemo(
     () =>
       metricKey
-        ? groupSeriesByCompetitor(rows, metricKey).filter(
-            (companySeries) => companySeries.points.length >= 2,
-          )
-        : [],
-    [metricKey, rows],
+        ? buildMomentumEntries(rows, {
+            metric: metricKey,
+            reading: selectedReading,
+            context,
+          })
+        : {
+            entries: [],
+            periodRows: [],
+            periodLabel: rangeLabel,
+            comparableLabel: "",
+            marketGrowth: null,
+            emptyReason: "No hay datos disponibles para este periodo.",
+          },
+    [context, metricKey, rangeLabel, rows, selectedReading],
   );
-  const chartData = useMemo(() => toMultiLineChartData(series), [series]);
-  const defaultVisibleIds = useMemo(
-    () =>
-      CORE_RACE_COMPANY_IDS.filter((companyId) =>
-        series.some((companySeries) => sameCompany(companySeries.company_id, companyId)),
-      ),
-    [series],
-  );
-  const visibility = useCompanyVisibility(series, defaultVisibleIds);
-  const activeSeries = useMemo(
-    () =>
-      series.filter(
-        (companySeries) => !visibility.hiddenCompanyIds.has(normalizeCompanyId(companySeries.company_id)),
-      ),
-    [series, visibility.hiddenCompanyIds],
-  );
-  const seriesById = useMemo(() => {
-    const seriesMap = new Map();
-    activeSeries.forEach((companySeries) => {
-      seriesMap.set(normalizeCompanyId(companySeries.company_id), companySeries);
-    });
-    return seriesMap;
-  }, [activeSeries]);
-  const lastValueIndexes = useMemo(
-    () => getLastValueIndexes(chartData, activeSeries),
-    [activeSeries, chartData],
-  );
-  const selectedOption = availableMetrics.find((option) => option.key === metricKey);
+  const metricLabel = getMomentumMetricLabel(metricKey);
+  const periodLabel = momentum.periodLabel || rangeLabel;
+  const executiveInsight = getMomentumExecutiveInsight(momentum, selectedReading, metricKey);
+  const emptyMessage =
+    momentum.emptyReason ||
+    "No hay periodo comparable suficiente para calcular crecimiento interanual.";
 
   return (
     <Panel
-      eyebrow="Relative momentum"
-      title="Indexed Growth Race"
+      eyebrow="Crecimiento competitivo"
+      title="Momentum de crecimiento"
+      className="momentum-panel"
       action={
-        <MetricSwitch
-          options={availableMetrics}
-          value={metricKey}
-          onChange={setSelectedMetric}
-        />
+        <div className="block-controls">
+          <MetricSwitch
+            options={metricOptions}
+            value={metricKey}
+            onChange={setSelectedMetric}
+            label="Métrica"
+          />
+          <MetricSwitch
+            options={readingOptions}
+            value={selectedReading}
+            onChange={setSelectedReading}
+            label="Lectura"
+          />
+        </div>
       }
     >
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Relative momentum compared to the focus entity, two peers, and the market average.
+        Separa volumen añadido y crecimiento porcentual. El mercado medido queda como referencia, no como una lectura separada.
       </p>
 
-      <CompanyLegend
-        series={series}
-        hiddenCompanyIds={visibility.hiddenCompanyIds}
-        onToggleCompany={visibility.handleToggleCompany}
-        onShowAll={visibility.handleShowAll}
-        onHideAll={visibility.handleHideAll}
-      />
-
-      <div className="mt-4 h-[340px] min-w-0 w-full">
-        {metricKey && activeSeries.length >= 2 && chartData.length >= 2 ? (
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <LineChart data={chartData} margin={{ top: 10, right: 66, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="rgba(0,0,0,0.08)" vertical={false} />
-              <ReferenceLine y={100} stroke="rgba(0,0,0,0.28)" strokeDasharray="3 3" />
-              <XAxis
-                dataKey="label"
-                minTickGap={28}
-                tick={{ fill: "#6F6864", fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#6F6864", fontSize: 12 }}
-                tickFormatter={(value) => formatMetric(value, metricKey)}
-                tickLine={false}
-                axisLine={false}
-                width={72}
-              />
-              <Tooltip
-                cursor={{ stroke: "rgba(0,0,0,0.18)" }}
-                content={<MultiSeriesTooltip metricKey={metricKey} seriesById={seriesById} />}
-              />
-              {activeSeries.map((companySeries) => (
-                <Line
-                  key={`${metricKey}-${companySeries.company_id}`}
-                  type="monotone"
-                  dataKey={companySeries.company_id}
-                  name={companySeries.display_name}
-                  stroke={isBenchmarkRow(companySeries) ? "#94A3B8" : companySeries.company_color}
-                  strokeDasharray={isBenchmarkRow(companySeries) ? "6 5" : undefined}
-                  strokeWidth={sameCompany(companySeries.company_id, OWN_COMPANY_ID) ? 3.2 : 2.2}
-                  dot={false}
-                  activeDot={{ r: 5, strokeWidth: 0 }}
-                  connectNulls={false}
-                >
-                  <LabelList
-                    content={(props) => (
-                      <LineLogoLabel
-                        {...props}
-                        companySeries={{
-                          ...companySeries,
-                          company_color: isBenchmarkRow(companySeries) ? "#94A3B8" : companySeries.company_color,
-                        }}
-                        lastPointIndex={lastValueIndexes.get(
-                          normalizeCompanyId(companySeries.company_id),
-                        )}
-                      />
-                    )}
-                  />
-                </Line>
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <span className="scope-pill">Métrica: {metricLabel}</span>
+        {isHistoricalMomentum ? (
+          <>
+            <span className="scope-pill">Histórico disponible</span>
+            <span className="scope-pill">Primer vs último dato disponible</span>
+          </>
         ) : (
-          <EmptyState
-            title="Not enough history for indexed growth."
-            message="At least two comparable periods with indexed_revenue or indexed_visits are required."
-          />
+          <>
+            {periodLabel && <span className="scope-pill">{formatChartPeriodLabel(periodLabel)}</span>}
+            {momentum.comparableLabel && <span className="scope-pill">Comparable: {momentum.comparableLabel}</span>}
+          </>
+        )}
+        {momentum.marketGrowth !== null && (
+          <span className="scope-pill">
+            Mercado medido: {formatSignedPercent(momentum.marketGrowth)}
+          </span>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className="scope-pill">{rangeLabel}</span>
-        {selectedOption && <span className="scope-pill">{selectedOption.label}</span>}
-        <span className="scope-pill">Benchmark: Market Average</span>
+
+      <div className="momentum-reading-note">
+        <strong>{executiveInsight}</strong>
+        <span>{getMomentumReadingDescription(selectedReading, { isHistorical: isHistoricalMomentum })}</span>
       </div>
+
+      {momentum.entries.length ? (
+        <MomentumCardList
+          entries={momentum.entries}
+          reading={selectedReading}
+          metricKey={metricKey}
+          marketGrowth={momentum.marketGrowth}
+          onOpenProfile={onOpenProfile}
+        />
+      ) : (
+        <EmptyState
+          title={`No hay momentum de ${metricLabel} para este periodo.`}
+          message={emptyMessage}
+        />
+      )}
     </Panel>
   );
 }
@@ -2967,19 +6318,101 @@ function MonetizationTooltip({ active, payload = [] }) {
   return (
     <ChartTooltipShell title={entry.name}>
       <div className="chart-tooltip-row">
-        <span>Monetization gap</span>
+        <span>Brecha de monetización</span>
         <span className="chart-tooltip-value">{formatPp(entry.value)}</span>
       </div>
       <div className="chart-tooltip-row">
-        <span>Revenue share</span>
+        <span>Cuota facturación</span>
         <span className="chart-tooltip-value">{formatPercent(entry.revenueShare)}</span>
       </div>
       <div className="chart-tooltip-row">
-        <span>Visit share</span>
+        <span>Cuota visitas</span>
         <span className="chart-tooltip-value">{formatPercent(entry.visitShare)}</span>
       </div>
     </ChartTooltipShell>
   );
+}
+
+function MonetizationBarValueLabel({ x = 0, y = 0, width = 0, height = 0, value }) {
+  const number = safeNumber(value);
+  if (number === null) return null;
+
+  const isPositive = number >= 0;
+  const textX = Number(x) + (isPositive ? Number(width) + 8 : -8);
+  const textY = Number(y) + Number(height) / 2 + 4;
+
+  return (
+    <text
+      x={textX}
+      y={textY}
+      textAnchor={isPositive ? "start" : "end"}
+      className="monetization-bar-value"
+    >
+      {formatPp(number, { compact: true })}
+    </text>
+  );
+}
+
+function MonetizationLegendGroup({ title, subtitle, entries = [], tone = "positive" }) {
+  if (!entries.length) return null;
+
+  return (
+    <section className="monetization-legend-group">
+      <div>
+        <p className="analysis-label">{title}</p>
+        <small>{subtitle}</small>
+      </div>
+      <div className="monetization-legend-list">
+        {entries.map((entry) => (
+          <div key={`${entry.id}-gap`} className={`monetization-row is-${tone}`}>
+            <span className="monetization-row-company">
+              <CompanyMark
+                companyId={entry.id}
+                label={entry.name}
+                color={entry.color}
+                className="company-mark-legend"
+              />
+              <span>
+                <strong>{entry.name}</strong>
+                <small>{tone === "positive" ? "Factura por encima de su tráfico" : "Tráfico por encima de su facturación"}</small>
+              </span>
+            </span>
+            <span className={entry.value >= 0 ? "value-positive" : "value-negative"}>
+              {formatPp(entry.value, { compact: true })}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getMonetizationInsight(efficiencyLeader, opportunityLeader) {
+  if (efficiencyLeader && opportunityLeader) {
+    return `${opportunityLeader.name} concentra la mayor oportunidad de monetización (${formatPp(
+      opportunityLeader.value,
+      { compact: true },
+    )}); ${efficiencyLeader.name} lidera la eficiencia comercial (${formatPp(
+      efficiencyLeader.value,
+      { compact: true },
+    )}).`;
+  }
+
+  if (efficiencyLeader) {
+    return `${efficiencyLeader.name} lidera la eficiencia comercial con ${formatPp(
+      efficiencyLeader.value,
+      { compact: true },
+    )}.`;
+  }
+
+  if (opportunityLeader) {
+    return `${opportunityLeader.name} concentra la mayor oportunidad de monetización con ${formatPp(
+      opportunityLeader.value,
+      { compact: true },
+    )}.`;
+  }
+
+  return "La brecha mide la diferencia entre cuota de facturación y cuota de visitas.";
 }
 
 function MonetizationGap({ rows = [] }) {
@@ -2996,135 +6429,198 @@ function MonetizationGap({ rows = [] }) {
     const maxAbs = Math.max(0.01, ...chartData.map((entry) => Math.abs(entry.value)));
     return [-maxAbs, maxAbs];
   }, [chartData]);
+  const positiveRows = useMemo(
+    () => chartData.filter((entry) => entry.value > 0),
+    [chartData],
+  );
+  const negativeRows = useMemo(
+    () => chartData.filter((entry) => entry.value < 0).sort((a, b) => a.value - b.value),
+    [chartData],
+  );
+  const efficiencyLeader = positiveRows[0] ?? null;
+  const opportunityLeader = negativeRows[0] ?? null;
+  const insight = getMonetizationInsight(efficiencyLeader, opportunityLeader);
 
   return (
-    <Panel eyebrow="Commercial efficiency" title="Monetization Gap">
+    <Panel eyebrow="Eficiencia comercial" title="Brecha de monetización">
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Gap between revenue share and visit share. Positive means better monetization than traffic weight.
+        Compara la cuota de facturación con la cuota de visitas. Positivo = monetiza por encima de su peso en tráfico; negativo = oportunidad de convertir mejor el tráfico.
       </p>
       {chartData.length ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="h-[300px] min-w-0 w-full">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 8, right: 18, bottom: 8, left: 0 }}
-              >
-                <CartesianGrid stroke="rgba(0,0,0,0.08)" horizontal={false} />
-                <ReferenceLine x={0} stroke="rgba(0,0,0,0.36)" />
-                <XAxis
-                  type="number"
-                  domain={domain}
-                  tick={{ fill: "#6F6864", fontSize: 12 }}
-                  tickFormatter={formatPp}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={94}
-                  tick={{ fill: "#393330", fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} content={<MonetizationTooltip />} />
-                <Bar dataKey="value" radius={[3, 3, 3, 3]} barSize={18}>
-                  {chartData.map((entry) => (
-                    <Cell key={entry.id} fill={entry.value >= 0 ? entry.color : "#94A3B8"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="monetization-layout">
+          <div className="monetization-insight-strip">
+            <strong>{insight}</strong>
+            <span>0 = equilibrio · puntos de cuota</span>
           </div>
-          <div className="monetization-legend">
-            {chartData.map((entry) => (
-              <div key={`${entry.id}-gap`} className="monetization-row">
-                <span className="flex min-w-0 items-center gap-2">
-                  <CompanyMark
-                    companyId={entry.id}
-                    label={entry.name}
-                    color={entry.color}
-                    className="company-mark-legend"
-                  />
-                  <span className="truncate font-semibold text-black">{entry.name}</span>
-                </span>
-                <span className="efficiency-badge">{entry.badge}</span>
+
+          <div className="monetization-main-grid">
+            <div className="monetization-chart-card">
+              <div className="monetization-direction-row" aria-hidden="true">
+                <span>Más tráfico que facturación</span>
+                <strong>0 = equilibrio</strong>
+                <span>Más facturación que tráfico</span>
               </div>
-            ))}
+              <div className="h-[340px] min-w-0 w-full">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <BarChart
+                    data={chartData}
+                    layout="vertical"
+                    margin={{ top: 16, right: 88, bottom: 10, left: 8 }}
+                  >
+                    <CartesianGrid stroke="rgba(0,0,0,0.08)" horizontal={false} />
+                    <ReferenceLine
+                      x={0}
+                      stroke="rgba(0,0,0,0.42)"
+                      strokeWidth={1.5}
+                    />
+                    <XAxis
+                      type="number"
+                      domain={domain}
+                      tick={{ fill: "#6F6864", fontSize: 12 }}
+                      tickFormatter={(value) => formatPp(value, { compact: true })}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={112}
+                      tick={{ fill: "#393330", fontSize: 12, fontWeight: 600 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} content={<MonetizationTooltip />} />
+                    <Bar dataKey="value" radius={[5, 5, 5, 5]} barSize={20}>
+                      {chartData.map((entry) => (
+                        <Cell key={entry.id} fill={entry.value >= 0 ? entry.color : "#94A3B8"} />
+                      ))}
+                      <LabelList dataKey="value" content={<MonetizationBarValueLabel />} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="monetization-legend">
+              <div className="monetization-legend-heading">
+                <p className="analysis-label">Lectura ejecutiva</p>
+                <strong>Quién monetiza mejor y dónde hay oportunidad</strong>
+              </div>
+              <MonetizationLegendGroup
+                title="Alta eficiencia comercial"
+                subtitle="Factura más que su peso en tráfico."
+                entries={positiveRows}
+                tone="positive"
+              />
+              <MonetizationLegendGroup
+                title="Oportunidad de monetización"
+                subtitle="Tiene más tráfico que peso en facturación."
+                entries={negativeRows}
+                tone="negative"
+              />
+            </div>
           </div>
         </div>
       ) : (
         <EmptyState
-          title="Not enough data to calculate commercial efficiency."
-          message="Revenue share and visit share are required for real competitors in this period."
+          title="No hay datos suficientes para calcular brecha de monetización."
+          message="Esta métrica requiere facturación y visitas en el mismo periodo."
         />
       )}
     </Panel>
   );
 }
 
-function ShareGainLossCompact({ rows = [] }) {
+function ShareGainLossCompact({ rows = [], rowsByMode = null }) {
   const [mode, setMode] = useState("revenue");
   const availableModes = useMemo(
     () =>
       [
-        { key: "revenue", label: "Revenue share" },
-        { key: "visits", label: "Visits share" },
-      ].filter((option) => getShareChangeMetric(rows, option.key)),
-    [rows],
+        { key: "revenue", label: "Cuota facturación", availabilityKey: "market_share_revenue" },
+        { key: "visits", label: "Cuota visitas", availabilityKey: "market_share_visits" },
+      ].map((option) => {
+        const optionRows = rowsByMode?.[option.key] ?? rows;
+        const changeMetric = getShareChangeMetric(optionRows, option.key);
+        const availability = getMetricAvailability(optionRows, optionRows, {
+          metric: option.availabilityKey,
+        });
+        const disabled = !changeMetric;
+
+        return {
+          ...option,
+          disabled,
+          reason: disabled
+            ? availability.available
+              ? "requiere periodo comparable"
+              : availability.reason
+            : "",
+        };
+      }),
+    [rows, rowsByMode],
   );
 
   useEffect(() => {
-    if (!availableModes.length) return;
-    if (!availableModes.some((option) => option.key === mode)) {
-      setMode(availableModes[0].key);
+    const selectedMode = availableModes.find((option) => option.key === mode);
+    const fallbackMode = getPreferredAvailableOption(availableModes, ["revenue", "visits"]);
+
+    if (!fallbackMode) {
+      setMode("");
+      return;
+    }
+
+    if (!mode || selectedMode?.disabled) {
+      setMode(fallbackMode.key);
     }
   }, [availableModes, mode]);
 
-  const metricKey = getShareChangeMetric(rows, mode);
-  const movers = useMemo(() => getShareWinnersLosers(rows, metricKey), [metricKey, rows]);
+  const activeRows = mode ? rowsByMode?.[mode] ?? rows : rows;
+  const metricKey = mode ? getShareChangeMetric(activeRows, mode) : "";
+  const movers = useMemo(() => getShareWinnersLosers(activeRows, metricKey), [activeRows, metricKey]);
   const metricLabel = metricKey ? getMetricCopy(metricKey) : "";
+  const metricContextLabel = getShareChangeContextLabel(metricKey, activeRows);
+  const periodLabel = getPeriodLabelFromRows(activeRows, "");
 
   return (
     <Panel
-      eyebrow="Share"
-      title="Share Gain/Loss"
-      action={<MetricSwitch options={availableModes} value={mode} onChange={setMode} label="View" />}
+      eyebrow="Cuota facturación/visitas"
+      title="Ganancias y pérdidas de cuota"
+      action={<MetricSwitch options={availableModes} value={mode} onChange={setMode} label="Métrica" />}
     >
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Compact share movement to detect relevant changes without listing the full market.
+        Movimiento compacto de cuota para detectar cambios relevantes sin listar todo el mercado.
       </p>
       {metricKey ? (
         <>
           <div className="grid gap-4 md:grid-cols-2">
             <ExecutiveMoverList
-              title="Gainers"
+              title="Ganadores"
+              metricLabel={metricContextLabel}
               items={movers.gainers}
-              emptyMessage="No share gainers for this view."
+              emptyMessage="Sin ganadores de cuota para esta vista."
             />
             <ExecutiveMoverList
-              title="Losers"
+              title="Perdedores"
+              metricLabel={metricContextLabel}
               items={movers.losers}
-              emptyMessage="No share losers for this view."
+              emptyMessage="Sin perdedores de cuota para esta vista."
             />
           </div>
           <div className="mt-3">
             <span className="scope-pill">{metricLabel}</span>
+            {periodLabel && <span className="scope-pill">{periodLabel}</span>}
           </div>
         </>
       ) : (
         <EmptyState
-          title="Not enough data for share gain/loss."
-          message="share_revenue_change_yoy or share_visits_change_yoy is required; MoM is used as fallback."
+          title="No hay datos suficientes para cuota ganada/perdida."
+          message="El cambio de cuota requiere comparar el inicio y el final del periodo seleccionado."
         />
       )}
     </Panel>
   );
 }
 
-function CompetitiveMapTooltip({ active, payload = [], yMetric, sizeMetric }) {
+function CompetitiveMapTooltip({ active, payload = [], xMetric, yMetric, sizeMetric }) {
   if (!active || !payload.length) return null;
   const entry = payload[0]?.payload;
   if (!entry) return null;
@@ -3132,8 +6628,8 @@ function CompetitiveMapTooltip({ active, payload = [], yMetric, sizeMetric }) {
   return (
     <ChartTooltipShell title={entry.name}>
       <div className="chart-tooltip-row">
-        <span>Visits</span>
-        <span className="chart-tooltip-value">{formatMetric(entry.x, "visits")}</span>
+        <span>{getMetricCopy(xMetric)}</span>
+        <span className="chart-tooltip-value">{formatMetric(entry.x, xMetric)}</span>
       </div>
       <div className="chart-tooltip-row">
         <span>{getMetricCopy(yMetric)}</span>
@@ -3168,15 +6664,49 @@ function CompetitiveMapLabel({ x, y, payload }) {
 }
 
 function CompetitiveMap({ rows = [] }) {
-  const yMetric = hasAnyMetric(rows, "revenue_per_visit") ? "revenue_per_visit" : "revenue";
-  const sizeMetric = hasAnyMetric(rows, "market_share_revenue")
-    ? "market_share_revenue"
-    : "market_share_visits";
+  const modeOptions = useMemo(
+    () =>
+      COMPETITIVE_MAP_OPTIONS.map((option) => {
+        const candidates = rows
+          .filter(isRealCompanyRow)
+          .filter((row) => {
+            const x = safeNumber(row?.[option.xMetric]);
+            const y = safeNumber(row?.[option.yMetric]);
+            const z = safeNumber(row?.[option.sizeMetric]);
+            return x !== null && y !== null && z !== null;
+          });
+        const available = candidates.length >= 2;
+        return {
+          ...option,
+          disabled: !available,
+          reason: available ? "" : option.unavailableReason || "sin datos suficientes",
+        };
+      }),
+    [rows],
+  );
+  const availableModes = modeOptions.filter((option) => !option.disabled);
+  const defaultMode = availableModes[0]?.key || "";
+  const [mode, setMode] = useState(defaultMode);
+
+  useEffect(() => {
+    if (!availableModes.length) {
+      setMode("");
+      return;
+    }
+    if (!mode || !availableModes.some((option) => option.key === mode)) {
+      setMode(defaultMode);
+    }
+  }, [availableModes, defaultMode, mode]);
+
+  const selectedMode = modeOptions.find((option) => option.key === mode && !option.disabled) ?? availableModes[0];
+  const xMetric = selectedMode?.xMetric || "visits";
+  const yMetric = selectedMode?.yMetric || "revenue_per_visit";
+  const sizeMetric = selectedMode?.sizeMetric || "market_share_revenue";
   const scatterData = useMemo(() => {
     const baseData = rows
       .filter(isRealCompanyRow)
       .map((row) => {
-        const x = safeNumber(row?.visits);
+        const x = safeNumber(row?.[xMetric]);
         const y = safeNumber(row?.[yMetric]);
         const z = safeNumber(row?.[sizeMetric]);
         if (x === null || y === null || z === null) return null;
@@ -3204,14 +6734,23 @@ function CompetitiveMap({ rows = [] }) {
       ...entry,
       showLabel: labelledIds.has(normalizeCompanyId(entry.id)),
     }));
-  }, [rows, sizeMetric, yMetric]);
+  }, [rows, sizeMetric, xMetric, yMetric]);
   const medianX = useMemo(() => getMedian(scatterData.map((entry) => entry.x)), [scatterData]);
   const medianY = useMemo(() => getMedian(scatterData.map((entry) => entry.y)), [scatterData]);
+  const yTicks = useMemo(
+    () => (isGrowthMetric(yMetric) ? getGrowthAxisTicks(scatterData.map((entry) => entry.y)) : undefined),
+    [scatterData, yMetric],
+  );
+  const yDomain = yTicks?.length ? [yTicks[0], yTicks[yTicks.length - 1]] : undefined;
 
   return (
-    <Panel eyebrow="Competitive map" title="Competitive Map">
+    <Panel
+      eyebrow="Mapa competitivo"
+      title="Mapa competitivo"
+      action={<MetricSwitch options={modeOptions} value={mode} onChange={setMode} label="Ejes" />}
+    >
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        High traffic + high efficiency signals strong leaders; high traffic + low efficiency reveals under-monetized traffic.
+        {selectedMode?.description || "Selecciona un preset con datos suficientes para situar competidores reales."}
       </p>
       {scatterData.length >= 2 ? (
         <>
@@ -3228,9 +6767,9 @@ function CompetitiveMap({ rows = [] }) {
                 <XAxis
                   type="number"
                   dataKey="x"
-                  name="Visits"
+                  name={getMetricCopy(xMetric)}
                   tick={{ fill: "#6F6864", fontSize: 12 }}
-                  tickFormatter={(value) => formatMetric(value, "visits")}
+                  tickFormatter={(value) => formatMetric(value, xMetric)}
                   tickLine={false}
                   axisLine={false}
                 />
@@ -3240,6 +6779,8 @@ function CompetitiveMap({ rows = [] }) {
                   name={getMetricCopy(yMetric)}
                   tick={{ fill: "#6F6864", fontSize: 12 }}
                   tickFormatter={(value) => formatMetric(value, yMetric)}
+                  ticks={yTicks}
+                  domain={yDomain}
                   tickLine={false}
                   axisLine={false}
                   width={82}
@@ -3247,7 +6788,13 @@ function CompetitiveMap({ rows = [] }) {
                 <ZAxis type="number" dataKey="z" range={[70, 560]} />
                 <Tooltip
                   cursor={{ strokeDasharray: "3 3" }}
-                  content={<CompetitiveMapTooltip yMetric={yMetric} sizeMetric={sizeMetric} />}
+                  content={
+                    <CompetitiveMapTooltip
+                      xMetric={xMetric}
+                      yMetric={yMetric}
+                      sizeMetric={sizeMetric}
+                    />
+                  }
                 />
                 <Scatter data={scatterData} isAnimationActive={false}>
                   {scatterData.map((entry) => (
@@ -3259,23 +6806,22 @@ function CompetitiveMap({ rows = [] }) {
             </ResponsiveContainer>
           </div>
           <div className="quadrant-guide">
-            <span>Strong leader: high traffic + high efficiency.</span>
-            <span>Under-monetized traffic: high traffic + low efficiency.</span>
-            <span>Efficient niche: low traffic + high efficiency.</span>
-            <span>Small/weak player: low traffic + low efficiency.</span>
+            {(selectedMode?.quadrants || []).map((label) => (
+              <span key={label}>{label}</span>
+            ))}
           </div>
         </>
       ) : (
         <EmptyState
-          title="Not enough data for the competitive map."
-          message="Visits and revenue_per_visit or revenue are required for at least two real competitors."
+          title="No hay datos suficientes para el mapa competitivo."
+          message={selectedMode?.reason || "Este preset no está disponible para el periodo seleccionado."}
         />
       )}
     </Panel>
   );
 }
 
-function BattleCards({ rows = [] }) {
+function BattleCards({ rows = [], onOpenBattleArena }) {
   const focusRow = getCompanyRow(rows, OWN_COMPANY_ID);
   const cards = BATTLE_TARGET_IDS.map((targetId) => ({
     targetId,
@@ -3284,9 +6830,19 @@ function BattleCards({ rows = [] }) {
   }));
 
   return (
-    <Panel eyebrow="Comparisons" title="Battle Cards">
+    <Panel
+      eyebrow="Comparativas rápidas"
+      title="Comparativas rápidas"
+      action={
+        onOpenBattleArena ? (
+          <button type="button" className="section-link" onClick={onOpenBattleArena}>
+            Abrir Battle Arena
+          </button>
+        ) : null
+      }
+    >
       <p className="mb-4 text-sm leading-6 text-neutral-600">
-        Focus entity vs two peers and the market benchmark.
+        Accesos rápidos de Focus Brand frente a Northline, Velora y el promedio del mercado.
       </p>
       {focusRow ? (
         <div className="battle-grid">
@@ -3310,12 +6866,11 @@ function BattleCards({ rows = [] }) {
                     color={targetRow?.company_color || (isBenchmark ? "#94A3B8" : "#6F6864")}
                     className="company-mark-legend"
                   />
-                  <span className="truncate font-semibold text-black">
+                  <span className="battle-entity-name">
                     {targetRow ? getCompanyLabel(targetRow) : targetId}
                   </span>
                 </div>
               </div>
-              {isBenchmark && <span className="mt-3 inline-flex scope-pill">Benchmark visual</span>}
               {targetRow ? (
                 <div className="battle-metrics">
                   {BATTLE_METRICS.map((metric) => {
@@ -3332,12 +6887,20 @@ function BattleCards({ rows = [] }) {
                               {metric.formatter(focusValue)} / {metric.formatter(targetValue)}
                             </span>
                             <span className="battle-metric-winner">
-                              Winner: {getBattleWinner(metric, focusRow, targetRow)}
+                              Gana: {getBattleWinner(metric, focusRow, targetRow)}
                             </span>
-                            <small>{getBattleDeltaLabel(metric, focusValue, targetValue)}</small>
+                            <small>
+                              {getBattleDeltaLabel(
+                                metric,
+                                focusValue,
+                                targetValue,
+                                "Focus Brand",
+                                getCompanyLabel(targetRow),
+                              )}
+                            </small>
                           </>
                         ) : (
-                          <span className="battle-empty">No comparable data</span>
+                          <span className="battle-empty">Sin dato comparable</span>
                         )}
                       </div>
                     );
@@ -3345,8 +6908,8 @@ function BattleCards({ rows = [] }) {
                 </div>
               ) : (
                 <EmptyState
-                  title="No data for this battle card."
-                  message="Select a period in which the compared entity has data."
+                  title="No hay datos para esta comparativa directa."
+                  message="Selecciona un período en el que exista la entidad comparada."
                 />
               )}
             </article>
@@ -3354,36 +6917,1476 @@ function BattleCards({ rows = [] }) {
         </div>
       ) : (
         <EmptyState
-          title="No Focus Brand data to compare."
-          message="Battle cards require a real Focus Brand row in the selected period."
+          title="No hay datos de Focus Brand para comparar."
+          message="Las comparativas directas necesitan una fila real de Focus Brand en el período seleccionado."
         />
       )}
     </Panel>
   );
 }
 
-function PresentationChart({ rows = [], snapshot }) {
+function formatBattleCurrency(value) {
+  const number = safeNumber(value);
+  if (number === null) return "N/A";
+  if (Math.abs(number) >= 1000000) {
+    return `${formatNumber(number / 1000000, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    })}M€`;
+  }
+  return formatCurrency(number);
+}
+
+function formatBattlePoints(value, { signed = true } = {}) {
+  const number = safeNumber(value);
+  if (number === null) return "N/A";
+  const normalized = Math.abs(number) <= 1 ? number * 100 : number;
+  const sign = signed && normalized > 0 ? "+" : "";
+  const displayValue = signed ? normalized : Math.abs(normalized);
+  return `${sign}${formatNumber(displayValue, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} puntos`;
+}
+
+function formatBattleMetricValue(value, metricKey = "") {
+  if (metricKey === "revenue") return formatBattleCurrency(value);
+  if (metricKey === "visits") return formatCompact(value);
+  if (metricKey === "revenue_per_visit") return formatCurrencyDecimal(value);
+  if (metricKey === "monetization_gap") return formatBattlePoints(value);
+  if (metricKey === "rank_projected" || metricKey.startsWith("rank_")) {
+    const number = safeNumber(value);
+    return number === null ? "N/A" : `#${formatNumber(number, { maximumFractionDigits: 0 })}`;
+  }
+  if (metricKey.includes("market_share")) return formatPercent(value);
+  if (metricKey.includes("growth") || metricKey === "delta") return formatSignedPercent(value);
+  return formatMetric(value, metricKey);
+}
+
+function formatBattleGapValue(metric = {}, gapValue) {
+  const value = Math.abs(safeNumber(gapValue) ?? 0);
+  if (metric.deltaType === "sharePoints") return formatPp(value, { signed: false });
+  if (metric.deltaType === "percentagePoints") return formatPercentagePoints(value, { signed: false });
+  if (metric.deltaType === "points") return formatBattlePoints(value, { signed: false });
+  if (metric.key === "revenue") return formatBattleCurrency(value);
+  if (metric.key === "revenue_per_visit") return formatCurrencyDecimal(value);
+  if (metric.key === "rank_projected") {
+    return formatPositionDelta(value).replace(/^\+/, "");
+  }
+  return formatMetric(value, metric.key);
+}
+
+function getBattleUnavailableMessage(metricKey = "", mode = "historical") {
+  if (mode === "forecast") {
+    if (metricKey === "revenue") return "No hay forecast de facturación para este escenario.";
+    return "No hay forecast suficiente para este escenario.";
+  }
+  if (metricKey === "revenue") return "No hay facturación disponible para este periodo.";
+  if (metricKey === "visits") return "No hay visitas disponibles para este periodo.";
+  if (metricKey === "monetization_gap") {
+    return "No hay datos suficientes para calcular brecha de monetización.";
+  }
+  return "No disponible para este periodo.";
+}
+
+function getBattlePlayerOptions(companies = [], rows = []) {
+  const optionMap = new Map();
+
+  companies.forEach((company) => {
+    const id = normalizeCompanyId(company.id);
+    if (!id || id === MARKET_BENCHMARK_ID) return;
+    optionMap.set(id, {
+      id: company.id,
+      label: company.label,
+      company_color: company.company_color,
+    });
+  });
+
+  rows.filter(isRealCompanyRow).forEach((row) => {
+    const id = normalizeCompanyId(row.company_id);
+    if (!id || id === MARKET_BENCHMARK_ID || optionMap.has(id)) return;
+    optionMap.set(id, {
+      id: row.company_id,
+      label: getCompanyLabel(row),
+      company_color: row.company_color,
+    });
+  });
+
+  return Array.from(optionMap.values()).sort((a, b) =>
+    getBattleOptionLabel(a).localeCompare(getBattleOptionLabel(b)),
+  );
+}
+
+function getPreferredBattlePlayer(options = [], preferredId = "", excludedId = "") {
+  const preferred = options.find(
+    (option) => sameCompany(option.id, preferredId) && !sameCompany(option.id, excludedId),
+  );
+  if (preferred) return preferred.id;
+  return options.find((option) => !sameCompany(option.id, excludedId))?.id || "";
+}
+
+function getBattleRelativeDiff(aValue, bValue) {
+  const aNumber = safeNumber(aValue);
+  const bNumber = safeNumber(bValue);
+  if (aNumber === null || bNumber === null) return null;
+  const denominator = Math.max(Math.abs(aNumber), Math.abs(bNumber));
+  return denominator === 0 ? 0 : Math.abs(aNumber - bNumber) / denominator;
+}
+
+function getBattleStrengthShare(aValue, bValue, lowerIsBetter = false) {
+  let aNumber = safeNumber(aValue);
+  let bNumber = safeNumber(bValue);
+  if (aNumber === null || bNumber === null) return 50;
+
+  if (lowerIsBetter) {
+    aNumber = aNumber > 0 ? 1 / aNumber : 0;
+    bNumber = bNumber > 0 ? 1 / bNumber : 0;
+  } else {
+    const minimum = Math.min(aNumber, bNumber);
+    if (minimum < 0) {
+      const spread = Math.abs(aNumber - bNumber);
+      const offset = Math.abs(minimum) + Math.max(spread * 0.08, 0.000001);
+      aNumber += offset;
+      bNumber += offset;
+    }
+  }
+
+  aNumber = Math.max(0, aNumber);
+  bNumber = Math.max(0, bNumber);
+  const total = aNumber + bNumber;
+  if (!total) return 50;
+  return Math.max(6, Math.min(94, (aNumber / total) * 100));
+}
+
+function buildBattleRound({
+  key,
+  label,
+  metricKey = key,
+  aValue,
+  bValue,
+  aLabel,
+  bLabel,
+  aColor,
+  bColor,
+  deltaType,
+  lowerIsBetter = false,
+  mode = "historical",
+  formatter,
+}) {
+  const aNumber = safeNumber(aValue);
+  const bNumber = safeNumber(bValue);
+  const hasBoth = aNumber !== null && bNumber !== null;
+
+  if (!hasBoth) {
+    return {
+      key,
+      label,
+      metricKey,
+      available: false,
+      message: getBattleUnavailableMessage(metricKey, mode),
+    };
+  }
+
+  const relativeDiff = getBattleRelativeDiff(aNumber, bNumber);
+  const technicalDraw = lowerIsBetter
+    ? aNumber === bNumber
+    : relativeDiff !== null && relativeDiff < BATTLE_TECHNICAL_DRAW_THRESHOLD;
+  const aWins = !technicalDraw && (lowerIsBetter ? aNumber < bNumber : aNumber > bNumber);
+  const bWins = !technicalDraw && !aWins;
+  const winnerLabel = technicalDraw ? "Empate técnico" : aWins ? aLabel : bLabel;
+  const gapValue = Math.abs(aNumber - bNumber);
+  const metric = { key: metricKey, deltaType };
+  const valueFormatter = formatter || ((value) => formatBattleMetricValue(value, metricKey));
+  const roundDetail = technicalDraw
+    ? "Empate técnico: diferencia inferior al 2%."
+    : metricKey === "monetization_gap"
+      ? "Gana quien monetiza mejor su peso de tráfico. Si ambos están en negativo, más cerca de 0 indica menor infra-monetización."
+      : `${winnerLabel} tiene ventaja de ${formatBattleGapValue(metric, gapValue)}.`;
+
+  return {
+    key,
+    label,
+    metricKey,
+    available: true,
+    aValue,
+    bValue,
+    aValueLabel: valueFormatter(aNumber),
+    bValueLabel: valueFormatter(bNumber),
+    winner: technicalDraw ? "draw" : aWins ? "a" : "b",
+    winnerLabel,
+    gapLabel: technicalDraw ? "Empate técnico" : `+${formatBattleGapValue(metric, gapValue)}`,
+    detail: roundDetail,
+    share: getBattleStrengthShare(aNumber, bNumber, lowerIsBetter),
+    aColor,
+    bColor,
+  };
+}
+
+function buildHistoricalBattleRounds(aRow, bRow, aLabel, bLabel) {
+  return BATTLE_METRICS.map((metric) =>
+    buildBattleRound({
+      key: metric.key,
+      label: metric.label,
+      metricKey: metric.key,
+      aValue: aRow?.[metric.key],
+      bValue: bRow?.[metric.key],
+      aLabel,
+      bLabel,
+      aColor: aRow?.company_color,
+      bColor: bRow?.company_color,
+      deltaType: metric.deltaType,
+      mode: "historical",
+      formatter: (value) => formatBattleMetricValue(value, metric.key),
+    }),
+  );
+}
+
+function getBattleScore(rounds = []) {
+  return rounds.reduce(
+    (score, round) => {
+      if (!round.available) return score;
+      if (round.winner === "draw") {
+        score.draw += 1;
+        return score;
+      }
+      if (round.winner === "a") score.a += 1;
+      if (round.winner === "b") score.b += 1;
+      return score;
+    },
+    { a: 0, b: 0, draw: 0 },
+  );
+}
+
+function getRoundWinner(rounds = [], key = "") {
+  return rounds.find((round) => round.key === key && round.available) ?? null;
+}
+
+function buildHistoricalBattleInsight(rounds = [], aLabel = "Player A", bLabel = "Player B") {
+  const revenue = getRoundWinner(rounds, "revenue");
+  const visits = getRoundWinner(rounds, "visits");
+  const revenueShare = getRoundWinner(rounds, "market_share_revenue");
+  const visitShare = getRoundWinner(rounds, "market_share_visits");
+  const visitGrowth = getRoundWinner(rounds, "visits_yoy_growth");
+  const efficiency = getRoundWinner(rounds, "revenue_per_visit");
+  const gap = getRoundWinner(rounds, "monetization_gap");
+  const winnerMap = new Map();
+  [revenue, revenueShare, efficiency, gap].forEach((round) => {
+    if (!round?.winner || round.winner === "draw") return;
+    const metrics = winnerMap.get(round.winnerLabel) || [];
+    metrics.push(round.key);
+    winnerMap.set(round.winnerLabel, metrics);
+  });
+  const dominant = Array.from(winnerMap.entries()).sort((a, b) => b[1].length - a[1].length)[0];
+  const trafficDraw = rounds.some((round) =>
+    ["visits", "market_share_visits"].includes(round.key) && round.winner === "draw",
+  );
+
+  if (dominant || trafficDraw || visitGrowth?.winner) {
+    const dominantLabel = dominant?.[0];
+    const dominantCopy = dominantLabel
+      ? `${dominantLabel} domina en ${[
+          revenue?.winnerLabel === dominantLabel ? "facturaciÃ³n" : "",
+          revenueShare?.winnerLabel === dominantLabel ? "cuota de facturaciÃ³n" : "",
+          efficiency?.winnerLabel === dominantLabel ? "eficiencia por visita" : "",
+          gap?.winnerLabel === dominantLabel ? "monetizaciÃ³n relativa" : "",
+        ].filter(Boolean).join(", ")}.`
+      : "";
+    const trafficCopy = trafficDraw
+      ? `${aLabel} y ${bLabel} mantienen empate tÃ©cnico en trÃ¡fico.`
+      : "";
+    const growthCopy =
+      visitGrowth?.winner && visitGrowth.winner !== "draw"
+        ? `${visitGrowth.winnerLabel} gana en crecimiento de visitas.`
+        : "";
+
+    return [dominantCopy, trafficCopy, growthCopy].filter(Boolean).join(" ");
+  }
+  const parts = [];
+
+  if (revenue?.winner && revenue.winner !== "draw") {
+    parts.push(`${revenue.winnerLabel} gana por facturación`);
+  }
+
+  if (revenueShare?.winner && revenueShare.winner !== "draw") {
+    parts.push(`cuota de facturación`);
+  }
+
+  if (visits?.winner === "draw" || visitShare?.winner === "draw") {
+    parts.push(`${aLabel} y ${bLabel} están prácticamente empatados en tráfico`);
+  } else if (visits?.winner && visits.winner !== "draw") {
+    parts.push(`${visits.winnerLabel} mantiene ventaja en tráfico`);
+  }
+
+  if (visitGrowth?.winner && visitGrowth.winner !== "draw") {
+    parts.push(`${visitGrowth.winnerLabel} gana en crecimiento de visitas`);
+  }
+
+  if (efficiency?.winner && efficiency.winner !== "draw") {
+    const sameMonetizationWinner = gap?.winner === efficiency.winner;
+    parts.push(
+      sameMonetizationWinner
+        ? `${efficiency.winnerLabel} muestra mayor eficiencia por visita y mejor monetización relativa`
+        : `${efficiency.winnerLabel} supera en eficiencia por visita`,
+    );
+  }
+
+  if (!parts.length) {
+    return `La comparativa entre ${aLabel} y ${bLabel} no tiene suficientes datos para una lectura ejecutiva robusta.`;
+  }
+
+  return `${parts.slice(0, 3).join(", ")}.`;
+}
+
+function getBattleHeroGrowthDefinitions(timeMode = "") {
+  const normalizedTimeMode = normalizeTimeMode(timeMode);
+  if (normalizedTimeMode === "annual") {
+    return [
+      { key: "visits_yoy_growth", label: "Crecimiento visitas YoY", requiresRevenue: false },
+      { key: "revenue_yoy_growth", label: "Crecimiento facturación YoY", requiresRevenue: true },
+    ];
+  }
+  if (normalizedTimeMode === "month") {
+    return [
+      { key: "visits_mom_growth", label: "Crecimiento visitas MoM", requiresRevenue: false },
+      { key: "revenue_mom_growth", label: "Crecimiento facturación MoM", requiresRevenue: true },
+    ];
+  }
+  return [];
+}
+
+function getBattleHeroKpiDefinitions({ timeMode = "", includeRevenue = false } = {}) {
+  return [
+    { key: "visits", label: "Visitas", requiresRevenue: false },
+    { key: "revenue", label: "Facturación", requiresRevenue: true },
+    ...getBattleHeroGrowthDefinitions(timeMode),
+  ].filter((definition) => !definition.requiresRevenue || includeRevenue);
+}
+
+function getHeroKpisForPlayer(row, definitions = []) {
+  return definitions
+    .map((definition) => {
+      const value = safeNumber(row?.[definition.key]);
+      if (value === null) return null;
+      return {
+        key: definition.key,
+        label: definition.label,
+        value: formatBattleMetricValue(value, definition.key),
+      };
+    })
+    .filter(Boolean);
+}
+
+function getFilteredForecastRowsAfterObserved(forecastRows = [], observedRows = [], companyId = "", metricKey = "") {
+  const lastObserved = getLatestCompanyMetricRow(observedRows, companyId, metricKey);
+  const lastObservedSort = lastObserved ? getProfileRowSortValue(lastObserved) : -Infinity;
+
+  return forecastRows
+    .filter((row) => sameCompany(row.company_id, companyId))
+    .filter((row) => hasMetricValue(row, metricKey))
+    .filter((row) => getProfileRowSortValue(row) > lastObservedSort);
+}
+
+function getForecastBattleMetricPair({
+  scenarioRows = [],
+  observedRows = [],
+  playerAId = "",
+  playerBId = "",
+  metricKey = "visits",
+}) {
+  const aRows = getFilteredForecastRowsAfterObserved(scenarioRows, observedRows, playerAId, metricKey);
+  const bRows = getFilteredForecastRowsAfterObserved(scenarioRows, observedRows, playerBId, metricKey);
+  const aByPeriod = new Map(aRows.map((row) => [getForecastPeriodKey(row), row]));
+
+  for (const bRow of bRows.slice().reverse()) {
+    const aRow = aByPeriod.get(getForecastPeriodKey(bRow));
+    if (aRow) return { aRow, bRow, periodLabel: getProfileRowLabel(bRow) };
+  }
+
+  const aRow = aRows.at(-1) ?? null;
+  const bRow = bRows.at(-1) ?? null;
+  return {
+    aRow,
+    bRow,
+    periodLabel: getProfileRowLabel(aRow || bRow, ""),
+  };
+}
+
+function buildForecastBattle({ scenarioRows = [], observedRows = [], playerAId = "", playerBId = "", metricKey = "visits", aLabel = "Player A", bLabel = "Player B" }) {
+  const visitsPair = getForecastBattleMetricPair({
+    scenarioRows,
+    observedRows,
+    playerAId,
+    playerBId,
+    metricKey: "visits",
+  });
+  const revenuePair = getForecastBattleMetricPair({
+    scenarioRows,
+    observedRows,
+    playerAId,
+    playerBId,
+    metricKey: "revenue",
+  });
+  const primaryPair = metricKey === "revenue" ? revenuePair : visitsPair;
+  const aPrimary = safeNumber(primaryPair.aRow?.[metricKey]);
+  const bPrimary = safeNumber(primaryPair.bRow?.[metricKey]);
+  const aObserved = safeNumber(getLatestCompanyMetricRow(observedRows, playerAId, metricKey)?.[metricKey]);
+  const bObserved = safeNumber(getLatestCompanyMetricRow(observedRows, playerBId, metricKey)?.[metricKey]);
+  const aDelta = aPrimary !== null && aObserved !== null ? aPrimary - aObserved : null;
+  const bDelta = bPrimary !== null && bObserved !== null ? bPrimary - bObserved : null;
+  const rankingReferenceRow = primaryPair.aRow || primaryPair.bRow;
+  const rankingRows = getProjectedRankingRows(scenarioRows, metricKey, rankingReferenceRow);
+  const aRank = getProjectedRank(rankingRows, playerAId);
+  const bRank = getProjectedRank(rankingRows, playerBId);
+  const shareMetric = getForecastShareMetric(metricKey);
+  const aShare = getForecastProjectedShare(primaryPair.aRow, scenarioRows, metricKey)?.value ?? null;
+  const bShare = getForecastProjectedShare(primaryPair.bRow, scenarioRows, metricKey)?.value ?? null;
+  const rounds = [
+    buildBattleRound({
+      key: "forecast_visits",
+      label: "Forecast final visitas",
+      metricKey: "visits",
+      aValue: visitsPair.aRow?.visits,
+      bValue: visitsPair.bRow?.visits,
+      aLabel,
+      bLabel,
+      mode: "forecast",
+      formatter: (value) => formatBattleMetricValue(value, "visits"),
+    }),
+    buildBattleRound({
+      key: "forecast_revenue",
+      label: "Forecast final facturación",
+      metricKey: "revenue",
+      aValue: revenuePair.aRow?.revenue,
+      bValue: revenuePair.bRow?.revenue,
+      aLabel,
+      bLabel,
+      mode: "forecast",
+      formatter: (value) => formatBattleMetricValue(value, "revenue"),
+    }),
+    buildBattleRound({
+      key: "forecast_delta",
+      label: `Δ vs último observado (${metricKey === "revenue" ? "facturación" : "visitas"})`,
+      metricKey,
+      aValue: aDelta,
+      bValue: bDelta,
+      aLabel,
+      bLabel,
+      mode: "forecast",
+      formatter: (value) => formatSignedMetricDelta(value, metricKey),
+    }),
+    buildBattleRound({
+      key: "rank_projected",
+      label: "Ranking proyectado",
+      metricKey: "rank_projected",
+      aValue: aRank,
+      bValue: bRank,
+      aLabel,
+      bLabel,
+      mode: "forecast",
+      lowerIsBetter: true,
+      formatter: (value) => formatBattleMetricValue(value, "rank_projected"),
+    }),
+    buildBattleRound({
+      key: "projected_share",
+      label: "Cuota proyectada",
+      metricKey: shareMetric,
+      aValue: aShare,
+      bValue: bShare,
+      aLabel,
+      bLabel,
+      mode: "forecast",
+      deltaType: "sharePoints",
+      formatter: (value) => formatPercent(value),
+    }),
+  ];
+  const projectedGap =
+    aPrimary !== null && bPrimary !== null
+      ? {
+          value: Math.abs(aPrimary - bPrimary),
+          winnerLabel:
+            getBattleRelativeDiff(aPrimary, bPrimary) < BATTLE_TECHNICAL_DRAW_THRESHOLD
+              ? "Empate técnico"
+              : aPrimary > bPrimary
+                ? aLabel
+                : bLabel,
+          metricKey,
+          periodLabel: primaryPair.periodLabel,
+        }
+      : null;
+
+  return {
+    rounds,
+    projectedGap,
+    periodLabel: primaryPair.periodLabel || visitsPair.periodLabel || revenuePair.periodLabel,
+    rankingRows,
+    primaryPair,
+  };
+}
+
+function buildForecastBattleInsight({ scenario, metricKey, projectedGap, rounds = [], aLabel = "Player A", bLabel = "Player B" }) {
+  const scenarioLabel = getForecastScenarioLabel(scenario).toLowerCase();
+  const metricLabel = metricKey === "revenue" ? "facturación" : "visitas";
+  const finalRound = getRoundWinner(rounds, metricKey === "revenue" ? "forecast_revenue" : "forecast_visits");
+  const rankRound = getRoundWinner(rounds, "rank_projected");
+
+  if (finalRound?.winner && finalRound.winner !== "draw") {
+    return `En escenario ${scenarioLabel}, ${finalRound.winnerLabel} ampliaría ventaja proyectada en ${metricLabel} frente a ${finalRound.winner === "a" ? bLabel : aLabel}.`;
+  }
+
+  if (rankRound?.winner && rankRound.winner !== "draw") {
+    return `En escenario ${scenarioLabel}, ${rankRound.winnerLabel} tendría mejor ranking proyectado, con la batalla de ${metricLabel} aún ajustada.`;
+  }
+
+  if (projectedGap) {
+    return `En escenario ${scenarioLabel}, el gap proyectado de ${metricLabel} es ${formatBattleMetricValue(projectedGap.value, metricKey)}.`;
+  }
+
+  return "No hay forecast suficiente para construir una lectura ejecutiva sin mezclar escenarios.";
+}
+
+function BattleRoundCard({ round, aLabel, bLabel, index = 0 }) {
+  if (!round.available) {
+    return (
+      <article
+        className="battle-arena-round battle-arena-round-empty"
+        style={{ "--battle-round-delay": `${Math.min(index, 7) * 45}ms` }}
+      >
+        <div className="battle-arena-round-head">
+          <span>{round.label}</span>
+          <strong>No disponible</strong>
+        </div>
+        <p>{round.message}</p>
+      </article>
+    );
+  }
+
+  return (
+    <article
+      className="battle-arena-round"
+      style={{
+        "--battle-a-share": `${round.share}%`,
+        "--battle-a-color": round.aColor || "#E4032C",
+        "--battle-b-color": round.bColor || "#111111",
+        "--battle-round-delay": `${Math.min(index, 7) * 45}ms`,
+      }}
+    >
+      <div className="battle-arena-round-head">
+        <span>{round.label}</span>
+        <strong>{round.winnerLabel}</strong>
+      </div>
+      <div className="battle-arena-round-values">
+        <span><b>{aLabel}</b> {round.aValueLabel}</span>
+        <span><b>{bLabel}</b> {round.bValueLabel}</span>
+      </div>
+      <div className="battle-arena-bar" aria-hidden="true">
+        <span className="battle-arena-bar-a" />
+        <span className="battle-arena-bar-b" />
+        <span className="battle-arena-bar-marker" />
+      </div>
+      <div className="battle-arena-round-foot">
+        <span>Ganador de ronda: {round.winnerLabel}</span>
+        <strong>Gap: {round.gapLabel}</strong>
+      </div>
+      {round.detail && <p>{round.detail}</p>}
+    </article>
+  );
+}
+
+function BattlePlayerHero({ player, row, kpis = [], side = "a", onOpenProfile }) {
+  const label = getBattleOptionLabel(player) || getCompanyLabel(row);
+  const color = row?.company_color || player?.company_color || (side === "a" ? "#E4032C" : "#111111");
+
+  return (
+    <div className={`battle-arena-player battle-arena-player-${side}`}>
+      <button type="button" className="battle-arena-player-name" onClick={() => onOpenProfile?.(player?.id)}>
+        <CompanyMark companyId={player?.id} label={label} color={color} className="company-mark-profile" />
+        <span>{label}</span>
+      </button>
+      <span className="battle-arena-strength-label">Resumen de {label}</span>
+      <div className="battle-arena-kpis">
+        {kpis.length ? (
+          kpis.map((kpi) => (
+            <div key={`${side}-${kpi.key}`}>
+              <span>{kpi.label}</span>
+              <strong>{kpi.value}</strong>
+            </div>
+          ))
+        ) : (
+          <div>
+            <span>Datos</span>
+            <strong>No disponible</strong>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BattleScore({ score, aLabel, bLabel }) {
+  return (
+    <div
+      className="battle-arena-score"
+      title="El resultado cuenta rondas ganadas por métrica disponible. No es un índice ponderado."
+    >
+      <span>Rondas ganadas</span>
+      <strong>{aLabel} {score.a} · {bLabel} {score.b} · Empates {score.draw}</strong>
+    </div>
+  );
+}
+
+function BattleArenaView({
+  realRows = [],
+  comparableRows = [],
+  forecastSourceRows = [],
+  companies = [],
+  globalScope = {},
+  forecastScenarios = [],
+  onOpenProfile,
+}) {
+  const playerOptions = useMemo(
+    () => getBattlePlayerOptions(companies, realRows),
+    [companies, realRows],
+  );
+  const [playerAId, setPlayerAId] = useState(OWN_COMPANY_ID);
+  const [playerBId, setPlayerBId] = useState("peer_a");
+  const [battleMode, setBattleMode] = useState("historical");
+  const [battleScenario, setBattleScenario] = useState("base_case");
+  const [forecastMetric, setForecastMetric] = useState("visits");
+  const scenarioOptions = useMemo(
+    () => getProfileForecastScenarioOptions(forecastSourceRows),
+    [forecastSourceRows],
+  );
+  const selectedScenario = getPreferredForecastScenario(
+    scenarioOptions.length ? scenarioOptions : forecastScenarios,
+    battleScenario,
+  );
+
+  useEffect(() => {
+    if (!playerOptions.length) return;
+    const nextA = getPreferredBattlePlayer(playerOptions, playerAId || OWN_COMPANY_ID, playerBId);
+    if (nextA !== playerAId) {
+      setPlayerAId(nextA);
+      return;
+    }
+
+    const nextB = getPreferredBattlePlayer(playerOptions, playerBId || "peer_a", nextA);
+    if (nextB !== playerBId) setPlayerBId(nextB);
+  }, [playerAId, playerBId, playerOptions]);
+
+  useEffect(() => {
+    if (selectedScenario && selectedScenario !== battleScenario) {
+      setBattleScenario(selectedScenario);
+    }
+  }, [battleScenario, selectedScenario]);
+
+  const playerA = playerOptions.find((option) => sameCompany(option.id, playerAId)) ?? null;
+  const playerB = playerOptions.find((option) => sameCompany(option.id, playerBId)) ?? null;
+  const aLabel = getBattleOptionLabel(playerA) || "Player A";
+  const bLabel = getBattleOptionLabel(playerB) || "Player B";
+  const selectedPeriodLabel = globalScope.periodLabel || globalScope.selectedPeriod?.label || "Periodo activo";
+  const battleTimeMode = normalizeTimeMode(
+    globalScope.timeMode ||
+      globalScope.selectedTimeMode ||
+      globalScope.timeSelection?.selectedTimeMode ||
+      globalScope.timeSelection?.timeMode ||
+      globalScope.selectedPeriod?.periodType,
+  );
+  const historicalRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(comparableRows, globalScope.timeSelection, {
+        market: globalScope.market,
+        metricKeys: BATTLE_METRICS.map((metric) => metric.key),
+        requireAll: false,
+        includeBenchmark: true,
+      }),
+    [comparableRows, globalScope.market, globalScope.timeSelection],
+  );
+  const observedRows = useMemo(
+    () =>
+      filterInterfaceRows(
+        realRows,
+        { periodType: "monthly", market: globalScope.market },
+        { includeForecasts: false, realOnly: true },
+      ),
+    [globalScope.market, realRows],
+  );
+  const scenarioRows = useMemo(
+    () =>
+      filterRowsWithMetrics(
+        filterInterfaceRows(
+          forecastSourceRows,
+          { periodType: "monthly", market: globalScope.market },
+          { includeForecasts: true, realOnly: true },
+        ),
+        FORECAST_DETAIL_METRICS,
+        false,
+      ).filter((row) => getForecastScenario(row) === selectedScenario),
+    [forecastSourceRows, globalScope.market, selectedScenario],
+  );
+  const aHistoricalRow = getCompanyRow(historicalRows, playerAId);
+  const bHistoricalRow = getCompanyRow(historicalRows, playerBId);
+  const benchmarkRow = getBenchmarkRow(historicalRows);
+  const historicalRounds = useMemo(
+    () => buildHistoricalBattleRounds(aHistoricalRow, bHistoricalRow, aLabel, bLabel),
+    [aHistoricalRow, aLabel, bHistoricalRow, bLabel],
+  );
+  const historicalHeroKpiDefinitions = useMemo(
+    () =>
+      getBattleHeroKpiDefinitions({
+        timeMode: battleTimeMode,
+        includeRevenue: hasMetricValue(aHistoricalRow, "revenue") || hasMetricValue(bHistoricalRow, "revenue"),
+      }),
+    [aHistoricalRow, bHistoricalRow, battleTimeMode],
+  );
+  const forecastBattle = useMemo(
+    () =>
+      buildForecastBattle({
+        scenarioRows,
+        observedRows,
+        playerAId,
+        playerBId,
+        metricKey: forecastMetric,
+        aLabel,
+        bLabel,
+      }),
+    [aLabel, bLabel, forecastMetric, observedRows, playerAId, playerBId, scenarioRows],
+  );
+  const activeRounds = battleMode === "forecast" ? forecastBattle.rounds : historicalRounds;
+  const score = getBattleScore(activeRounds);
+  const insight =
+    battleMode === "forecast"
+      ? buildForecastBattleInsight({
+          scenario: selectedScenario,
+          metricKey: forecastMetric,
+          projectedGap: forecastBattle.projectedGap,
+          rounds: forecastBattle.rounds,
+          aLabel,
+          bLabel,
+        })
+      : buildHistoricalBattleInsight(historicalRounds, aLabel, bLabel);
+  const aHeroRow = battleMode === "forecast" ? forecastBattle.primaryPair?.aRow : aHistoricalRow;
+  const bHeroRow = battleMode === "forecast" ? forecastBattle.primaryPair?.bRow : bHistoricalRow;
+  const aHeroKpis =
+    battleMode === "forecast"
+      ? [
+          { key: "forecast", label: `Forecast ${forecastMetric === "revenue" ? "facturación" : "visitas"}`, value: formatBattleMetricValue(aHeroRow?.[forecastMetric], forecastMetric) },
+          { key: "rank", label: "Ranking proyectado", value: formatBattleMetricValue(getProjectedRank(forecastBattle.rankingRows, playerAId), "rank_projected") },
+        ]
+      : getHeroKpisForPlayer(aHistoricalRow, historicalHeroKpiDefinitions);
+  const bHeroKpis =
+    battleMode === "forecast"
+      ? [
+          { key: "forecast", label: `Forecast ${forecastMetric === "revenue" ? "facturación" : "visitas"}`, value: formatBattleMetricValue(bHeroRow?.[forecastMetric], forecastMetric) },
+          { key: "rank", label: "Ranking proyectado", value: formatBattleMetricValue(getProjectedRank(forecastBattle.rankingRows, playerBId), "rank_projected") },
+        ]
+      : getHeroKpisForPlayer(bHistoricalRow, historicalHeroKpiDefinitions);
+  const samePlayerSelected = playerAId && playerBId && sameCompany(playerAId, playerBId);
+  const forecastMetricOptions = useMemo(
+    () =>
+      BATTLE_FORECAST_METRIC_OPTIONS.map((option) => ({
+        ...option,
+        disabled: !scenarioRows.some(
+          (row) =>
+            (sameCompany(row.company_id, playerAId) || sameCompany(row.company_id, playerBId)) &&
+            hasMetricValue(row, option.key),
+        ),
+      })),
+    [playerAId, playerBId, scenarioRows],
+  );
+
+  useEffect(() => {
+    const selectedMetric = forecastMetricOptions.find((option) => option.key === forecastMetric);
+    if (selectedMetric && !selectedMetric.disabled) return;
+    const nextMetric = forecastMetricOptions.find((option) => !option.disabled)?.key;
+    if (nextMetric && nextMetric !== forecastMetric) setForecastMetric(nextMetric);
+  }, [forecastMetric, forecastMetricOptions]);
+
+  const battleAnimationKey = [
+    normalizeCompanyId(playerAId),
+    normalizeCompanyId(playerBId),
+    battleMode,
+    selectedScenario,
+    forecastMetric,
+    globalScope.market || "",
+    selectedPeriodLabel,
+    globalScope.selectedTimeMode || "",
+    globalScope.selectedYear || "",
+    globalScope.selectedMonth || "",
+    globalScope.rangeStartMonth || "",
+    globalScope.rangeEndMonth || "",
+  ].join("|");
+  const battleForecastSidebarContext = useMemo(() => {
+    const aVisits = getLatestCompanyMetricRow(observedRows, playerAId, "visits");
+    const aRevenue = getLatestCompanyMetricRow(observedRows, playerAId, "revenue");
+    const visibleForecastRows = getFilteredForecastRowsAfterObserved(
+      scenarioRows,
+      observedRows,
+      playerAId,
+      forecastMetric,
+    );
+    const metricRows = getSortedCompanyMetricRows(visibleForecastRows, playerAId, forecastMetric);
+    const firstForecastRow = metricRows[0] ?? null;
+    const finalForecastRow = metricRows.at(-1) ?? null;
+
+    return {
+      activeScenario: selectedScenario,
+      activeMetric: forecastMetric,
+      playerLabel: aLabel,
+      lastObservedVisitsLabel: aVisits ? getProfileRowLabel(aVisits) : "Sin dato observado",
+      lastObservedRevenueLabel: aRevenue ? getProfileRowLabel(aRevenue) : "Sin dato observado",
+      horizonLabel:
+        firstForecastRow && finalForecastRow
+          ? `${getProfileRowLabel(firstForecastRow)} – ${getProfileRowLabel(finalForecastRow)}`
+          : forecastBattle.periodLabel
+            ? formatDisplayPeriodLabel(forecastBattle.periodLabel)
+            : "Sin horizonte forecast disponible",
+    };
+  }, [aLabel, forecastBattle.periodLabel, forecastMetric, observedRows, playerAId, scenarioRows, selectedScenario]);
+
+  const battleTemporalControls = battleMode === "forecast" ? (
+    <section className="global-temporal-panel battle-temporal-panel">
+      <div className="global-temporal-copy">
+        <p className="analysis-label text-accent-500">Contexto forecast</p>
+        <h2>ProyecciÃ³n desde el Ãºltimo observado</h2>
+        <p>
+          En Forecast, la fecha no se selecciona manualmente: la proyecciÃ³n parte del Ãºltimo dato
+          observado disponible.
+        </p>
+      </div>
+      <div className="period-control-stack temporal-control-stack">
+        <div className="period-summary-card">
+          <span>Ãšltimo observado</span>
+          <strong>{battleForecastSidebarContext.playerLabel}</strong>
+          <small>Visitas Â· {battleForecastSidebarContext.lastObservedVisitsLabel}</small>
+          <small>FacturaciÃ³n Â· {battleForecastSidebarContext.lastObservedRevenueLabel}</small>
+        </div>
+        <div className="period-summary-card">
+          <span>Horizonte forecast</span>
+          <strong>{battleForecastSidebarContext.horizonLabel}</strong>
+        </div>
+        <div className="period-summary-card">
+          <span>Controles activos</span>
+          <strong>Escenario: {getForecastScenarioLabel(battleForecastSidebarContext.activeScenario)}</strong>
+          <small>MÃ©trica: {getProfileMetricLabel(battleForecastSidebarContext.activeMetric)}</small>
+        </div>
+      </div>
+    </section>
+  ) : (
+    <section className="global-temporal-panel battle-temporal-panel">
+      <div className="global-temporal-copy">
+        <p className="analysis-label text-accent-500">Contexto de batalla</p>
+        <h2>Dónde y cuándo comparamos</h2>
+        <p>
+          Este selector controla el mercado y la ventana temporal de las rondas históricas. En
+          Forecast, la comparación usa el escenario elegido y mantiene la separación frente al dato
+          observado.
+        </p>
+      </div>
+      <TemporalControls
+        market={globalScope.market}
+        onMarketChange={globalScope.onMarketChange}
+        markets={globalScope.markets}
+        selectedTimeMode={globalScope.selectedTimeMode}
+        onTimeModeChange={globalScope.onTimeModeChange}
+        timeModeOptions={globalScope.timeModeOptions}
+        selectedYear={globalScope.selectedYear}
+        onSelectedYearChange={globalScope.onSelectedYearChange}
+        availableYears={globalScope.availableYears}
+        selectedMonth={globalScope.selectedMonth}
+        onSelectedMonthChange={globalScope.onSelectedMonthChange}
+        monthOptions={globalScope.monthOptions}
+        rangeStartMonth={globalScope.rangeStartMonth}
+        onRangeStartMonthChange={globalScope.onRangeStartMonthChange}
+        rangeEndMonth={globalScope.rangeEndMonth}
+        onRangeEndMonthChange={globalScope.onRangeEndMonthChange}
+        rangeMonthOptions={globalScope.rangeMonthOptions}
+        selectableRangeStartMonths={globalScope.selectableRangeStartMonths}
+        selectableRangeEndMonths={globalScope.selectableRangeEndMonths}
+        dataNote={globalScope.dataNote}
+        periodLabel={globalScope.periodLabel}
+        availabilityItems={globalScope.availabilityItems}
+        periodStatusItems={globalScope.periodStatusItems}
+        datasetCoverageItems={globalScope.datasetCoverageItems}
+      />
+    </section>
+  );
+
+  return (
+    <div className="battle-arena-temporal-layout">
+      <aside className="temporal-sidebar" aria-label="Controles temporales de Battle Arena">
+        {battleTemporalControls}
+      </aside>
+
+      <div className="battle-arena-content-stack">
+        <div className="battle-arena-page">
+          <section className="battle-arena-control-panel">
+            <div className="battle-arena-control-copy">
+              <p className="analysis-label text-accent-500">Battle Arena</p>
+              <h2>Comparar dos players cara a cara por escala, cuota, crecimiento y eficiencia.</h2>
+            </div>
+            <div className="battle-arena-controls">
+              <SelectField label="Player A" value={playerAId} onChange={setPlayerAId} disabled={!playerOptions.length}>
+                {playerOptions.map((option) => (
+                  <option key={option.id} value={option.id} disabled={sameCompany(option.id, playerBId)}>
+                    {getBattleOptionLabel(option)}
+                  </option>
+                ))}
+              </SelectField>
+              <SelectField label="Player B" value={playerBId} onChange={setPlayerBId} disabled={playerOptions.length <= 1}>
+                {playerOptions.map((option) => (
+                  <option key={option.id} value={option.id} disabled={sameCompany(option.id, playerAId)}>
+                    {getBattleOptionLabel(option)}
+                  </option>
+                ))}
+              </SelectField>
+              <div className="battle-arena-mode-control">
+                <MetricSwitch options={BATTLE_MODE_OPTIONS} value={battleMode} onChange={setBattleMode} label="Modo" />
+              </div>
+              {battleMode === "forecast" && (
+                <>
+                  <div className="battle-arena-mode-control">
+                    <MetricSwitch
+                      options={(scenarioOptions.length ? scenarioOptions : forecastScenarios).map((scenario) => ({
+                        key: scenario,
+                        label: getForecastScenarioLabel(scenario),
+                      }))}
+                      value={selectedScenario}
+                      onChange={setBattleScenario}
+                      label="Escenario"
+                    />
+                  </div>
+                  <div className="battle-arena-mode-control">
+                    <MetricSwitch
+                      options={forecastMetricOptions}
+                      value={forecastMetric}
+                      onChange={setForecastMetric}
+                      label="Lectura destacada"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+
+          {samePlayerSelected ? (
+            <EmptyState
+              title="Selecciona dos players diferentes para iniciar la batalla."
+              message="market_average no puede usarse como player principal; el market average queda como benchmark secundario."
+            />
+          ) : (
+            <div key={battleAnimationKey} className="battle-arena-animation-stage">
+              <section className="battle-arena-hero">
+                <div className="battle-arena-hero-main">
+                  <BattlePlayerHero player={playerA} row={aHeroRow} kpis={aHeroKpis} side="a" onOpenProfile={onOpenProfile} />
+                  <div className="battle-arena-versus">
+                    <span>{battleMode === "forecast" ? getForecastScenarioLabel(selectedScenario) : selectedPeriodLabel}</span>
+                    <strong>{aLabel} vs {bLabel}</strong>
+                    {battleMode === "forecast" && <ForecastCaveat />}
+                  </div>
+                  <BattlePlayerHero player={playerB} row={bHeroRow} kpis={bHeroKpis} side="b" onOpenProfile={onOpenProfile} />
+                </div>
+                <div className="battle-arena-hero-read">
+                  <BattleScore score={score} aLabel={aLabel} bLabel={bLabel} />
+                  <p>{insight}</p>
+                  {battleMode === "forecast" && forecastBattle.projectedGap && (
+                    <small>
+                      Gap proyectado {forecastMetric === "revenue" ? "facturación" : "visitas"}: {forecastBattle.projectedGap.winnerLabel} +{formatBattleMetricValue(forecastBattle.projectedGap.value, forecastMetric)}
+                      {forecastBattle.projectedGap.periodLabel ? ` · ${formatDisplayPeriodLabel(forecastBattle.projectedGap.periodLabel)}` : ""}
+                    </small>
+                  )}
+                  {battleMode === "historical" && benchmarkRow && (
+                    <small>
+                      Market Average como benchmark secundario: visitas {formatBattleMetricValue(benchmarkRow.visits, "visits")} · facturación {formatBattleMetricValue(benchmarkRow.revenue, "revenue")}
+                    </small>
+                  )}
+                </div>
+              </section>
+
+              <section className="battle-arena-round-list">
+                {activeRounds.map((round, index) => (
+                  <BattleRoundCard
+                    key={round.key}
+                    round={round}
+                    aLabel={aLabel}
+                    bLabel={bLabel}
+                    index={index}
+                  />
+                ))}
+              </section>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getBattleOptionLabel(option = {}) {
+  return option.label || option.display_name || option.company_name || option.id || "Empresa";
+}
+
+function getProfileBattleOptions(rows = [], companies = []) {
+  const optionMap = new Map();
+
+  companies.forEach((company) => {
+    const id = normalizeCompanyId(company.id);
+    if (!id) return;
+
+    optionMap.set(id, {
+      id: company.id,
+      label: company.label,
+      company_color: company.company_color,
+    });
+  });
+
+  rows.forEach((row) => {
+    const id = normalizeCompanyId(row?.company_id);
+    if (!id) return;
+
+    const current = optionMap.get(id) ?? {};
+    optionMap.set(id, {
+      id: current.id || row.company_id,
+      label: current.label || getCompanyLabel(row),
+      company_color: current.company_color || row.company_color,
+    });
+  });
+
+  return Array.from(optionMap.values()).sort((a, b) =>
+    getBattleOptionLabel(a).localeCompare(getBattleOptionLabel(b)),
+  );
+}
+
+function getDefaultProfileBattleTarget(options = [], baseCompanyId = "") {
+  const preferredTargetIds = sameCompany(baseCompanyId, OWN_COMPANY_ID)
+    ? ["peer_a", "peer_b", MARKET_BENCHMARK_ID]
+    : [OWN_COMPANY_ID, "peer_a", "peer_b", MARKET_BENCHMARK_ID];
+
+  return (
+    preferredTargetIds.find((targetId) =>
+      options.some((option) => sameCompany(option.id, targetId) && !sameCompany(option.id, baseCompanyId)),
+    ) ||
+    options.find((option) => !sameCompany(option.id, baseCompanyId))?.id ||
+    ""
+  );
+}
+
+function getBattleMetricOptions(baseRow, targetRow) {
+  return BATTLE_METRICS.map((metric) => {
+    const baseValue = safeNumber(baseRow?.[metric.key]);
+    const targetValue = safeNumber(targetRow?.[metric.key]);
+    const disabled = baseValue === null || targetValue === null;
+
+    return {
+      ...metric,
+      disabled,
+      reason: disabled ? "sin dato comparable" : "",
+    };
+  });
+}
+
+function getBattleShare(baseValue, targetValue) {
+  const baseNumber = safeNumber(baseValue);
+  const targetNumber = safeNumber(targetValue);
+  if (baseNumber === null || targetNumber === null) return 50;
+
+  const total = Math.abs(baseNumber) + Math.abs(targetNumber);
+  if (!total) return 50;
+
+  return Math.max(8, Math.min(92, (Math.abs(baseNumber) / total) * 100));
+}
+
+function ProfileBattleCard({
+  rows = [],
+  companies = [],
+  selectedCompanyId = "",
+  periodLabel = "",
+}) {
+  const battleOptions = useMemo(
+    () => getProfileBattleOptions(rows, companies),
+    [companies, rows],
+  );
+  const [baseCompanyId, setBaseCompanyId] = useState(selectedCompanyId || "");
+  const [targetCompanyId, setTargetCompanyId] = useState("");
+  const [metricKey, setMetricKey] = useState(BATTLE_METRICS[0]?.key || "revenue");
+
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    if (!battleOptions.some((option) => sameCompany(option.id, selectedCompanyId))) return;
+
+    setBaseCompanyId(selectedCompanyId);
+  }, [battleOptions, selectedCompanyId]);
+
+  useEffect(() => {
+    if (!battleOptions.length) {
+      setBaseCompanyId("");
+      setTargetCompanyId("");
+      return;
+    }
+
+    if (!baseCompanyId || !battleOptions.some((option) => sameCompany(option.id, baseCompanyId))) {
+      setBaseCompanyId(battleOptions[0].id);
+      return;
+    }
+
+    const targetIsValid =
+      targetCompanyId &&
+      !sameCompany(targetCompanyId, baseCompanyId) &&
+      battleOptions.some((option) => sameCompany(option.id, targetCompanyId));
+
+    if (!targetIsValid) {
+      setTargetCompanyId(getDefaultProfileBattleTarget(battleOptions, baseCompanyId));
+    }
+  }, [baseCompanyId, battleOptions, targetCompanyId]);
+
+  const baseRow = useMemo(() => getCompanyRow(rows, baseCompanyId), [baseCompanyId, rows]);
+  const targetRow = useMemo(() => getCompanyRow(rows, targetCompanyId), [rows, targetCompanyId]);
+  const metricOptions = useMemo(
+    () => getBattleMetricOptions(baseRow, targetRow),
+    [baseRow, targetRow],
+  );
+  const selectedMetric = metricOptions.find((metric) => metric.key === metricKey) ?? metricOptions[0];
+
+  useEffect(() => {
+    if (!metricOptions.length) return;
+
+    const currentMetric = metricOptions.find((metric) => metric.key === metricKey);
+    const fallbackMetric = metricOptions.find((metric) => !metric.disabled) ?? metricOptions[0];
+    if (!currentMetric || currentMetric.disabled) {
+      setMetricKey(fallbackMetric.key);
+    }
+  }, [metricKey, metricOptions]);
+
+  const baseValue = safeNumber(baseRow?.[selectedMetric?.key]);
+  const targetValue = safeNumber(targetRow?.[selectedMetric?.key]);
+  const hasComparableValues = baseValue !== null && targetValue !== null;
+  const baseLabel = baseRow ? getCompanyLabel(baseRow) : getBattleOptionLabel(
+    battleOptions.find((option) => sameCompany(option.id, baseCompanyId)),
+  );
+  const targetLabel = targetRow ? getCompanyLabel(targetRow) : getBattleOptionLabel(
+    battleOptions.find((option) => sameCompany(option.id, targetCompanyId)),
+  );
+  const baseColor = baseRow?.company_color || "#E4032C";
+  const targetColor = targetRow?.company_color || "#6F6864";
+  const winnerLabel = hasComparableValues
+    ? getBattleWinner(selectedMetric, baseRow, targetRow, baseLabel)
+    : "N/A";
+  const battleShare = getBattleShare(baseValue, targetValue);
+  const baseWins = hasComparableValues && baseValue > targetValue;
+  const targetWins = hasComparableValues && targetValue > baseValue;
+  const battleAnimationKey = [
+    normalizeCompanyId(baseCompanyId),
+    normalizeCompanyId(targetCompanyId),
+    selectedMetric?.key || metricKey,
+    baseValue ?? "na",
+    targetValue ?? "na",
+  ].join("|");
+  const battleHitLabel = !hasComparableValues
+    ? "No disponible"
+    : baseWins
+      ? "Ventaja"
+      : targetWins
+        ? "Ventaja"
+        : "Empate tecnico";
+
+  return (
+    <section
+      className="profile-battle-surface"
+      style={{
+        "--battle-base-color": baseColor,
+        "--battle-target-color": targetColor,
+        "--battle-base-share": `${battleShare}%`,
+      }}
+    >
+      <div className="profile-battle-controls">
+        <SelectField
+          label="Player"
+          value={baseCompanyId}
+          onChange={setBaseCompanyId}
+          disabled={!battleOptions.length}
+        >
+          {battleOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {getBattleOptionLabel(option)}
+            </option>
+          ))}
+        </SelectField>
+
+        <SelectField
+          label="Comparar con"
+          value={targetCompanyId}
+          onChange={setTargetCompanyId}
+          disabled={battleOptions.length <= 1}
+        >
+          {battleOptions
+            .filter((option) => !sameCompany(option.id, baseCompanyId))
+            .map((option) => (
+              <option key={option.id} value={option.id}>
+                {getBattleOptionLabel(option)}
+              </option>
+            ))}
+        </SelectField>
+
+        <SelectField
+          label="Métrica"
+          value={metricKey}
+          onChange={setMetricKey}
+          disabled={!baseRow || !targetRow || !metricOptions.length}
+        >
+          {metricOptions.map((metric) => (
+            <option key={metric.key} value={metric.key} disabled={metric.disabled}>
+              {getSelectOptionLabel(metric)}
+            </option>
+          ))}
+        </SelectField>
+      </div>
+
+      {baseRow && targetRow ? (
+        <div className="profile-battle-card">
+          <div className={`profile-battle-player ${baseWins ? "profile-battle-player-winner" : ""}`}>
+            <CompanyMark
+              companyId={baseCompanyId}
+              label={baseLabel}
+              color={baseColor}
+              className="company-mark-legend"
+            />
+            <span>{baseLabel}</span>
+            <strong>{selectedMetric?.formatter?.(baseValue) || formatMetric(baseValue, metricKey)}</strong>
+          </div>
+
+          <div key={battleAnimationKey} className="profile-battle-arena" aria-hidden="true">
+            <div className="profile-battle-lane">
+              <span className="profile-battle-fighter profile-battle-fighter-left">
+                <CompanyMark
+                  companyId={baseCompanyId}
+                  label={baseLabel}
+                  color={baseColor}
+                  className="company-mark-legend"
+                />
+              </span>
+              <span className="profile-battle-fighter profile-battle-fighter-right">
+                <CompanyMark
+                  companyId={targetCompanyId}
+                  label={targetLabel}
+                  color={targetColor}
+                  className="company-mark-legend"
+                />
+              </span>
+              <span className="profile-battle-impact-ring" />
+              <span className="profile-battle-impact-spark profile-battle-impact-spark-a" />
+              <span className="profile-battle-impact-spark profile-battle-impact-spark-b" />
+              <span className="profile-battle-hit-label">{battleHitLabel}</span>
+            </div>
+            <div className="profile-battle-vs">
+              <span>VS</span>
+              <strong>{selectedMetric?.label || getMetricCopy(metricKey)}</strong>
+            </div>
+          </div>
+
+          <div className={`profile-battle-player ${targetWins ? "profile-battle-player-winner" : ""}`}>
+            <CompanyMark
+              companyId={targetCompanyId}
+              label={targetLabel}
+              color={targetColor}
+              className="company-mark-legend"
+            />
+            <span>{targetLabel}</span>
+            <strong>{selectedMetric?.formatter?.(targetValue) || formatMetric(targetValue, metricKey)}</strong>
+          </div>
+
+          <div className="profile-battle-bar" aria-hidden="true">
+            <span className="profile-battle-bar-side profile-battle-bar-side-left" />
+            <span className="profile-battle-bar-side profile-battle-bar-side-right" />
+            <span
+              key={`${battleAnimationKey}-left-push`}
+              className="profile-battle-bar-shove profile-battle-bar-shove-left"
+            />
+            <span
+              key={`${battleAnimationKey}-right-push`}
+              className="profile-battle-bar-shove profile-battle-bar-shove-right"
+            />
+            <span
+              className={`profile-battle-bar-clash ${
+                baseWins
+                  ? "profile-battle-bar-clash-left"
+                  : targetWins
+                    ? "profile-battle-bar-clash-right"
+                    : "profile-battle-bar-clash-draw"
+              }`}
+            >
+              <span
+                key={`${battleAnimationKey}-clash-pulse`}
+                className="profile-battle-bar-clash-pulse"
+              />
+            </span>
+          </div>
+
+          <div className="profile-battle-summary">
+            {hasComparableValues ? (
+              <>
+                <span>Gana: {winnerLabel}</span>
+                <strong>{getBattleDeltaLabel(selectedMetric, baseValue, targetValue, baseLabel, targetLabel)}</strong>
+              </>
+            ) : (
+              <span>Sin dato comparable para esta métrica en el periodo seleccionado.</span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <EmptyState
+          title="No hay datos para esta batalla."
+          message="Cambia el player, el rival o el periodo global para encontrar una comparativa disponible."
+        />
+      )}
+
+      {periodLabel && <p className="profile-battle-period">{periodLabel}</p>}
+    </section>
+  );
+}
+
+function getPresentationChartMetricKey(rows = [], snapshot = {}) {
+  const preferredIndexedMetric =
+    snapshot?.primaryMetric === "visits"
+      ? "indexed_visits"
+      : snapshot?.primaryMetric === "revenue"
+        ? "indexed_revenue"
+        : "";
+
+  if (preferredIndexedMetric && hasAnyMetric(rows, getIndexedSourceMetric(preferredIndexedMetric))) {
+    return preferredIndexedMetric;
+  }
+
+  return (
+    INDEXED_METRIC_OPTIONS.find((option) => hasAnyMetric(rows, getIndexedSourceMetric(option.key)))?.key ||
+    (snapshot?.primaryMetric && hasAnyMetric(rows, snapshot.primaryMetric) ? snapshot.primaryMetric : "") ||
+    "visits"
+  );
+}
+
+function getPresentationChartCopy(metricKey) {
+  const growthDescription =
+    "Barras por año. Cada barra compara el crecimiento frente al año anterior; los años parciales usan los mismos meses disponibles.";
+
+  if (metricKey === "indexed_visits") {
+    return {
+      title: "Crecimiento anual YoY de visitas",
+      description: growthDescription,
+    };
+  }
+
+  if (metricKey === "indexed_revenue") {
+    return {
+      title: "Crecimiento anual YoY de facturación",
+      description: growthDescription,
+    };
+  }
+
+  return {
+    title: `Evolución de ${getMetricCopy(metricKey)}`,
+    description: "Serie temporal disponible para contextualizar la lectura del período seleccionado.",
+  };
+}
+
+function getPresentationLegendSeries(rows = [], metricKey) {
+  const sourceMetric = getIndexedSourceMetric(metricKey);
+  return CORE_RACE_COMPANY_IDS.map((companyId) =>
+    rows.find((row) => sameCompany(row.company_id, companyId) && safeNumber(row?.[sourceMetric]) !== null),
+  )
+    .filter(Boolean)
+    .map((row) => ({
+      company_id: row.company_id,
+      label: getCompanyLabel(row),
+      color: isBenchmarkRow(row) ? "#94A3B8" : row.company_color,
+      isBenchmark: isBenchmarkRow(row),
+    }));
+}
+
+function PresentationChartLegend({ rows = [], metricKey }) {
+  const legendSeries = getPresentationLegendSeries(rows, metricKey);
+
+  if (!legendSeries.length) return null;
+
+  return (
+    <div className="presentation-chart-legend" aria-label="Series visibles">
+      {legendSeries.map((item) => (
+        <span key={`presentation-legend-${item.company_id}`}>
+          <i
+            className={item.isBenchmark ? "is-benchmark" : ""}
+            style={{ borderColor: item.color || "#6F6864" }}
+            aria-hidden="true"
+          />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PresentationChart({ rows = [], snapshot, metricKey: preferredMetricKey }) {
+  const fallbackMetricKey = getPresentationChartMetricKey(rows, snapshot);
   const metricKey =
-    INDEXED_METRIC_OPTIONS.find((option) => hasAnyMetric(rows, option.key))?.key ||
-    snapshot?.primaryMetric ||
-    "visits";
+    preferredMetricKey && hasAnyMetric(rows, getIndexedSourceMetric(preferredMetricKey))
+      ? preferredMetricKey
+      : fallbackMetricKey;
+  const sourceMetric = getIndexedSourceMetric(metricKey);
   const companyIds = CORE_RACE_COMPANY_IDS.filter((companyId) =>
-    rows.some((row) => sameCompany(row.company_id, companyId) && safeNumber(row?.[metricKey]) !== null),
+    rows.some((row) => sameCompany(row.company_id, companyId) && safeNumber(row?.[sourceMetric]) !== null),
   );
-  const series = groupSeriesByCompetitor(rows, metricKey, companyIds).filter(
-    (companySeries) => companySeries.points.length >= 2,
-  );
+  const { series } = isIndexedMetric(metricKey)
+    ? buildAnnualYoYGrowthSeries(rows, { metric: metricKey, companies: companyIds })
+    : { series: groupSeriesByCompetitor(rows, metricKey, companyIds).filter(
+        (companySeries) => companySeries.points.length >= 2,
+      ) };
   const chartData = toMultiLineChartData(series);
+  const chartMetricKey = isIndexedMetric(metricKey) ? getAnnualGrowthMetricKey(metricKey) : metricKey;
   const seriesById = new Map(
     series.map((companySeries) => [normalizeCompanyId(companySeries.company_id), companySeries]),
   );
 
-  if (series.length < 2 || chartData.length < 2) {
+  if (series.length < 2 || chartData.length < 1) {
     return (
       <EmptyState
-        title="No main chart for presentation mode."
-        message="At least two comparable historical series are needed."
+        title="No hay gráfico principal para modo presentación."
+        message="Faltan al menos dos años comparables para calcular crecimiento."
       />
+    );
+  }
+
+  if (isIndexedMetric(metricKey)) {
+    return (
+      <div className="presentation-chart">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <BarChart data={chartData} margin={{ top: 10, right: 22, bottom: 0, left: 0 }}>
+            <CartesianGrid stroke="rgba(0,0,0,0.08)" vertical={false} />
+            <ReferenceLine y={0} stroke="rgba(0,0,0,0.28)" />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: "#6F6864", fontSize: 12 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              tick={{ fill: "#6F6864", fontSize: 12 }}
+              tickFormatter={formatSignedPercent}
+              tickLine={false}
+              axisLine={false}
+              width={74}
+            />
+            <Tooltip
+              cursor={{ fill: "rgba(0,0,0,0.04)" }}
+              content={<MultiSeriesTooltip metricKey={chartMetricKey} seriesById={seriesById} />}
+            />
+            {series.map((companySeries) => (
+              <Bar
+                key={`presentation-${companySeries.company_id}`}
+                dataKey={companySeries.company_id}
+                fill={isBenchmarkRow(companySeries) ? "#94A3B8" : companySeries.company_color}
+                radius={[3, 3, 0, 0]}
+                maxBarSize={32}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     );
   }
 
@@ -3392,23 +8395,29 @@ function PresentationChart({ rows = [], snapshot }) {
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <LineChart data={chartData} margin={{ top: 10, right: 22, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="rgba(0,0,0,0.08)" vertical={false} />
+          {isIndexedMetric(metricKey) && (
+            <ReferenceLine y={100} stroke="rgba(0,0,0,0.28)" strokeDasharray="3 3" />
+          )}
           <XAxis
             dataKey="label"
             minTickGap={32}
             tick={{ fill: "#6F6864", fontSize: 12 }}
+            tickFormatter={formatChartPeriodLabel}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             tick={{ fill: "#6F6864", fontSize: 12 }}
-            tickFormatter={(value) => formatMetric(value, metricKey)}
+            tickFormatter={(value) =>
+              isIndexedMetric(metricKey) ? formatIndexedAxisTick(value) : formatMetric(value, metricKey)
+            }
             tickLine={false}
             axisLine={false}
             width={74}
           />
           <Tooltip
             cursor={{ stroke: "rgba(0,0,0,0.18)" }}
-            content={<MultiSeriesTooltip metricKey={metricKey} seriesById={seriesById} />}
+            content={<MultiSeriesTooltip metricKey={chartMetricKey} seriesById={seriesById} />}
           />
           {series.map((companySeries) => (
             <Line
@@ -3429,10 +8438,165 @@ function PresentationChart({ rows = [], snapshot }) {
   );
 }
 
+function getPresentationSmartVisualCopy(snapshot = {}) {
+  const metricLabel = snapshot.primaryMetric === "revenue" ? "facturación" : "visitas";
+  const shareLabel = snapshot.shareMetric === "market_share_revenue" ? "cuota de facturación" : "cuota de visitas";
+  const changeLabel =
+    snapshot.shareChangeMode === "range"
+      ? "cambio de cuota en el periodo"
+      : "variación interanual de cuota";
+
+  return {
+    title: `Mapa ejecutivo de ${metricLabel}`,
+    description: `Combina escala, ${shareLabel} y ${changeLabel} para explicar la presión competitiva del periodo.`,
+  };
+}
+
+function getPresentationSmartRows(rows = [], snapshot = {}, maxRows = 6) {
+  const rankedRows = rows
+    .filter(isRealCompanyRow)
+    .map((row) => {
+      const value = safeNumber(row?.[snapshot.primaryMetric]);
+      if (value === null) return null;
+
+      return {
+        id: row.company_id,
+        row,
+        name: getCompanyLabel(row),
+        color: row.company_color || "#6F6864",
+        value,
+        share: safeNumber(row?.[snapshot.shareMetric]),
+        shareChange: safeNumber(row?.[snapshot.shareChangeMetric]),
+        growth: safeNumber(row?.[snapshot.growthMetric]),
+        isFocusBrand: sameCompany(row.company_id, OWN_COMPANY_ID),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.value - a.value);
+
+  const topRows = rankedRows.slice(0, maxRows);
+  const focusEntry = rankedRows.find((entry) => entry.isFocusBrand);
+  if (focusEntry && !topRows.some((entry) => entry.isFocusBrand)) {
+    return [...topRows.slice(0, Math.max(0, maxRows - 1)), focusEntry];
+  }
+
+  return topRows;
+}
+
+function getPresentationDeltaCopy(value, metricKey = "visits") {
+  const number = safeNumber(value);
+  if (number === null) return "Sin gap";
+  if (Math.abs(number) < 0.000001) return "Empate";
+  const prefix = number > 0 ? "+" : "-";
+  return `${prefix}${formatMetric(Math.abs(number), metricKey)}`;
+}
+
+function PresentationSmartVisual({ rows = [], snapshot = {} }) {
+  const visualRows = useMemo(
+    () => getPresentationSmartRows(rows, snapshot),
+    [rows, snapshot],
+  );
+  const leader = visualRows[0] ?? null;
+  const focus = visualRows.find((entry) => entry.isFocusBrand) ?? null;
+  const mover =
+    visualRows
+      .filter((entry) => entry.shareChange !== null)
+      .slice()
+      .sort((a, b) => b.shareChange - a.shareChange)[0] ?? null;
+  const maxValue = Math.max(...visualRows.map((entry) => entry.value), 0);
+
+  if (!visualRows.length || !maxValue) {
+    return (
+      <EmptyState
+        title="No hay visual principal para este periodo."
+        message="Faltan datos de la métrica principal para construir la lectura capturable."
+      />
+    );
+  }
+
+  const focusGap =
+    leader && focus
+      ? focus.value - leader.value
+      : null;
+  const focusIsLeader = leader && focus && sameCompany(leader.id, OWN_COMPANY_ID);
+
+  return (
+    <div className="presentation-smart-visual">
+      <div className="presentation-smart-summary">
+        <div>
+          <span>Líder del periodo</span>
+          <strong>{leader?.name || "N/A"}</strong>
+          <small>{leader ? formatMetric(leader.value, snapshot.primaryMetric) : "Sin dato"}</small>
+        </div>
+        <div>
+          <span>{focusIsLeader ? "Focus Brand lidera" : "Focus Brand vs líder"}</span>
+          <strong>{focusIsLeader ? "Líder del periodo" : getPresentationDeltaCopy(focusGap, snapshot.primaryMetric)}</strong>
+          <small>{focus ? formatMetric(focus.share, snapshot.shareMetric) : "Sin Focus Brand"}</small>
+        </div>
+        <div>
+          <span>Mayor avance cuota</span>
+          <strong>{mover?.name || "N/A"}</strong>
+          <small>{mover?.shareChange !== null ? formatPercentagePoints(mover.shareChange, { compact: true }) : "Sin variación"}</small>
+        </div>
+      </div>
+
+      <div className="presentation-smart-bars" aria-label="Mapa ejecutivo de posición competitiva">
+        {visualRows.map((entry, index) => {
+          const width = Math.max(6, (entry.value / maxValue) * 100);
+          const shareChangeTone =
+            entry.shareChange === null
+              ? ""
+              : entry.shareChange >= 0
+                ? "is-positive"
+                : "is-negative";
+
+          return (
+            <div
+              key={`presentation-smart-${entry.id}`}
+              className={`presentation-smart-row ${entry.isFocusBrand ? "is-focus" : ""}`}
+              style={{ "--row-color": entry.isFocusBrand ? "#E4032C" : entry.color, "--bar-width": `${width}%` }}
+            >
+              <span className="presentation-smart-rank">#{index + 1}</span>
+              <span className="presentation-smart-name">
+                <CompanyMark
+                  companyId={entry.id}
+                  label={entry.name}
+                  color={entry.color}
+                  className="company-mark-legend"
+                />
+                <strong>{entry.name}</strong>
+              </span>
+              <span className="presentation-smart-track" aria-hidden="true">
+                <i />
+              </span>
+              <span className="presentation-smart-value">
+                <strong>{formatMetric(entry.value, snapshot.primaryMetric)}</strong>
+                <small>{entry.share !== null ? formatMetric(entry.share, snapshot.shareMetric) : "Sin cuota"}</small>
+              </span>
+              <span className={`presentation-smart-change ${shareChangeTone}`}>
+                {entry.shareChange !== null
+                  ? formatPercentagePoints(entry.shareChange, { compact: true })
+                  : "N/A"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PresentationMode({ snapshot, periodRows = [], chartRows = [] }) {
+  const presentationVisualCopy = getPresentationSmartVisualCopy(snapshot);
+  const isHistoricalPresentation = isHistoricalPeriodLabel(snapshot?.periodLabel);
+  const historicalChartCopy = {
+    title: `Evolución histórica de ${snapshot.primaryLabel || "la métrica principal"}`,
+    description: "Serie mensual observada para ver tendencia, distancia entre players y cambios de liderazgo en el tiempo.",
+  };
   const rankingRows = useMemo(
     () =>
       periodRows
+        .filter(isRealCompanyRow)
         .filter((row) => safeNumber(row?.[snapshot.primaryMetric]) !== null)
         .slice()
         .sort((a, b) => safeNumber(b?.[snapshot.primaryMetric]) - safeNumber(a?.[snapshot.primaryMetric]))
@@ -3441,320 +8605,2221 @@ function PresentationMode({ snapshot, periodRows = [], chartRows = [] }) {
   );
   const kpis = [
     {
-      label: snapshot.primaryMetric === "revenue" ? "Market revenue" : "Market visits",
+      label: snapshot.primaryMetric === "revenue" ? "Facturación mercado medido" : "Visitas mercado medido",
       value: snapshot.totalMarketValue !== null ? formatMetric(snapshot.totalMarketValue, snapshot.primaryMetric) : "N/A",
     },
     {
-      label: "Share Focus Brand",
+      label: snapshot.shareMetric === "market_share_visits"
+        ? "Cuota visitas Focus Brand"
+        : "Cuota facturación Focus Brand",
       value: formatMetric(snapshot.focusShare, snapshot.shareMetric),
     },
     {
-      label: "Focus Brand YoY",
+      label: getFocusBrandGrowthKpiLabel(snapshot.periodLabel),
       value: snapshot.focusGrowth !== null ? formatSignedPercent(snapshot.focusGrowth) : "N/A",
     },
   ];
+  return (
+    <section className="presentation-mode" aria-label="Modo presentación">
+      <div className="presentation-headline">
+        <p className="analysis-label text-accent-500">Insight principal</p>
+        <h2>{snapshot.headline}</h2>
+      </div>
+      <div className="presentation-kpis">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="presentation-kpi">
+            <span>{kpi.label}</span>
+            <strong>{kpi.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="presentation-grid">
+        <div>
+          <div className="presentation-visual-heading">
+            <p className="analysis-label">Visual principal</p>
+            <h3>{isHistoricalPresentation ? historicalChartCopy.title : presentationVisualCopy.title}</h3>
+            <span>{isHistoricalPresentation ? historicalChartCopy.description : presentationVisualCopy.description}</span>
+          </div>
+          {isHistoricalPresentation ? (
+            <>
+              <PresentationChart rows={chartRows} snapshot={snapshot} metricKey={snapshot.primaryMetric} />
+              <PresentationChartLegend rows={chartRows} metricKey={snapshot.primaryMetric} />
+            </>
+          ) : (
+            <PresentationSmartVisual rows={periodRows} snapshot={snapshot} />
+          )}
+        </div>
+        <div className="presentation-ranking">
+          <p className="analysis-label">Ranking compacto</p>
+          {rankingRows.length ? (
+            <div className="mt-3 space-y-2">
+              {rankingRows.map((row, index) => (
+                <div key={`presentation-${row.company_id}`} className="presentation-ranking-row">
+                  <span>#{index + 1}</span>
+                  <CompanyMark
+                    companyId={row.company_id}
+                    label={getCompanyLabel(row)}
+                    color={row.company_color}
+                    className="company-mark-legend"
+                  />
+                  <strong>{getCompanyLabel(row)}</strong>
+                  <small>{formatMetric(row?.[snapshot.primaryMetric], snapshot.primaryMetric)}</small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-neutral-500">Sin ranking para este período.</p>
+          )}
+        </div>
+      </div>
+      <div className="presentation-conclusion">
+        <span>Conclusión estratégica</span>
+        <strong>{getStrategicConclusion(snapshot)}</strong>
+      </div>
+    </section>
+  );
+}
+
+function HomeView({
+  realRows,
+  comparableRows,
+  rankingSort,
+  onRankingSortChange,
+  globalScope,
+  chartRangeMode,
+  selectedChartYear,
+  chartYearOptions,
+  onOpenBattleArena,
+  onOpenForecast,
+  onOpenProfile,
+}) {
+  const dashboardScope = globalScope ?? {};
+  const globalContext = dashboardScope.globalContext ?? {};
+  const [executiveSort, setExecutiveSort] = useState("revenue");
+  const [presentationMetric, setPresentationMetric] = useState("visits");
+  const periodAvailability = dashboardScope.metricAvailability ?? {};
+  const executiveSortOptions = useMemo(
+    () => withAvailability(EXECUTIVE_METRIC_OPTIONS, periodAvailability),
+    [periodAvailability],
+  );
+  const localRankingSortOptions = useMemo(
+    () =>
+      withRankingAvailability(
+        LOCAL_RANKING_SORTS,
+        periodAvailability,
+        globalContext.timeMode || dashboardScope.selectedTimeMode,
+      ),
+    [dashboardScope.selectedTimeMode, globalContext.timeMode, periodAvailability],
+  );
+  const effectiveRankingSort = getRankingMetricKey(
+    rankingSort,
+    globalContext.timeMode || dashboardScope.selectedTimeMode,
+  );
+
+  useEffect(() => {
+    const selectedOption = executiveSortOptions.find((sort) => sort.key === executiveSort);
+    const fallbackOption = getPreferredAvailableOption(executiveSortOptions, ["revenue", "visits"]);
+
+    if (!fallbackOption) {
+      setExecutiveSort("");
+      return;
+    }
+
+    if (!executiveSort || selectedOption?.disabled) {
+      setExecutiveSort(fallbackOption.key);
+    }
+  }, [executiveSort, executiveSortOptions]);
+
+  useEffect(() => {
+    const selectedOption = localRankingSortOptions.find((sort) => sort.key === rankingSort);
+    const fallbackOption = getPreferredAvailableOption(localRankingSortOptions, [
+      "revenue",
+      "visits",
+      "market_share_revenue",
+      "market_share_visits",
+      "growth_revenue",
+      "growth_visits",
+      "revenue_per_visit",
+    ]);
+
+    if (!fallbackOption) return;
+    if (!rankingSort || selectedOption?.disabled) {
+      onRankingSortChange(fallbackOption.key);
+    }
+  }, [localRankingSortOptions, onRankingSortChange, rankingSort]);
+
+  const chartSelectableRows = useMemo(
+    () => filterRowsWithMetrics(comparableRows, DASHBOARD_CHART_METRICS, false),
+    [comparableRows],
+  );
+  const chartRows = useMemo(
+    () =>
+      filterRowsForTimeSeries(chartSelectableRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: DASHBOARD_CHART_METRICS,
+        includeBenchmark: true,
+      }),
+    [chartSelectableRows, dashboardScope.market, dashboardScope.timeSelection],
+  );
+  const executivePeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: [executiveSort],
+        selectedMetric: executiveSort,
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, executiveSort, realRows],
+  );
+  const executiveComparisonPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(comparableRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: [executiveSort],
+        selectedMetric: executiveSort,
+        includeBenchmark: true,
+      }),
+    [comparableRows, dashboardScope.market, dashboardScope.timeSelection, executiveSort],
+  );
+  const monetizationPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: ["market_share_revenue", "market_share_visits"],
+        requireAll: true,
+        selectedMetric: "monetization_gap",
+        metricRequirement: "comparable_revenue_visits",
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, realRows],
+  );
+  const shareRevenuePeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: ["market_share_revenue"],
+        requireAll: true,
+        selectedMetric: "market_share_revenue",
+        metricRequirement: "revenue_share",
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, realRows],
+  );
+  const shareVisitsPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: ["market_share_visits"],
+        requireAll: true,
+        selectedMetric: "market_share_visits",
+        metricRequirement: "visits_share",
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, realRows],
+  );
+  const sharePeriodRowsByMode = useMemo(
+    () => ({
+      revenue: shareRevenuePeriodRows,
+      visits: shareVisitsPeriodRows,
+    }),
+    [shareRevenuePeriodRows, shareVisitsPeriodRows],
+  );
+  const mapPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: ["visits", "revenue", "market_share_revenue", "market_share_visits", "revenue_per_visit", "revenue_yoy_growth"],
+        requireAll: false,
+        selectedMetric: "visits",
+        metricRequirement: "comparable_revenue_visits",
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, realRows],
+  );
+  const battlePeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(comparableRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: BATTLE_METRICS.map((metric) => metric.key),
+        requireAll: false,
+        includeBenchmark: true,
+      }),
+    [comparableRows, dashboardScope.market, dashboardScope.timeSelection],
+  );
+  const presentationPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: ["revenue", "visits"],
+        requireAll: false,
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, realRows],
+  );
+  const presentationComparisonPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(comparableRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: ["revenue", "visits"],
+        requireAll: false,
+        includeBenchmark: true,
+      }),
+    [comparableRows, dashboardScope.market, dashboardScope.timeSelection],
+  );
+  const presentationMetricOptions = useMemo(
+    () =>
+      [
+        { key: "visits", label: "Visitas" },
+        { key: "revenue", label: "Facturación" },
+      ].filter((option) => hasAnyMetric(presentationPeriodRows, option.key)),
+    [presentationPeriodRows],
+  );
+  useEffect(() => {
+    if (!presentationMetricOptions.length) {
+      setPresentationMetric("");
+      return;
+    }
+
+    if (!presentationMetricOptions.some((option) => option.key === presentationMetric)) {
+      setPresentationMetric(presentationMetricOptions[0].key);
+    }
+  }, [presentationMetric, presentationMetricOptions]);
+  const presentationChartRows = useMemo(
+    () =>
+      preferObservedRows(
+        filterRowsWithMetrics(
+          filterInterfaceRows(comparableRows, {
+            periodType: "monthly",
+            market: dashboardScope.market,
+          }),
+          DASHBOARD_CHART_METRICS,
+          false,
+        ),
+      ),
+    [comparableRows, dashboardScope.market],
+  );
+  const homeRankingPeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(realRows, dashboardScope.timeSelection, {
+        market: dashboardScope.market,
+        metricKeys: effectiveRankingSort ? [effectiveRankingSort] : [],
+        selectedMetric: effectiveRankingSort,
+      }),
+    [dashboardScope.market, dashboardScope.timeSelection, effectiveRankingSort, realRows],
+  );
+  const homeRankingRows = useMemo(
+    () => getRankingRows(homeRankingPeriodRows, effectiveRankingSort),
+    [effectiveRankingSort, homeRankingPeriodRows],
+  );
+  const executiveSnapshot = useMemo(
+    () =>
+      buildExecutiveSnapshot(
+        executivePeriodRows,
+        executiveComparisonPeriodRows,
+        {
+          ...dashboardScope.selectedPeriod,
+          label: getPeriodLabelFromRows(executivePeriodRows, dashboardScope.selectedPeriod?.label),
+        },
+        executiveSort,
+      ),
+    [
+      executiveComparisonPeriodRows,
+      dashboardScope.selectedPeriod,
+      executivePeriodRows,
+      executiveSort,
+    ],
+  );
+  const presentationSnapshot = useMemo(
+    () =>
+      buildExecutiveSnapshot(
+        presentationPeriodRows,
+        presentationComparisonPeriodRows,
+        {
+          ...dashboardScope.selectedPeriod,
+          label: getPeriodLabelFromRows(presentationPeriodRows, dashboardScope.selectedPeriod?.label),
+        },
+        presentationMetric,
+      ),
+    [
+      presentationComparisonPeriodRows,
+      presentationPeriodRows,
+      dashboardScope.selectedPeriod,
+      presentationMetric,
+    ],
+  );
+  const rankingSortLabel =
+    getRankingSortLabel(rankingSort, globalContext.timeMode || dashboardScope.selectedTimeMode);
+  const executiveAvailability = useMemo(
+    () =>
+      getMetricAvailability(executivePeriodRows, realRows, {
+        market: dashboardScope.market,
+        metric: executiveSort,
+      }),
+    [dashboardScope.market, executivePeriodRows, executiveSort, realRows],
+  );
+  const rankingAvailability = useMemo(
+    () =>
+      getMetricAvailability(homeRankingPeriodRows, realRows, {
+        market: dashboardScope.market,
+        metric: effectiveRankingSort,
+      }),
+    [dashboardScope.market, effectiveRankingSort, homeRankingPeriodRows, realRows],
+  );
+  const executiveAvailabilityLabel = executiveAvailability?.lastAvailablePeriod?.label || "";
+  const selectedChartYearOption = getSelectedPeriodOption(chartYearOptions, selectedChartYear);
+  const chartRangeLabel =
+    chartRangeMode === "year"
+      ? selectedChartYearOption?.label || selectedChartYear || "Año"
+      : "Todo el histórico disponible";
+  const selectedDashboardPeriodLabel =
+    dashboardScope.selectedPeriod?.label || "Período seleccionado";
+  const isMomentumHistorical =
+    normalizeTimeMode(globalContext.timeMode || dashboardScope.selectedTimeMode) === "historical";
+  const executivePeriodLabel = getPeriodLabelFromRows(executivePeriodRows, selectedDashboardPeriodLabel);
+  const indexedPeriodLabel =
+    selectedDashboardPeriodLabel === "Histórico" ? "Histórico por métrica" : selectedDashboardPeriodLabel;
+  const monetizationPeriodLabel = getPeriodLabelFromRows(monetizationPeriodRows, selectedDashboardPeriodLabel);
+  const shareRevenuePeriodLabel = getPeriodLabelFromRows(shareRevenuePeriodRows, selectedDashboardPeriodLabel);
+  const mapPeriodLabel = getPeriodLabelFromRows(mapPeriodRows, selectedDashboardPeriodLabel);
+  const battlePeriodLabel = getPeriodLabelFromRows(battlePeriodRows, selectedDashboardPeriodLabel);
+  const rankingPeriodLabel = getPeriodLabelFromRows(homeRankingPeriodRows, selectedDashboardPeriodLabel);
+  const presentationPeriodLabel = getPeriodLabelFromRows(presentationPeriodRows, selectedDashboardPeriodLabel);
+  const goToLastAvailablePeriod = (period) => {
+    if (!period?.year || !period?.month) return;
+
+    dashboardScope.onTimeModeChange?.("month");
+    dashboardScope.onSelectedYearChange?.(String(period.year));
+    dashboardScope.onSelectedMonthChange?.(String(period.month));
+  };
+  const executiveFallbackOption = getPreferredAvailableOption(
+    executiveSortOptions.filter((option) => option.key !== executiveSort),
+    ["visits", "revenue"],
+  );
+  const executiveEmptyActions = [
+    executiveFallbackOption
+      ? {
+          label: `Ver ${executiveFallbackOption.label}`,
+          onClick: () => setExecutiveSort(executiveFallbackOption.key),
+        }
+      : null,
+    executiveAvailability?.lastAvailablePeriod
+      ? {
+          label: `Ir a ${executiveAvailability.lastAvailablePeriod.label}`,
+          onClick: () => goToLastAvailablePeriod(executiveAvailability.lastAvailablePeriod),
+        }
+      : null,
+  ].filter(Boolean);
+  const rankingFallbackOption = getPreferredAvailableOption(
+    localRankingSortOptions.filter((option) => option.key !== rankingSort),
+    ["visits", "revenue", "market_share_visits", "market_share_revenue"],
+  );
+  const rankingEmptyActions = [
+    rankingFallbackOption
+      ? {
+          label: `Ver ${rankingFallbackOption.label}`,
+          onClick: () => onRankingSortChange(rankingFallbackOption.key),
+        }
+      : null,
+    rankingAvailability?.lastAvailablePeriod
+      ? {
+          label: `Ir a ${rankingAvailability.lastAvailablePeriod.label}`,
+          onClick: () => goToLastAvailablePeriod(rankingAvailability.lastAvailablePeriod),
+        }
+      : null,
+  ].filter(Boolean);
+  const executiveAction = (
+    <MetricSwitch
+      options={executiveSortOptions}
+      value={executiveSort}
+      onChange={setExecutiveSort}
+      label="Métrica"
+    />
+  );
+  const dashboardControls = (
+    <section className="global-temporal-panel">
+      <div className="global-temporal-copy">
+        <p className="analysis-label text-accent-500">Contexto de lectura</p>
+        <h2>Dónde y cuándo miramos</h2>
+        <p>
+          Este panel define el periodo de lectura y muestra qué métricas están disponibles.
+          {dashboardScope.selectedTimeMode === "historical" && (
+            <> Aquí cada módulo usa la ventana disponible de su métrica.</>
+          )}
+        </p>
+      </div>
+      <TemporalControls
+        market={dashboardScope.market}
+        onMarketChange={dashboardScope.onMarketChange}
+        markets={dashboardScope.markets}
+        selectedTimeMode={dashboardScope.selectedTimeMode}
+        onTimeModeChange={dashboardScope.onTimeModeChange}
+        timeModeOptions={dashboardScope.timeModeOptions}
+        selectedYear={dashboardScope.selectedYear}
+        onSelectedYearChange={dashboardScope.onSelectedYearChange}
+        availableYears={dashboardScope.availableYears}
+        selectedMonth={dashboardScope.selectedMonth}
+        onSelectedMonthChange={dashboardScope.onSelectedMonthChange}
+        monthOptions={dashboardScope.monthOptions}
+        rangeStartMonth={dashboardScope.rangeStartMonth}
+        onRangeStartMonthChange={dashboardScope.onRangeStartMonthChange}
+        rangeEndMonth={dashboardScope.rangeEndMonth}
+        onRangeEndMonthChange={dashboardScope.onRangeEndMonthChange}
+        rangeMonthOptions={dashboardScope.rangeMonthOptions}
+        selectableRangeStartMonths={dashboardScope.selectableRangeStartMonths}
+        selectableRangeEndMonths={dashboardScope.selectableRangeEndMonths}
+        dataNote={dashboardScope.dataNote}
+        periodLabel={dashboardScope.periodLabel}
+        availabilityItems={dashboardScope.availabilityItems}
+        periodStatusItems={dashboardScope.periodStatusItems}
+        datasetCoverageItems={dashboardScope.datasetCoverageItems}
+      />
+    </section>
+  );
+  const rankingAction = localRankingSortOptions.length ? (
+    <SelectField
+      label="Ranking por"
+      value={rankingSort}
+      onChange={onRankingSortChange}
+      className="compact-select"
+    >
+      {localRankingSortOptions.map((sort) => (
+        <option key={sort.key} value={sort.key} disabled={sort.disabled}>
+          {getSelectOptionLabel(sort)}
+        </option>
+      ))}
+    </SelectField>
+  ) : null;
 
   return (
-    <Panel eyebrow="Presentation mode" title="Slide capture">
-      <div className="presentation-mode">
-        <div className="presentation-headline">
-          <p className="analysis-label text-focus-500">Main story</p>
-          <h2>{snapshot.headline}</h2>
-          <TrustBadges badges={snapshot.badges} />
-        </div>
-        <div className="presentation-kpis">
-          {kpis.map((kpi) => (
-            <div key={kpi.label} className="presentation-kpi">
-              <span>{kpi.label}</span>
-              <strong>{kpi.value}</strong>
-            </div>
-          ))}
-        </div>
-        <div className="presentation-grid">
-          <PresentationChart rows={chartRows} snapshot={snapshot} />
-          <div className="presentation-ranking">
-            <p className="analysis-label">Compact ranking</p>
-            {rankingRows.length ? (
-              <div className="mt-3 space-y-2">
-                {rankingRows.map((row, index) => (
-                  <div key={`presentation-${row.company_id}`} className="presentation-ranking-row">
-                    <span>#{index + 1}</span>
-                    <CompanyMark
-                      companyId={row.company_id}
-                      label={getCompanyLabel(row)}
-                      color={row.company_color}
-                      className="company-mark-legend"
-                    />
-                    <strong>{getCompanyLabel(row)}</strong>
-                    <small>{formatMetric(row?.[snapshot.primaryMetric], snapshot.primaryMetric)}</small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-neutral-500">No ranking for this period.</p>
-            )}
+    <div className="home-temporal-layout">
+      <aside className="temporal-sidebar" aria-label="Controles temporales globales">
+        {dashboardControls}
+      </aside>
+
+      <div className="home-content-stack">
+        <ContentSection
+          eyebrow="Lectura ejecutiva"
+          title="Lectura del mercado y KPIs clave"
+          detail={executivePeriodLabel}
+          action={executiveAction}
+        >
+          <ExecutiveMarketHome
+            snapshot={executiveSnapshot}
+            rows={executivePeriodRows}
+            selectedMetric={executiveSort}
+            lastAvailableLabel={executiveAvailabilityLabel}
+            emptyActions={executiveEmptyActions}
+          />
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Crecimiento"
+          title="Momentum de crecimiento"
+          detail={isMomentumHistorical ? "No aplica en Histórico" : indexedPeriodLabel}
+        >
+          {isMomentumHistorical ? (
+            <EmptyState
+              title="Momentum no aplica en Histórico."
+              message="Momentum necesita un periodo actual y un periodo anterior comparable. En Histórico no hay una fecha base única contra la que comparar, así que se evita mostrar un ranking de crecimiento."
+              actions={[
+                {
+                  label: "Cambiar a Mes",
+                  onClick: () => dashboardScope.onTimeModeChange?.("month"),
+                },
+              ]}
+            />
+          ) : (
+            <GrowthMomentum
+              rows={realRows}
+              context={{
+                ...dashboardScope.timeSelection,
+                selectedPeriod: dashboardScope.selectedPeriod,
+                market: dashboardScope.market,
+              }}
+              rangeLabel={indexedPeriodLabel || chartRangeLabel}
+              onOpenProfile={onOpenProfile}
+            />
+          )}
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Monetización"
+          title="Brecha de monetización"
+          detail={monetizationPeriodLabel}
+        >
+          <MonetizationGap rows={monetizationPeriodRows} />
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Cuota facturación/visitas"
+          title="Ganadores y perdedores de cuota"
+          detail={shareRevenuePeriodLabel}
+        >
+          <ShareGainLossCompact rowsByMode={sharePeriodRowsByMode} />
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Mapa"
+          title="Mapa competitivo"
+          detail={mapPeriodLabel}
+        >
+          <CompetitiveMap rows={mapPeriodRows} />
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Comparativas rápidas"
+          title="Focus Brand frente a rivales clave"
+          detail={battlePeriodLabel}
+        >
+          <BattleCards rows={battlePeriodRows} onOpenBattleArena={onOpenBattleArena} />
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Ranking"
+          title="Ranking competitivo"
+          detail={rankingPeriodLabel || rankingSortLabel}
+          action={rankingAction}
+        >
+          <BenchmarkRankingPanel
+            rows={homeRankingRows}
+            sortKey={effectiveRankingSort}
+            sortLabel={rankingSortLabel}
+            selectedPeriod={{ ...dashboardScope.selectedPeriod, label: rankingPeriodLabel }}
+            availability={rankingAvailability}
+            emptyActions={rankingEmptyActions}
+            onOpenProfile={onOpenProfile}
+          />
+        </ContentSection>
+
+        <ContentSection
+          eyebrow="Presentación"
+          title="Vista capturable"
+          detail={presentationPeriodLabel}
+          action={
+            presentationMetricOptions.length > 1 ? (
+              <MetricSwitch
+                options={presentationMetricOptions}
+                value={presentationMetric}
+                onChange={setPresentationMetric}
+                label="Métrica visual"
+              />
+            ) : null
+          }
+        >
+          <PresentationMode
+            snapshot={presentationSnapshot}
+            periodRows={presentationPeriodRows}
+            chartRows={presentationChartRows}
+          />
+        </ContentSection>
+      </div>
+    </div>
+  );
+}
+
+function getProfileRowSortValue(row = {}) {
+  const monthKey = getGlobalContextMonthKey(row);
+  if (monthKey) {
+    const [year, month] = monthKey.split("-");
+    return Date.parse(buildMonthDate(year, month)) || 0;
+  }
+
+  const parsed = Date.parse(row?.date || "");
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getProfileRowLabel(row = {}, fallback = "") {
+  const formattedMonth = formatMonthLabelFromKey(getGlobalContextMonthKey(row));
+  const rawLabel = row?.period_display_label || row?.period_label || "";
+  const rawLooksIsoDate = /^\d{4}-\d{2}-\d{2}/.test(String(rawLabel));
+
+  return (
+    (rawLabel && !rawLooksIsoDate ? rawLabel : "") ||
+    formattedMonth ||
+    (row?.date ? formatDisplayPeriodLabel(row.date) : "") ||
+    fallback
+  );
+}
+
+const PROFILE_KPI_DEFINITIONS = [
+  { key: "revenue", label: "Facturación", unavailable: "No hay facturación disponible para este periodo." },
+  { key: "visits", label: "Visitas", unavailable: "No hay visitas disponibles para este periodo." },
+  { key: "market_share_revenue", label: "Cuota facturación", unavailable: "No hay cuota de facturación disponible para este periodo." },
+  { key: "market_share_visits", label: "Cuota visitas", unavailable: "No hay cuota de visitas disponible para este periodo." },
+  { key: "monetization_gap", label: "Brecha monetización", unavailable: "No hay datos suficientes para calcular brecha de monetización." },
+  { key: "revenue_per_visit", label: "Facturación / visita", unavailable: "Dato no disponible para este periodo." },
+  { key: "rank_revenue", label: "Ranking facturación", unavailable: "No hay ranking de facturación disponible para este periodo." },
+  { key: "rank_visits", label: "Ranking visitas", unavailable: "No hay ranking de visitas disponible para este periodo." },
+  { key: "revenue_yoy_growth", label: "Crecimiento facturación YoY", unavailable: "No hay histórico suficiente para calcular crecimiento." },
+  { key: "visits_yoy_growth", label: "Crecimiento visitas YoY", unavailable: "No hay histórico suficiente para calcular crecimiento." },
+];
+
+const PROFILE_CHART_METRIC_LABELS = {
+  revenue: "Facturación",
+  visits: "Visitas",
+  market_share_revenue: "Cuota facturación",
+  market_share_visits: "Cuota visitas",
+  revenue_per_visit: "Facturación / visita",
+  monetization_gap: "Brecha monetización",
+  rank_revenue: "Ranking facturación",
+  rank_visits: "Ranking visitas",
+  rank_share_revenue: "Ranking cuota facturación",
+  rank_share_visits: "Ranking cuota visitas",
+};
+
+function getProfileMetricLabel(metricKey = "") {
+  return PROFILE_CHART_METRIC_LABELS[metricKey] || getMetricCopy(metricKey);
+}
+
+function getProfileChartTitle(metricKey = "") {
+  if (metricKey?.startsWith("rank_")) return `${getProfileMetricLabel(metricKey)} · histórico visual`;
+  return `${getProfileMetricLabel(metricKey)} · histórico visual`;
+}
+
+function getProfileChartEmptyTitle(metricKey = "") {
+  if (metricKey === "revenue") return "No hay facturación disponible para este periodo.";
+  if (metricKey === "visits") return "No hay visitas disponibles para este periodo.";
+  if (metricKey === "monetization_gap") return "No hay datos suficientes para calcular brecha de monetización.";
+  if (metricKey?.startsWith("rank_")) return "No hay ranking histórico disponible para este player.";
+  if (metricKey?.includes("market_share")) return "No hay benchmark disponible para esta métrica.";
+  return `No hay datos suficientes para ${getProfileMetricLabel(metricKey)}.`;
+}
+
+function getProfileSourceLabel(metricKey = "") {
+  if (metricKey === "revenue" || metricKey === "market_share_revenue") return "ECDB";
+  if (metricKey === "visits" || metricKey === "market_share_visits") return "Mock benchmark dataset";
+  if (metricKey === "revenue_per_visit" || metricKey === "monetization_gap") {
+    return "Requiere facturación y visitas del mismo periodo";
+  }
+  return "datos disponibles";
+}
+
+function getProfilePrimarySourceLabel(row = {}) {
+  const hasRevenue = safeNumber(row?.revenue) !== null || safeNumber(row?.market_share_revenue) !== null;
+  const hasVisits = safeNumber(row?.visits) !== null || safeNumber(row?.market_share_visits) !== null;
+  if (hasRevenue && hasVisits) return "Mock revenue source + mock traffic source";
+  if (hasRevenue) return "ECDB";
+  if (hasVisits) return "Mock benchmark dataset";
+  return row?.source || "Dato no disponible";
+}
+
+function getProfileTypeLabel(row = {}) {
+  if (sameCompany(row?.company_id, OWN_COMPANY_ID) || normalizeCompanyId(row?.type) === "own") {
+    return "Own company";
+  }
+  return row?.type ? String(row.type).replace(/_/g, " ") : "Competitor";
+}
+
+function getProfileLastAvailabilityLabel(rows = [], companyId = "", metricKey = "", label = "") {
+  const row = getLatestCompanyMetricRow(rows, companyId, metricKey);
+  return `${label} hasta ${row ? getProfileRowLabel(row) : "sin dato"}`;
+}
+
+function getProfilePeriodDetail(row = {}, fallback = "") {
+  const label = getProfileRowLabel(row, fallback);
+  if (row?.partial_year && !String(label).toLowerCase().includes("parcial")) {
+    return `${label} parcial`;
+  }
+  return label;
+}
+
+function PlayerHeader({
+  row,
+  company,
+  selectedCompanyId,
+  companies = [],
+  onSelectedCompanyChange,
+  hasSelectedCompanyOption = true,
+  observedRows = [],
+  periodLabel = "",
+  profileMode = "historical",
+  forecastScenario = "base_case",
+  forecastMetric = "visits",
+  onBack,
+}) {
+  const companyTitle = company?.label || getCompanyLabel(row) || selectedCompanyId;
+  const accentColor = row?.company_color || company?.company_color || "#E4032C";
+  const metaParts = [
+    row?.segment,
+    getProfileTypeLabel(row),
+    row?.market || row?.country,
+  ].filter(Boolean);
+  const availabilityParts = [
+    getProfileLastAvailabilityLabel(observedRows, selectedCompanyId, "visits", "Visitas"),
+    getProfileLastAvailabilityLabel(observedRows, selectedCompanyId, "revenue", "Facturación"),
+  ];
+  const periodDetail =
+    profileMode === "forecast"
+      ? `Forecast · ${getForecastScenarioLabel(forecastScenario)} · ${getProfileMetricLabel(forecastMetric)}`
+      : getProfilePeriodDetail(row, periodLabel);
+
+  return (
+    <section className="profile-hero" style={{ "--profile-accent": accentColor }}>
+      <div className="profile-hero-main">
+        <button type="button" className="section-link profile-back-link" onClick={onBack}>
+          Volver al panel
+        </button>
+
+        <div className="profile-title-block">
+          <CompanyMark
+            companyId={selectedCompanyId}
+            label={companyTitle}
+            color={accentColor}
+            className="company-mark-profile"
+          />
+          <div>
+            <p className="analysis-label">Player Profile</p>
+            <h2>{companyTitle}</h2>
+            <p>{metaParts.join(" · ") || "Empresa real seleccionada"}</p>
+            <p className="profile-availability-line">{availabilityParts.join(" · ")}</p>
           </div>
         </div>
-        <div className="presentation-conclusion">
-          <span>Strategic conclusion</span>
-          <strong>{getStrategicConclusion(snapshot)}</strong>
+      </div>
+
+      <div className="profile-header-aside">
+        <div className="profile-header-source">
+          <span>Fuente principal</span>
+          <strong>{getProfilePrimarySourceLabel(row)}</strong>
+          <small>{periodDetail}</small>
         </div>
+        <SelectField
+          label="Cambiar ficha"
+          value={selectedCompanyId}
+          onChange={onSelectedCompanyChange}
+          disabled={!companies.length}
+          className="profile-company-select"
+        >
+          {!hasSelectedCompanyOption && selectedCompanyId && (
+            <option value={selectedCompanyId}>{selectedCompanyId}</option>
+          )}
+          {companies.map((companyOption) => (
+            <option key={companyOption.id} value={companyOption.id}>
+              {companyOption.label}
+            </option>
+          ))}
+        </SelectField>
+      </div>
+    </section>
+  );
+}
+
+function getSortedCompanyMetricRows(rows = [], companyId = "", metricKey = "") {
+  return rows
+    .filter((row) => sameCompany(row?.company_id, companyId))
+    .filter((row) => hasMetricValue(row, metricKey))
+    .sort((a, b) => getProfileRowSortValue(a) - getProfileRowSortValue(b));
+}
+
+function getLatestCompanyMetricRow(rows = [], companyId = "", metricKey = "") {
+  return getSortedCompanyMetricRows(rows, companyId, metricKey).at(-1) ?? null;
+}
+
+function formatProfileRankChange(value) {
+  const number = safeNumber(value);
+  if (number === null) return "";
+  if (number === 0) return "Sin cambio";
+  const direction = number > 0 ? "+" : "-";
+  return `${direction}${formatNumber(Math.abs(number), { maximumFractionDigits: 0 })} puestos`;
+}
+
+function formatProfileSignedGap(delta, metricKey = "") {
+  const value = safeNumber(delta);
+  if (value === null) return "Sin dato comparable";
+  if (Math.abs(value) < 0.000001) return "En linea";
+
+  if (metricKey.startsWith("rank_")) {
+    const rankDelta = -value;
+    const prefix = rankDelta > 0 ? "Ventaja" : "Desventaja";
+    return `${prefix}: ${formatPositionDelta(Math.abs(rankDelta))}`;
+  }
+
+  const prefix = value > 0 ? "Ventaja" : "Desventaja";
+  if (metricKey.includes("market_share") || metricKey === "monetization_gap") {
+    return `${prefix}: ${formatPercentagePoints(value, { compact: true })}`;
+  }
+  if (metricKey === "revenue") {
+    const sign = value > 0 ? "+" : "-";
+    return `${prefix}: ${sign}${formatBattleCurrency(Math.abs(value))}`;
+  }
+
+  return `${prefix}: ${formatSignedMetricDelta(value, metricKey)}`;
+}
+
+function calculateProfileMetricDelta(baseRow = {}, targetRow = {}, metricKey = "") {
+  const baseValue = safeNumber(baseRow?.[metricKey]);
+  const targetValue = safeNumber(targetRow?.[metricKey]);
+  return baseValue !== null && targetValue !== null ? baseValue - targetValue : null;
+}
+
+function getProfileMomentumTone(row = {}) {
+  const revenueGrowth = safeNumber(row?.revenue_yoy_growth);
+  const visitsGrowth = safeNumber(row?.visits_yoy_growth);
+  const revenueShareChange = safeNumber(row?.share_revenue_change_yoy ?? row?.share_revenue_change_range);
+  const visitsShareChange = safeNumber(row?.share_visits_change_yoy ?? row?.share_visits_change_range);
+  const positiveSignals = [revenueGrowth, visitsGrowth, revenueShareChange, visitsShareChange].filter(
+    (value) => value !== null && value > 0.005,
+  ).length;
+  const negativeSignals = [revenueGrowth, visitsGrowth, revenueShareChange, visitsShareChange].filter(
+    (value) => value !== null && value < -0.005,
+  ).length;
+
+  if (positiveSignals > negativeSignals) return "gana momentum";
+  if (negativeSignals > positiveSignals) return "pierde momentum relativo";
+  return "";
+}
+
+function getProfileExecutiveInsight(row = {}, companyTitle = "Player", periodRows = []) {
+  const rankRevenue = safeNumber(row?.rank_revenue);
+  const rankVisits = safeNumber(row?.rank_visits);
+  const visitsShare = safeNumber(row?.market_share_visits);
+  const revenueShare = safeNumber(row?.market_share_revenue);
+  const monetizationGap = safeNumber(row?.monetization_gap);
+  const revenuePerVisit = safeNumber(row?.revenue_per_visit);
+  const benchmarkRow = getBenchmarkRow(periodRows);
+  const benchmarkRpv = safeNumber(benchmarkRow?.revenue_per_visit);
+  const momentumTone = getProfileMomentumTone(row);
+  const hasRevenue = safeNumber(row?.revenue) !== null;
+  const hasVisits = safeNumber(row?.visits) !== null;
+
+  if (!hasRevenue && !hasVisits) {
+    return `${companyTitle} no tiene dato observado suficiente para construir una lectura ejecutiva en este periodo.`;
+  }
+
+  if (
+    sameCompany(row.company_id, OWN_COMPANY_ID) &&
+    (rankVisits === 1 || (visitsShare !== null && visitsShare >= 0.25)) &&
+    monetizationGap !== null &&
+    monetizationGap < -0.03
+  ) {
+    return `${companyTitle} mantiene una posición líder en tráfico, con fuerte volumen de visitas, pero monetiza por debajo de su peso de audiencia.`;
+  }
+
+  if (
+    sameCompany(row.company_id, "peer_a") &&
+    rankRevenue === 1
+  ) {
+    return `${companyTitle} lidera facturación y mantiene presión competitiva directa sobre Focus Brand.`;
+  }
+
+  if (
+    sameCompany(row.company_id, "peer_b") &&
+    revenuePerVisit !== null &&
+    ((benchmarkRpv !== null && revenuePerVisit > benchmarkRpv * 1.25) ||
+      (monetizationGap !== null && monetizationGap > 0.03))
+  ) {
+    return `${companyTitle} tiene menor escala de tráfico, pero muestra alta eficiencia comercial frente al mercado.`;
+  }
+
+  let position = "";
+  if (rankRevenue === 1) {
+    position = `${companyTitle} lidera facturación`;
+  } else if (rankVisits === 1) {
+    position = `${companyTitle} lidera en tráfico`;
+  } else if (rankRevenue !== null && rankVisits !== null) {
+    position = `${companyTitle} ocupa posición #${rankRevenue} en facturación y #${rankVisits} en visitas`;
+  } else if (rankVisits !== null) {
+    position = `${companyTitle} ocupa posición #${rankVisits} en tráfico`;
+  } else if (rankRevenue !== null) {
+    position = `${companyTitle} ocupa posición #${rankRevenue} en facturación`;
+  } else {
+    position = `${companyTitle} tiene presencia medible en el mercado`;
+  }
+
+  let strength = "";
+  if (rankRevenue === 1 && !sameCompany(row.company_id, OWN_COMPANY_ID)) {
+    strength = "mantiene presión competitiva directa sobre Focus Brand";
+  } else if (rankVisits === 1 || (visitsShare !== null && visitsShare >= 0.25)) {
+    strength = "con fuerte volumen de visitas";
+  } else if (
+    (revenuePerVisit !== null && benchmarkRpv !== null && revenuePerVisit > benchmarkRpv * 1.25) ||
+    (monetizationGap !== null && monetizationGap > 0.03)
+  ) {
+    strength = "con alta eficiencia comercial frente al mercado";
+  } else if (revenueShare !== null && visitsShare !== null && revenueShare > visitsShare) {
+    strength = "con mejor peso de facturación que de audiencia";
+  }
+
+  let tension = "";
+  if (monetizationGap !== null && monetizationGap < -0.03) {
+    tension = "pero monetiza por debajo de su peso de audiencia";
+  } else if (monetizationGap !== null && monetizationGap > 0.03) {
+    tension = "y convierte una menor escala de tráfico en mayor peso de facturación";
+  } else if (hasVisits && !hasRevenue) {
+    tension = "con lectura limitada a tráfico porque no hay facturación disponible";
+  }
+
+  const parts = [position, strength, tension, momentumTone].filter(Boolean);
+  return `${parts.join(", ")}.`;
+}
+
+function ProfileExecutiveSnapshot({ row, company, periodRows = [], periodLabel = "" }) {
+  if (!row) return null;
+
+  const companyTitle = company?.label || getCompanyLabel(row);
+  const focusRow = getCompanyRow(periodRows, OWN_COMPANY_ID);
+  const benchmarkRow = getBenchmarkRow(periodRows);
+  const primaryMetric = safeNumber(row.revenue) !== null ? "revenue" : "visits";
+  const shareMetric =
+    primaryMetric === "revenue" ? "market_share_revenue" : "market_share_visits";
+  const rankMetric = primaryMetric === "revenue" ? "rank_revenue" : "rank_visits";
+  const focusDelta =
+    focusRow && !sameCompany(row.company_id, OWN_COMPANY_ID)
+      ? calculateProfileMetricDelta(row, focusRow, primaryMetric)
+      : null;
+  const marketDelta = benchmarkRow ? calculateProfileMetricDelta(row, benchmarkRow, primaryMetric) : null;
+
+  const snapshotItems = [
+    {
+      key: "primary",
+      label: "Métrica principal",
+      value: `${getProfileMetricLabel(primaryMetric)} · ${formatMetric(row?.[primaryMetric], primaryMetric)}`,
+      detail: getProfileSourceLabel(primaryMetric),
+    },
+    {
+      key: "share",
+      label: "Cuota",
+      value: formatMetric(row?.[shareMetric], shareMetric),
+      detail: getProfileSourceLabel(shareMetric),
+    },
+    {
+      key: "rank",
+      label: "Ranking",
+      value: formatMetric(row?.[rankMetric], rankMetric),
+      detail: rankMetric === "rank_revenue" ? "Facturación" : "Visitas",
+    },
+    {
+      key: "focus",
+      label: "Vs Focus Brand",
+      value: sameCompany(row.company_id, OWN_COMPANY_ID)
+        ? "Misma entidad"
+        : formatProfileSignedGap(focusDelta, primaryMetric),
+      detail: focusRow ? getProfileRowLabel(focusRow, periodLabel) : "Sin Focus Brand comparable",
+    },
+    {
+      key: "market",
+      label: "Vs market average",
+      value: formatProfileSignedGap(marketDelta, primaryMetric),
+      detail: "Benchmark visual, no empresa",
+    },
+  ].filter((item) => item.key !== "focus" || !sameCompany(row.company_id, OWN_COMPANY_ID));
+
+  return (
+    <section className="profile-executive-snapshot">
+      <div className="profile-snapshot-copy">
+        <p className="analysis-label text-accent-500">Executive Snapshot</p>
+        <h3>{getProfileExecutiveInsight(row, companyTitle, periodRows)}</h3>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="scope-pill">{periodLabel}</span>
+          <TrustBadges badges={getDataTrustBadges([row])} />
+        </div>
+      </div>
+      <div className="profile-snapshot-grid">
+        {snapshotItems.map((item) => (
+          <div key={item.key} className="profile-snapshot-item">
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getMarketGrowthForMetric(periodRows = [], metricKey = "visits") {
+  const growthKey = metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
+  let currentTotal = 0;
+  let previousTotal = 0;
+  let hasRows = false;
+
+  periodRows
+    .filter(isRealCompanyRow)
+    .filter((row) => !isBenchmarkRow(row) && !isForecastRow(row))
+    .forEach((row) => {
+      const breakdown = getGrowthBreakdown(row, growthKey);
+      if (!breakdown) return;
+      currentTotal += breakdown.currentValue;
+      previousTotal += breakdown.previousValue;
+      hasRows = true;
+    });
+
+  return hasRows && previousTotal > 0 ? currentTotal / previousTotal - 1 : null;
+}
+
+function getAveragePreviousValueForMetric(periodRows = [], metricKey = "visits") {
+  const growthKey = metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
+  const previousValues = periodRows
+    .filter(isRealCompanyRow)
+    .filter((periodRow) => !isBenchmarkRow(periodRow) && !isForecastRow(periodRow))
+    .map((periodRow) => getGrowthBreakdown(periodRow, growthKey)?.previousValue)
+    .filter((value) => safeNumber(value) !== null);
+
+  return previousValues.length
+    ? previousValues.reduce((total, value) => total + value, 0) / previousValues.length
+    : null;
+}
+
+function getProfileMomentumEntry(row = {}, periodRows = [], metricKey = "visits") {
+  const growthKey = metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
+  const breakdown = getGrowthBreakdown(row, growthKey);
+  if (!breakdown) return null;
+  const marketGrowth = getMarketGrowthForMetric(periodRows, metricKey);
+  const averagePreviousValue = getAveragePreviousValueForMetric(periodRows, metricKey);
+
+  return {
+    metricKey,
+    label: metricKey === "revenue" ? "Facturación" : "Visitas",
+    ...breakdown,
+    absoluteDelta: breakdown.currentValue - breakdown.previousValue,
+    marketDelta:
+      marketGrowth !== null && breakdown.growthValue !== null
+        ? breakdown.growthValue - marketGrowth
+        : null,
+    isLowBase: isLowBaseMomentum(breakdown.previousValue, averagePreviousValue),
+  };
+}
+
+function ProfileMomentumBlock({ row, periodRows = [] }) {
+  const momentumItems = ["visits", "revenue"]
+    .map((metricKey) => getProfileMomentumEntry(row, periodRows, metricKey))
+    .filter(Boolean);
+
+  return (
+    <section className="profile-momentum-block">
+      <div>
+        <p className="analysis-label text-accent-500">Momentum del player</p>
+        <h3>Antes → Ahora</h3>
+      </div>
+      {momentumItems.length ? (
+        <div className="profile-momentum-grid">
+          {momentumItems.map((momentum) => (
+            <article key={momentum.metricKey} className="profile-momentum-card">
+              <span>{momentum.label}</span>
+              <strong>
+                {formatProfileMomentumValue(momentum.previousValue, momentum.metricKey)} {" → "}
+                {formatProfileMomentumValue(momentum.currentValue, momentum.metricKey)}
+              </strong>
+              <small>
+                {formatSignedMetricDelta(momentum.absoluteDelta, momentum.metricKey)} ·{" "}
+                {formatSignedPercent(momentum.growthValue)}
+                {momentum.isLowBase && (
+                  <span
+                    className="profile-low-base-mark"
+                    title={LOW_BASE_TOOLTIP}
+                    aria-label={LOW_BASE_TOOLTIP}
+                  >
+                    *
+                  </span>
+                )}{" "}
+                {momentum.marketDelta !== null && (
+                  <>· {formatPercentagePoints(momentum.marketDelta)} vs mercado</>
+                )}
+              </small>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="profile-empty-copy">
+          No hay histórico comparable suficiente para calcular momentum del player.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ProfileComparisonPanel({ row, periodRows = [] }) {
+  if (!row) return null;
+
+  const focusRow = getCompanyRow(periodRows, OWN_COMPANY_ID);
+  const benchmarkRow = getBenchmarkRow(periodRows);
+  const comparisonMetrics = [
+    { key: "revenue", label: "Facturación" },
+    { key: "visits", label: "Visitas" },
+    { key: "market_share_revenue", label: "Cuota facturación" },
+    { key: "market_share_visits", label: "Cuota visitas" },
+    { key: "revenue_per_visit", label: "Facturación / visita" },
+    { key: "monetization_gap", label: "Brecha monetización" },
+  ];
+  const benchmarkMetrics = comparisonMetrics.filter((metric) => metric.key !== "monetization_gap");
+  const targets = [
+    { key: "focus", label: "Player vs Focus Brand", row: focusRow, benchmark: false },
+    { key: "market", label: sameCompany(row.company_id, OWN_COMPANY_ID) ? "Focus Brand vs Market Average" : "Player vs Market Average", row: benchmarkRow, benchmark: true },
+  ].filter((target) => target.key !== "focus" || !sameCompany(row.company_id, OWN_COMPANY_ID));
+
+  return (
+    <section className="profile-comparison-grid">
+      {targets.map((target) => (
+        <article key={target.key} className="profile-comparison-card">
+          <div className="profile-comparison-card-header">
+            <p className="analysis-label">{target.label}</p>
+            {target.benchmark && <span className="scope-pill">Benchmark visual</span>}
+          </div>
+          {target.row ? (
+            <div className="profile-comparison-rows">
+              {(target.benchmark ? benchmarkMetrics : comparisonMetrics).map((metric) => {
+                const playerValue = safeNumber(row?.[metric.key]);
+                const targetValue = safeNumber(target.row?.[metric.key]);
+                const hasBoth = playerValue !== null && targetValue !== null;
+                const sameEntity = sameCompany(row.company_id, target.row.company_id);
+                const delta = hasBoth ? playerValue - targetValue : null;
+
+                return (
+                  <div key={`${target.key}-${metric.key}`} className="profile-comparison-row">
+                    <span>{metric.label}</span>
+                    {sameEntity ? (
+                      <strong>Misma entidad</strong>
+                    ) : hasBoth ? (
+                      <>
+                        <strong>{formatProfileSignedGap(delta, metric.key)}</strong>
+                        <small>
+                          {formatMetric(playerValue, metric.key)} vs{" "}
+                          {formatMetric(targetValue, metric.key)}
+                        </small>
+                      </>
+                    ) : (
+                      <strong>Sin dato comparable</strong>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="profile-empty-copy">No hay benchmark comparable para este periodo.</p>
+          )}
+          {target.benchmark && (
+            <p className="profile-comparison-note">Benchmark calculado sobre mercado medido.</p>
+          )}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function ProfileTabs({ options = [], value, onChange, label }) {
+  return (
+    <div className="profile-tabs" role="tablist" aria-label={label}>
+      {options.map((option) => {
+        const isActive = value === option.key;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(option.key)}
+            className={`profile-tab ${isActive ? "profile-tab-active" : ""}`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function getProfileForecastScenarioOptions(rows = []) {
+  const scenarioSet = new Set(
+    rows
+      .filter(isForecastRow)
+      .map(getForecastScenario)
+      .filter(Boolean),
+  );
+
+  return Array.from(scenarioSet).sort((a, b) => {
+    const aIndex = PROFILE_FORECAST_SCENARIO_ORDER.indexOf(a);
+    const bIndex = PROFILE_FORECAST_SCENARIO_ORDER.indexOf(b);
+    return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+  });
+}
+
+function getPreferredForecastScenario(options = [], selectedScenario = "") {
+  if (selectedScenario && options.includes(selectedScenario)) return selectedScenario;
+  if (options.includes("base_case")) return "base_case";
+  return options[0] || "";
+}
+
+function getForecastShareMetric(metricKey = "") {
+  return metricKey === "revenue" ? "market_share_revenue" : "market_share_visits";
+}
+
+function getForecastRankMetric(metricKey = "") {
+  return metricKey === "revenue" ? "rank_revenue" : "rank_visits";
+}
+
+function getForecastPeriodKey(row = {}) {
+  return getGlobalContextMonthKey(row) || row.period_label || row.date || "";
+}
+
+function sameForecastPeriod(a = {}, b = {}) {
+  return getForecastPeriodKey(a) === getForecastPeriodKey(b);
+}
+
+function sumForecastMetric(rows = [], metricKey = "") {
+  let total = 0;
+  let hasValue = false;
+  rows.forEach((row) => {
+    const value = safeNumber(row?.[metricKey]);
+    if (value === null) return;
+    total += value;
+    hasValue = true;
+  });
+  return hasValue ? total : null;
+}
+
+function getForecastMetricOptions(rows = [], selectedCompanyId = "") {
+  return PROFILE_FORECAST_METRICS.map((metric) => {
+    const hasForecast = rows.some(
+      (row) => sameCompany(row.company_id, selectedCompanyId) && hasMetricValue(row, metric.key),
+    );
+
+    return {
+      ...metric,
+      disabled: !hasForecast,
+      reason: hasForecast
+        ? ""
+        : `Forecast de ${metric.label.toLowerCase()} no disponible para este player/horizonte.`,
+    };
+  });
+}
+
+function getProjectedRankingRows(rows = [], metricKey = "", finalRow = null) {
+  if (!finalRow) return [];
+
+  return rows
+    .filter((row) => sameForecastPeriod(row, finalRow))
+    .filter((row) => isForecastRow(row) && isComparableRow(row, { includeForecasts: true, includeBenchmark: false }))
+    .filter((row) => hasMetricValue(row, metricKey))
+    .slice()
+    .sort((a, b) => {
+      const bValue = safeNumber(b?.[metricKey]) ?? -Infinity;
+      const aValue = safeNumber(a?.[metricKey]) ?? -Infinity;
+      return bValue === aValue
+        ? getCompanyLabel(a).localeCompare(getCompanyLabel(b))
+        : bValue - aValue;
+    });
+}
+
+function getProjectedRank(rows = [], selectedCompanyId = "") {
+  const index = rows.findIndex((row) => sameCompany(row.company_id, selectedCompanyId));
+  return index >= 0 ? index + 1 : null;
+}
+
+function getForecastProjectedShare(finalRow = null, scenarioRows = [], metricKey = "") {
+  const shareMetric = getForecastShareMetric(metricKey);
+  const explicitShare = safeNumber(finalRow?.[shareMetric]);
+  if (explicitShare !== null) return { value: explicitShare, detail: "Cuota forecast" };
+
+  const playerValue = safeNumber(finalRow?.[metricKey]);
+  const total = sumForecastMetric(
+    scenarioRows
+      .filter((row) => finalRow && sameForecastPeriod(row, finalRow))
+      .filter((row) => isComparableRow(row, { includeForecasts: true, includeBenchmark: false })),
+    metricKey,
+  );
+
+  if (playerValue !== null && total) {
+    return { value: playerValue / total, detail: "Calculada desde forecast" };
+  }
+
+  return null;
+}
+
+function getForecastBenchmarkRow(rows = [], finalRow = null) {
+  if (!finalRow) return null;
+  return (
+    rows.find(
+      (row) => sameForecastPeriod(row, finalRow) && isBenchmarkRow(row),
+    ) ?? null
+  );
+}
+
+function getForecastQuality(rows = []) {
+  const combined = rows
+    .map((row) =>
+      [
+        row?.forecast_quality,
+        row?.confidence,
+        row?.quality,
+        row?.strategic_signal,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    )
+    .join(" ")
+    .toLowerCase();
+
+  if (combined.includes("high")) return "high";
+  if (combined.includes("medium")) return "medium";
+  if (combined.includes("low")) return "low";
+  return "";
+}
+
+function getForecastDeltaSummary(finalValue, observedValue, metricKey = "") {
+  const delta =
+    finalValue !== null && observedValue !== null ? finalValue - observedValue : null;
+  const percent =
+    delta !== null && observedValue !== null && observedValue !== 0
+      ? delta / observedValue
+      : null;
+
+  return {
+    delta,
+    percent,
+    value:
+      delta !== null
+        ? `${formatSignedMetricDelta(delta, metricKey)}`
+        : "No hay histórico observado suficiente",
+    detail: percent !== null ? `${formatSignedPercent(percent)} vs último real` : "",
+  };
+}
+
+function buildForecastChartData({
+  observedRows = [],
+  forecastRows = [],
+  selectedCompanyId = "",
+  metricKey = "visits",
+}) {
+  const pointMap = new Map();
+  const lastObservedRow = getLatestCompanyMetricRow(observedRows, selectedCompanyId, metricKey);
+  const lastObservedSort = lastObservedRow ? getProfileRowSortValue(lastObservedRow) : -Infinity;
+
+  const addPoint = (row, dataKey, type) => {
+    const value = safeNumber(row?.[metricKey]);
+    if (value === null) return;
+    const key = getForecastPeriodKey(row);
+    if (!key) return;
+    const current =
+      pointMap.get(key) ??
+      {
+        key,
+        date: row.date,
+        label: getProfileRowLabel(row),
+        sortValue: getProfileRowSortValue(row),
+        __forecastProfilePoints: {},
+      };
+    current[dataKey] = value;
+    current.__forecastProfilePoints[dataKey] = {
+      row,
+      type,
+      scenario: getForecastScenario(row),
+    };
+    pointMap.set(key, current);
+  };
+
+  observedRows
+    .filter((row) => sameCompany(row.company_id, selectedCompanyId))
+    .filter((row) => isObservedRow(row, { includeBenchmark: false }))
+    .forEach((row) => addPoint(row, "observed", "Observado"));
+
+  forecastRows
+    .filter((row) => sameCompany(row.company_id, selectedCompanyId))
+    .filter(isForecastRow)
+    .filter((row) => getProfileRowSortValue(row) > lastObservedSort)
+    .forEach((row) => addPoint(row, "forecast", "Forecast"));
+
+  return Array.from(pointMap.values()).sort((a, b) => a.sortValue - b.sortValue);
+}
+
+function ForecastProfileTooltip({ active, payload = [], label, metricKey }) {
+  if (!active || !payload.length) return null;
+
+  const rows = payload
+    .map((item) => {
+      const value = safeNumber(item.value);
+      if (value === null) return null;
+      const point = item.payload?.__forecastProfilePoints?.[item.dataKey] ?? {};
+      const row = point.row ?? {};
+      return {
+        key: item.dataKey,
+        value,
+        type: point.type || "Dato",
+        scenario: point.scenario,
+        source: row.source || row.data_type || "",
+      };
+    })
+    .filter(Boolean);
+
+  if (!rows.length) return null;
+
+  return (
+    <ChartTooltipShell title={`Periodo: ${formatChartPeriodLabel(label)}`}>
+      {rows.map((row) => (
+        <div key={`${row.key}-${row.value}`} className="chart-tooltip-row">
+          <span className="chart-tooltip-company">
+            <span>{row.type}</span>
+          </span>
+          <span className="chart-tooltip-value">
+            {formatMetric(row.value, metricKey)}
+            {row.key === "forecast" && row.scenario && (
+              <small>Escenario: {getForecastScenarioLabel(row.scenario)}</small>
+            )}
+            {row.source && <small>Fuente: {row.source}</small>}
+          </span>
+        </div>
+      ))}
+    </ChartTooltipShell>
+  );
+}
+
+function ProfileForecastChart({
+  chartData = [],
+  metricKey = "visits",
+  lastObservedRow = null,
+}) {
+  const hasData = chartData.some(
+    (point) => safeNumber(point.observed) !== null || safeNumber(point.forecast) !== null,
+  );
+  const lastObservedLabel = lastObservedRow ? getProfileRowLabel(lastObservedRow) : "";
+
+  return (
+    <Panel eyebrow="Observado -> Forecast" title="Histórico observado y proyección">
+      <div className="h-[360px] min-w-0 w-full">
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <LineChart data={chartData} margin={{ top: 12, right: 42, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke="rgba(0,0,0,0.08)" vertical={false} />
+              {lastObservedLabel && (
+                <ReferenceLine
+                  x={lastObservedLabel}
+                  stroke="#000000"
+                  strokeDasharray="3 4"
+                  label={{
+                    value: "Último dato observado",
+                    position: "insideTopRight",
+                    fill: "#000000",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+              <XAxis
+                dataKey="label"
+                minTickGap={28}
+                tick={{ fill: "#6F6864", fontSize: 12 }}
+                tickFormatter={formatChartPeriodLabel}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                tick={{ fill: "#6F6864", fontSize: 12 }}
+                tickFormatter={(value) => formatMetric(value, metricKey)}
+                tickLine={false}
+                axisLine={false}
+                width={82}
+              />
+              <Tooltip
+                cursor={{ stroke: "rgba(0,0,0,0.18)" }}
+                content={<ForecastProfileTooltip metricKey={metricKey} />}
+              />
+              <Line
+                type="monotone"
+                dataKey="observed"
+                name="Histórico"
+                stroke="#000000"
+                strokeWidth={2.8}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 0 }}
+                connectNulls={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="forecast"
+                name="Forecast"
+                stroke="#E4032C"
+                strokeDasharray="7 5"
+                strokeWidth={2.8}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 0 }}
+                connectNulls={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState
+            title="No hay datos suficientes para dibujar forecast."
+            message="Selecciona otra métrica o escenario con histórico y forecast disponibles."
+          />
+        )}
+      </div>
+      <div className="profile-forecast-chart-legend">
+        <span><i className="profile-forecast-solid-line" />Histórico</span>
+        <span><i className="profile-forecast-dashed-line" />Forecast</span>
+        <ForecastCaveat />
       </div>
     </Panel>
   );
 }
 
-function HomeView({
+function getForecastStrategicRead({
+  companyTitle,
+  selectedCompanyId,
+  scenario,
+  metricKey,
+  finalRow,
+  projectedRank,
   rankingRows,
-  rankingPeriodRows,
-  comparisonPeriodRows,
-  rankingSort,
-  onRankingSortChange,
-  rankingSortOptions,
-  rankingMarket,
-  onRankingMarketChange,
-  rankingMarkets,
-  rankingPeriodType,
-  onRankingPeriodTypeChange,
-  rankingPeriodTypes,
-  selectedRankingPeriodKey,
-  onSelectedRankingPeriodChange,
-  rankingPeriodOptions,
-  selectedRankingPeriod,
-  insightItems,
-  forecastRows,
-  forecastScenarios,
-  forecastScenario,
-  onForecastScenarioChange,
-  forecastScenarioLabel,
-  forecastMarket,
-  onForecastMarketChange,
-  forecastMarkets,
-  forecastPeriodType,
-  onForecastPeriodTypeChange,
-  forecastPeriodTypes,
-  chartTrendRows,
-  chartMarket,
-  onChartMarketChange,
-  chartMarkets,
-  chartPeriodType,
-  onChartPeriodTypeChange,
-  chartPeriodTypes,
-  chartRangeMode,
-  onChartRangeModeChange,
-  selectedChartYear,
-  onSelectedChartYearChange,
-  chartYears,
-  onOpenForecast,
-  onOpenProfile,
 }) {
-  const chartRows = useMemo(
-    () => filterRowsByChartRange(chartTrendRows, chartRangeMode, selectedChartYear),
-    [chartRangeMode, selectedChartYear, chartTrendRows],
-  );
-  const currentPeriodRows = rankingPeriodRows?.length ? rankingPeriodRows : rankingRows;
-  const currentComparisonRows = comparisonPeriodRows?.length ? comparisonPeriodRows : currentPeriodRows;
-  const executiveSnapshot = useMemo(
-    () => buildExecutiveSnapshot(currentPeriodRows, currentComparisonRows, selectedRankingPeriod),
-    [currentComparisonRows, currentPeriodRows, selectedRankingPeriod],
-  );
-  const rankingSortLabel =
-    RANKING_SORTS.find((sort) => sort.key === rankingSort)?.label || rankingSort;
-  const chartRangeLabel = chartRangeMode === "year" ? selectedChartYear || "Year" : "All time";
+  if (!finalRow) {
+    return "Este escenario no tiene forecast suficiente para construir una lectura ejecutiva.";
+  }
 
+  const scenarioLabel = getForecastScenarioLabel(scenario).toLowerCase();
+  const metricLabel = metricKey === "revenue" ? "facturación" : "visitas";
+  const topRow = rankingRows[0] ?? null;
+  const focusRank = getProjectedRank(rankingRows, OWN_COMPANY_ID);
+
+  if (sameCompany(selectedCompanyId, OWN_COMPANY_ID)) {
+    if (topRow && !sameCompany(topRow.company_id, OWN_COMPANY_ID)) {
+      return `En escenario ${scenarioLabel}, Focus Brand mantiene una posición fuerte en ${metricLabel}, aunque ${getCompanyLabel(topRow)} conserva ventaja proyectada al cierre.`;
+    }
+    return `En escenario ${scenarioLabel}, Focus Brand cerraría en posición líder de ${metricLabel} dentro del forecast disponible.`;
+  }
+
+  if (projectedRank === 1 && focusRank && focusRank > 1) {
+    return `En escenario ${scenarioLabel}, ${companyTitle} ampliaría liderazgo de ${metricLabel} frente a Focus Brand.`;
+  }
+
+  if (normalizeCompanyId(selectedCompanyId) === "peer_b" && metricKey === "visits") {
+    return "Velora mantiene menor escala de tráfico; revisar forecast de facturación antes de inferir eficiencia comercial.";
+  }
+
+  if (projectedRank !== null) {
+    return `En escenario ${scenarioLabel}, ${companyTitle} cerraría en posición #${projectedRank} de ${metricLabel} dentro del forecast disponible.`;
+  }
+
+  return `En escenario ${scenarioLabel}, ${companyTitle} tiene forecast incompleto para comparar posición proyectada.`;
+}
+
+function ProfileForecastKpiGrid({ items = [] }) {
   return (
-    <div className="home-block-stack">
-      <ContentSection
-        eyebrow="Executive cockpit"
-        title="Market read"
-        detail={selectedRankingPeriod?.label || rankingSortLabel}
-        action={
-          <RankingControls
-            market={rankingMarket}
-            onMarketChange={onRankingMarketChange}
-            markets={rankingMarkets}
-            periodType={rankingPeriodType}
-            onPeriodTypeChange={onRankingPeriodTypeChange}
-            periodTypes={rankingPeriodTypes}
-            selectedPeriodKey={selectedRankingPeriodKey}
-            onSelectedPeriodChange={onSelectedRankingPeriodChange}
-            periodOptions={rankingPeriodOptions}
-            rankingSort={rankingSort}
-            onRankingSortChange={onRankingSortChange}
-            rankingSortOptions={rankingSortOptions}
-          />
-        }
-      >
-        <ExecutiveMarketHome snapshot={executiveSnapshot} rows={currentPeriodRows} />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Momentum"
-        title="Indexed growth"
-        detail={chartRangeLabel}
-        action={
-          <ChartRangeControls
-            market={chartMarket}
-            onMarketChange={onChartMarketChange}
-            markets={chartMarkets}
-            periodType={chartPeriodType}
-            onPeriodTypeChange={onChartPeriodTypeChange}
-            periodTypes={chartPeriodTypes}
-            chartRangeMode={chartRangeMode}
-            onChartRangeModeChange={onChartRangeModeChange}
-            selectedChartYear={selectedChartYear}
-            onSelectedChartYearChange={onSelectedChartYearChange}
-            chartYears={chartYears}
-          />
-        }
-      >
-        <IndexedGrowthRace rows={chartRows} rangeLabel={chartRangeLabel} />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Share and monetization"
-        title="Where share is won, lost, and converted"
-        detail={selectedRankingPeriod?.label}
-      >
-        <section className="grid gap-6 xl:grid-cols-2">
-          <MonetizationGap rows={currentPeriodRows} />
-          <ShareGainLossCompact rows={currentPeriodRows} />
-        </section>
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Mapa"
-        title="Competitive Map"
-        detail={selectedRankingPeriod?.label}
-      >
-        <CompetitiveMap rows={currentPeriodRows} />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Battle cards"
-        title="Focus Brand vs key rivals"
-        detail={selectedRankingPeriod?.label}
-      >
-        <BattleCards rows={currentComparisonRows} />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Presentation"
-        title="Capture view"
-        detail={selectedRankingPeriod?.label}
-      >
-        <PresentationMode
-          snapshot={executiveSnapshot}
-          periodRows={currentPeriodRows}
-          chartRows={chartRows}
-        />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Ranking"
-        title="Benchmark ranking"
-        detail={selectedRankingPeriod?.label || rankingSortLabel}
-      >
-        <BenchmarkRankingPanel
-          rows={rankingRows}
-          sortKey={rankingSort}
-          selectedPeriod={selectedRankingPeriod}
-          onOpenProfile={onOpenProfile}
-        />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Insights"
-        title="Additional signals"
-        detail={selectedRankingPeriod?.label}
-      >
-        <InsightFeed items={insightItems} />
-      </ContentSection>
-
-      <ContentSection
-        eyebrow="Forecast"
-        title="Market forecast"
-        detail={forecastScenarioLabel}
-        action={
-          <ForecastControls
-            forecastScenarios={forecastScenarios}
-            forecastScenario={forecastScenario}
-            onForecastScenarioChange={onForecastScenarioChange}
-            market={forecastMarket}
-            onMarketChange={onForecastMarketChange}
-            markets={forecastMarkets}
-            periodType={forecastPeriodType}
-            onPeriodTypeChange={onForecastPeriodTypeChange}
-            periodTypes={forecastPeriodTypes}
-          />
-        }
-      >
-        {forecastRows.length ? (
-          <ForecastPreview
-            forecastRows={forecastRows}
-            forecastScenarioLabel={forecastScenarioLabel}
-            onOpenForecast={onOpenForecast}
-          />
-        ) : (
-          <EmptyState
-            title="No forecast for this selection."
-            message="Change the scenario or market to see the available horizon."
-          />
-        )}
-      </ContentSection>
-
-    </div>
+    <section className="profile-forecast-kpi-grid">
+      {items.map((item) => (
+        <article
+          key={item.key}
+          className={`profile-forecast-kpi ${item.empty ? "profile-forecast-kpi-empty" : ""}`}
+        >
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+          {item.detail && <small>{item.detail}</small>}
+          {item.badge && <em>{item.badge}</em>}
+        </article>
+      ))}
+    </section>
   );
 }
 
-function ProfileKpis({ row, company }) {
-  const accentColor = row?.company_color || company?.company_color || "#E4032C";
+function ProfileScenarioComparison({ summaries = [], metricKey = "visits" }) {
+  if (summaries.length < 2) return null;
 
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-      <KpiCard
-        label="Revenue"
-        value={formatCurrency(row?.revenue)}
-        detail={row?.period_display_label}
-        accentColor={accentColor}
+    <section className="profile-forecast-subsection">
+      <div>
+        <p className="analysis-label text-accent-500">Escenarios al cierre</p>
+        <h3>Conservador / Base / Agresivo</h3>
+      </div>
+      <div className="profile-forecast-scenario-table">
+        <div className="profile-forecast-scenario-head">
+          <span>Escenario</span>
+          <span>Cierre forecast</span>
+          <span>Delta vs último real</span>
+          <span>Ranking proyectado</span>
+        </div>
+        {summaries.map((summary) => (
+          <div key={summary.scenario} className="profile-forecast-scenario-row">
+            <span>{getForecastScenarioLabel(summary.scenario)}</span>
+            <strong>{formatMetric(summary.finalValue, metricKey)}</strong>
+            <span>{summary.deltaLabel}</span>
+            <span>{formatMetric(summary.projectedRank, getForecastRankMetric(metricKey))}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProfileProjectedRanking({
+  rankingRows = [],
+  selectedCompanyId = "",
+  metricKey = "visits",
+  scenario = "",
+  onOpenProfile,
+}) {
+  const projectedRank = getProjectedRank(rankingRows, selectedCompanyId);
+  const selectedRow = rankingRows[projectedRank - 1] ?? null;
+  const topRows = rankingRows.slice(0, 5);
+  const metricLabel = metricKey === "revenue" ? "facturación" : "visitas";
+  const scenarioLabel = getForecastScenarioLabel(scenario).toLowerCase();
+
+  return (
+    <section className="profile-forecast-subsection">
+      <div>
+        <p className="analysis-label text-accent-500">Ranking proyectado al cierre</p>
+        <h3>
+          {projectedRank
+            ? `En escenario ${scenarioLabel}, ${getCompanyLabel(selectedRow)} cerraría #${projectedRank} en ${metricLabel}.`
+            : "No hay suficientes empresas con forecast para calcular ranking proyectado."}
+        </h3>
+      </div>
+      {topRows.length ? (
+        <div className="profile-forecast-ranking-list">
+          {topRows.map((row, index) => (
+            <button
+              key={`${row.company_id}-${index}`}
+              type="button"
+              className={`profile-forecast-ranking-row ${
+                sameCompany(row.company_id, selectedCompanyId)
+                  ? "profile-forecast-ranking-row-active"
+                  : ""
+              }`}
+              onClick={() => onOpenProfile?.(row.company_id)}
+            >
+              <span>#{index + 1}</span>
+              <CompanyMark
+                companyId={row.company_id}
+                label={getCompanyLabel(row)}
+                color={row.company_color}
+                className="company-mark-row"
+              />
+              <strong>{getCompanyLabel(row)}</strong>
+              <small>{formatMetric(row?.[metricKey], metricKey)}</small>
+            </button>
+          ))}
+          {projectedRank && projectedRank > 5 && selectedRow && (
+            <p className="profile-empty-copy">
+              {getCompanyLabel(selectedRow)} aparece en posición #{projectedRank}.
+            </p>
+          )}
+        </div>
+      ) : (
+        <EmptyState
+          title="No hay suficientes empresas con forecast para calcular ranking proyectado."
+          message="El ranking proyectado exige empresas reales con forecast en el mismo escenario y periodo."
+        />
+      )}
+    </section>
+  );
+}
+
+function ProfileForecastPanel({
+  allForecastRows = [],
+  observedRows = [],
+  selectedCompanyId = "",
+  selectedCompany,
+  selectedPeriodRow,
+  forecastScenario = "base_case",
+  onForecastScenarioChange,
+  forecastMetric = "visits",
+  onForecastMetricChange,
+  onOpenProfile,
+}) {
+  const companyTitle = selectedCompany?.label || selectedCompanyId || "Player";
+  const accentColor =
+    selectedPeriodRow?.company_color || selectedCompany?.company_color || "#E4032C";
+  const handleForecastScenarioChange = onForecastScenarioChange || (() => {});
+  const handleForecastMetricChange = onForecastMetricChange || (() => {});
+  const forecastRows = useMemo(
+    () => mergeForecastMetricRows(allForecastRows.filter(isForecastRow)),
+    [allForecastRows],
+  );
+  const market = selectedPeriodRow?.market || selectedPeriodRow?.country || "";
+  const scopedForecastRows = useMemo(
+    () => forecastRows.filter((row) => !market || row.market === market),
+    [forecastRows, market],
+  );
+  const playerForecastRows = useMemo(
+    () => scopedForecastRows.filter((row) => sameCompany(row.company_id, selectedCompanyId)),
+    [scopedForecastRows, selectedCompanyId],
+  );
+  const scenarioOptions = useMemo(
+    () => getProfileForecastScenarioOptions(playerForecastRows),
+    [playerForecastRows],
+  );
+  const selectedScenario = getPreferredForecastScenario(scenarioOptions, forecastScenario);
+
+  useEffect(() => {
+    const nextScenario = getPreferredForecastScenario(scenarioOptions, forecastScenario);
+    if (nextScenario && nextScenario !== forecastScenario) {
+      handleForecastScenarioChange(nextScenario);
+    }
+  }, [forecastScenario, handleForecastScenarioChange, scenarioOptions]);
+
+  const scenarioRows = useMemo(
+    () =>
+      scopedForecastRows.filter((row) => getForecastScenario(row) === selectedScenario),
+    [scopedForecastRows, selectedScenario],
+  );
+  const playerScenarioRows = useMemo(
+    () => scenarioRows.filter((row) => sameCompany(row.company_id, selectedCompanyId)),
+    [scenarioRows, selectedCompanyId],
+  );
+  const metricOptions = useMemo(
+    () => getForecastMetricOptions(playerScenarioRows, selectedCompanyId),
+    [playerScenarioRows, selectedCompanyId],
+  );
+
+  useEffect(() => {
+    const currentOption = metricOptions.find((option) => option.key === forecastMetric);
+    if (currentOption && !currentOption.disabled) return;
+    const nextMetric =
+      metricOptions.find((option) => !option.disabled)?.key || PROFILE_FORECAST_METRICS[0].key;
+    if (nextMetric !== forecastMetric) handleForecastMetricChange(nextMetric);
+  }, [forecastMetric, handleForecastMetricChange, metricOptions]);
+
+  if (!playerForecastRows.length) {
+    return (
+      <EmptyState
+        title="No hay forecast disponible para este player."
+        message="La ficha histórica sigue disponible; forecast solo aparece cuando hay proyección separada."
       />
-      <KpiCard
-        label="Visits"
-        value={formatCompact(row?.visits)}
-        detail={row?.period_display_label}
-        accentColor={accentColor}
+    );
+  }
+
+  if (!selectedScenario || !playerScenarioRows.length) {
+    return (
+      <EmptyState
+        title="Este escenario no está disponible para el player seleccionado."
+        message="Selecciona otro escenario forecast disponible."
       />
-      <KpiCard
-        label="Revenue share"
-        value={formatPercent(row?.market_share_revenue)}
-        detail="Share"
-        accentColor={accentColor}
+    );
+  }
+
+  const lastObservedRow = getLatestCompanyMetricRow(observedRows, selectedCompanyId, forecastMetric);
+  const visiblePlayerForecastRows = getFilteredForecastRowsAfterObserved(
+    playerScenarioRows,
+    observedRows,
+    selectedCompanyId,
+    forecastMetric,
+  );
+  const metricRows = getSortedCompanyMetricRows(
+    visiblePlayerForecastRows,
+    selectedCompanyId,
+    forecastMetric,
+  );
+  const firstForecastRow = metricRows[0] ?? null;
+  const finalForecastRow = metricRows.at(-1) ?? null;
+  const finalValue = safeNumber(finalForecastRow?.[forecastMetric]);
+  const observedValue = safeNumber(lastObservedRow?.[forecastMetric]);
+  const deltaSummary = getForecastDeltaSummary(finalValue, observedValue, forecastMetric);
+  const projectedRanking = getProjectedRankingRows(scenarioRows, forecastMetric, finalForecastRow);
+  const projectedRank = getProjectedRank(projectedRanking, selectedCompanyId);
+  const projectedShare = getForecastProjectedShare(finalForecastRow, scenarioRows, forecastMetric);
+  const focusFinalRow = finalForecastRow
+    ? scenarioRows.find(
+        (row) => sameCompany(row.company_id, OWN_COMPANY_ID) && sameForecastPeriod(row, finalForecastRow),
+      )
+    : null;
+  const benchmarkFinalRow = getForecastBenchmarkRow(scenarioRows, finalForecastRow);
+  const focusGap =
+    !sameCompany(selectedCompanyId, OWN_COMPANY_ID) && focusFinalRow
+      ? calculateProfileMetricDelta(finalForecastRow, focusFinalRow, forecastMetric)
+      : null;
+  const benchmarkGap = benchmarkFinalRow
+    ? calculateProfileMetricDelta(finalForecastRow, benchmarkFinalRow, forecastMetric)
+    : null;
+  const horizonLabel =
+    firstForecastRow && finalForecastRow
+      ? `${getProfileRowLabel(firstForecastRow)} - ${getProfileRowLabel(finalForecastRow)}`
+      : "Sin horizonte disponible";
+  const quality = getForecastQuality(playerScenarioRows);
+  const strategicRead = getForecastStrategicRead({
+    companyTitle,
+    selectedCompanyId,
+    scenario: selectedScenario,
+    metricKey: forecastMetric,
+    finalRow: finalForecastRow,
+    projectedRank,
+    rankingRows: projectedRanking,
+  });
+  const chartData = buildForecastChartData({
+    observedRows,
+    forecastRows: playerScenarioRows,
+    selectedCompanyId,
+    metricKey: forecastMetric,
+  });
+  const scenarioSummaries = scenarioOptions
+    .map((scenario) => {
+      const rowsForScenario = scopedForecastRows.filter(
+        (row) => getForecastScenario(row) === scenario,
+      );
+      const visibleRowsForScenario = getFilteredForecastRowsAfterObserved(
+        rowsForScenario,
+        observedRows,
+        selectedCompanyId,
+        forecastMetric,
+      );
+      const finalRow = getSortedCompanyMetricRows(
+        visibleRowsForScenario,
+        selectedCompanyId,
+        forecastMetric,
+      ).at(-1);
+      if (!finalRow) return null;
+      const finalScenarioValue = safeNumber(finalRow?.[forecastMetric]);
+      const ranking = getProjectedRankingRows(rowsForScenario, forecastMetric, finalRow);
+      const delta = getForecastDeltaSummary(finalScenarioValue, observedValue, forecastMetric);
+      return {
+        scenario,
+        finalValue: finalScenarioValue,
+        deltaLabel: delta.delta !== null ? delta.value : "Sin histórico comparable",
+        projectedRank: getProjectedRank(ranking, selectedCompanyId),
+      };
+    })
+    .filter(Boolean);
+  const kpis = [
+    {
+      key: "last-observed",
+      label: "Último dato observado",
+      value: lastObservedRow ? formatMetric(observedValue, forecastMetric) : "Sin dato observado",
+      detail: lastObservedRow
+        ? getProfileRowLabel(lastObservedRow)
+        : "No hay histórico observado suficiente para calcular variación vs último dato real.",
+      empty: !lastObservedRow,
+      badge: "Observado",
+    },
+    {
+      key: "forecast-final",
+      label: "Cierre forecast",
+      value: finalForecastRow ? formatMetric(finalValue, forecastMetric) : "Sin forecast",
+      detail: finalForecastRow
+        ? getProfileRowLabel(finalForecastRow)
+        : `No hay forecast de ${getProfileMetricLabel(forecastMetric).toLowerCase()} para este escenario.`,
+      empty: !finalForecastRow,
+      badge: "Forecast",
+    },
+    {
+      key: "forecast-delta",
+      label: "Variación vs último observado",
+      value: deltaSummary.delta !== null ? deltaSummary.value : "Sin calculo",
+      detail: deltaSummary.detail || "No hay histórico observado suficiente para calcular variación vs último dato real.",
+      empty: deltaSummary.delta === null,
+      badge: "Forecast",
+    },
+    {
+      key: "forecast-share",
+      label: "Cuota proyectada",
+      value: projectedShare ? formatMetric(projectedShare.value, getForecastShareMetric(forecastMetric)) : "Sin cuota forecast",
+      detail: projectedShare?.detail || "No hay benchmark disponible para esta métrica.",
+      empty: !projectedShare,
+      badge: "Forecast",
+    },
+    {
+      key: "forecast-rank",
+      label: "Ranking proyectado",
+      value: projectedRank ? formatMetric(projectedRank, getForecastRankMetric(forecastMetric)) : "Sin ranking",
+      detail: projectedRank
+        ? `${projectedRanking.length} empresas reales con forecast`
+        : "No hay suficientes empresas con forecast para calcular ranking proyectado.",
+      empty: !projectedRank,
+      badge: "Forecast",
+    },
+    !sameCompany(selectedCompanyId, OWN_COMPANY_ID) && {
+      key: "gap-focus",
+      label: "Gap vs Focus Brand",
+      value: focusGap !== null
+        ? formatProfileSignedGap(focusGap, forecastMetric)
+        : "Sin Focus Brand comparable",
+      detail: focusFinalRow ? getProfileRowLabel(focusFinalRow) : "Forecast Focus Brand no disponible",
+      empty: focusGap === null,
+      badge: "Forecast",
+    },
+    benchmarkGap !== null && {
+      key: "gap-market",
+      label: "Gap vs Market Average",
+      value: formatProfileSignedGap(benchmarkGap, forecastMetric),
+      detail: "Benchmark calculado sobre mercado medido",
+      empty: false,
+      badge: "Forecast",
+    },
+  ].filter(Boolean);
+
+  return (
+    <section className="profile-forecast-module" style={{ "--profile-accent": accentColor }}>
+      <div className="profile-forecast-hero">
+        <div className="profile-forecast-hero-copy">
+          <p className="analysis-label text-accent-500">Proyección</p>
+          <h3>Proyección de {companyTitle}</h3>
+          <p>
+            Forecast calculado a partir del histórico disponible. Proyección, no dato observado.
+          </p>
+          <div className="profile-forecast-context-row">
+            <span className="forecast-chip">
+              Escenario {getForecastScenarioLabel(selectedScenario).toLowerCase()} · {horizonLabel}
+            </span>
+            {quality && <span className="forecast-chip">Calidad forecast: {quality}</span>}
+            <span className="forecast-caveat">Forecast = proyección. No debe leerse como dato observado.</span>
+          </div>
+        </div>
+        <div className="profile-forecast-controls">
+          <MetricSwitch
+            options={scenarioOptions.map((scenario) => ({
+              key: scenario,
+              label: getForecastScenarioLabel(scenario),
+            }))}
+            value={selectedScenario}
+            onChange={handleForecastScenarioChange}
+            label="Escenario forecast"
+          />
+          <MetricSwitch
+            options={metricOptions}
+            value={forecastMetric}
+            onChange={handleForecastMetricChange}
+            label="Métrica"
+          />
+        </div>
+      </div>
+
+      <div className="profile-forecast-read">
+        <strong>{strategicRead}</strong>
+      </div>
+
+      <ProfileForecastKpiGrid items={kpis} />
+
+      <ProfileForecastChart
+        chartData={chartData}
+        metricKey={forecastMetric}
+        lastObservedRow={lastObservedRow}
       />
-      <KpiCard
-        label="Visit share"
-        value={formatPercent(row?.market_share_visits)}
-        detail="Share"
-        accentColor={accentColor}
+
+      <ProfileScenarioComparison summaries={scenarioSummaries} metricKey={forecastMetric} />
+
+      <ProfileProjectedRanking
+        rankingRows={projectedRanking}
+        selectedCompanyId={selectedCompanyId}
+        metricKey={forecastMetric}
+        scenario={selectedScenario}
+        onOpenProfile={onOpenProfile}
       />
-      <KpiCard
-        label="Revenue ranking"
-        value={formatMetric(row?.rank_revenue, "rank_revenue")}
-        detail="Ranking"
-        accentColor={accentColor}
-      />
-      <KpiCard
-        label="Revenue per visit"
-        value={formatCurrencyDecimal(row?.revenue_per_visit)}
-        detail="Efficiency"
-        accentColor={accentColor}
-      />
+    </section>
+  );
+}
+
+function formatProfileKpiValue(value, metricKey = "") {
+  if (metricKey === "revenue_yoy_growth" || metricKey === "visits_yoy_growth") {
+    return formatSignedPercent(value);
+  }
+  if (metricKey === "revenue") return formatBattleCurrency(value);
+  if (metricKey === "monetization_gap") return formatPercentagePoints(value, { compact: true });
+  return formatMetric(value, metricKey);
+}
+
+function getProfileKpiComparison(row = {}, periodRows = [], metricKey = "") {
+  const focusRow = getCompanyRow(periodRows, OWN_COMPANY_ID);
+  const benchmarkRow = getBenchmarkRow(periodRows);
+
+  if (metricKey === "revenue_yoy_growth" || metricKey === "visits_yoy_growth") {
+    const growthBreakdown = getGrowthBreakdown(row, metricKey);
+    const previousValue =
+      growthBreakdown?.previousValue !== undefined
+        ? formatProfileKpiValue(growthBreakdown.previousValue, growthBreakdown.baseMetricKey)
+        : "";
+    if (focusRow && !sameCompany(row.company_id, OWN_COMPANY_ID)) {
+      const delta = calculateProfileMetricDelta(row, focusRow, metricKey);
+      if (delta !== null) {
+        return {
+          detail: `${formatPercentagePoints(delta, { compact: true })} vs Focus Brand`,
+          reference: previousValue ? `Anterior: ${previousValue}` : "",
+        };
+      }
+    }
+    return {
+      detail: "vs año anterior",
+      reference: previousValue ? `Anterior: ${previousValue}` : "",
+    };
+  }
+
+  const targetRow =
+    focusRow && !sameCompany(row.company_id, OWN_COMPANY_ID) ? focusRow : benchmarkRow;
+  if (!targetRow) return { detail: getProfileSourceLabel(metricKey), reference: "" };
+
+  const delta = calculateProfileMetricDelta(row, targetRow, metricKey);
+  if (delta === null) return { detail: getProfileSourceLabel(metricKey), reference: "" };
+
+  const targetLabel = sameCompany(targetRow.company_id, OWN_COMPANY_ID)
+    ? "Focus Brand"
+    : "market average";
+  const referenceLabel = sameCompany(targetRow.company_id, OWN_COMPANY_ID) ? "Focus Brand" : "Promedio";
+  const referenceValue = safeNumber(targetRow?.[metricKey]);
+  return {
+    detail: `${formatProfileSignedGap(delta, metricKey)} vs ${targetLabel}`,
+    reference:
+      referenceValue !== null
+        ? `${referenceLabel}: ${formatProfileKpiValue(referenceValue, metricKey)}`
+        : "",
+  };
+}
+
+function ProfileKpis({ row, company, periodRows = [], periodLabel = "" }) {
+  const accentColor = row?.company_color || company?.company_color || "#E4032C";
+  const kpis = PROFILE_KPI_DEFINITIONS.map((definition) => {
+    const value = safeNumber(row?.[definition.key]);
+    const available = value !== null;
+    const comparison = available
+      ? getProfileKpiComparison(row, periodRows, definition.key)
+      : { detail: definition.unavailable, reference: "" };
+    return {
+      ...definition,
+      available,
+      value: available ? formatProfileKpiValue(value, definition.key) : definition.unavailable,
+      detail: comparison.detail,
+      reference: comparison.reference,
+    };
+  });
+  const rankChangeEntries = [
+    safeNumber(row?.rank_change_revenue) !== null
+      ? { label: "Facturación", shortLabel: "Fact.", value: safeNumber(row.rank_change_revenue) }
+      : null,
+    safeNumber(row?.rank_change_visits) !== null
+      ? { label: "Visitas", shortLabel: "Visitas", value: safeNumber(row.rank_change_visits) }
+      : null,
+  ].filter(Boolean);
+
+  if (rankChangeEntries.length) {
+    const allStable = rankChangeEntries.every((entry) => entry.value === 0);
+    kpis.push({
+      key: "rank_change",
+      label: "Rank change",
+      value: allStable
+        ? "Sin cambio"
+        : rankChangeEntries
+            .map((entry) => `${entry.shortLabel} ${formatProfileRankChange(entry.value)}`)
+            .join(" · "),
+      detail: allStable
+        ? `${rankChangeEntries.map((entry) => entry.label).join(" y ")}`
+        : "Cambio de posición",
+    });
+  }
+
+  return (
+    <section className="profile-kpi-strip">
+      {kpis.map((kpi) => (
+        <article
+          key={kpi.key}
+          className={`profile-kpi-item ${kpi.available === false ? "profile-kpi-item-empty" : ""}`}
+          style={{ "--profile-accent": accentColor }}
+        >
+          <span>{kpi.label}</span>
+          <strong>{kpi.value}</strong>
+          {kpi.detail && <small>{kpi.detail}</small>}
+          {kpi.reference && <small className="profile-kpi-reference">{kpi.reference}</small>}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function buildProfileForecastSidebarContext({
+  allForecastRows = [],
+  observedRows = [],
+  selectedCompanyId = "",
+  selectedPeriodRow = null,
+  forecastScenario = "base_case",
+  forecastMetric = "visits",
+} = {}) {
+  const forecastRows = mergeForecastMetricRows(allForecastRows.filter(isForecastRow));
+  const market = selectedPeriodRow?.market || selectedPeriodRow?.country || "";
+  const scopedForecastRows = forecastRows.filter((row) => !market || row.market === market);
+  const playerForecastRows = scopedForecastRows.filter((row) =>
+    sameCompany(row.company_id, selectedCompanyId),
+  );
+  const scenarioOptions = getProfileForecastScenarioOptions(playerForecastRows);
+  const activeScenario = getPreferredForecastScenario(scenarioOptions, forecastScenario);
+  const scenarioRows = scopedForecastRows.filter((row) => getForecastScenario(row) === activeScenario);
+  const playerScenarioRows = scenarioRows.filter((row) => sameCompany(row.company_id, selectedCompanyId));
+  const metricOptions = getForecastMetricOptions(playerScenarioRows, selectedCompanyId);
+  const activeMetric =
+    metricOptions.find((option) => option.key === forecastMetric && !option.disabled)?.key ||
+    metricOptions.find((option) => !option.disabled)?.key ||
+    forecastMetric ||
+    "visits";
+  const lastObservedVisits = getLatestCompanyMetricRow(observedRows, selectedCompanyId, "visits");
+  const lastObservedRevenue = getLatestCompanyMetricRow(observedRows, selectedCompanyId, "revenue");
+  const visibleForecastRows = getFilteredForecastRowsAfterObserved(
+    playerScenarioRows,
+    observedRows,
+    selectedCompanyId,
+    activeMetric,
+  );
+  const metricRows = getSortedCompanyMetricRows(
+    visibleForecastRows,
+    selectedCompanyId,
+    activeMetric,
+  );
+  const firstForecastRow = metricRows[0] ?? null;
+  const finalForecastRow = metricRows.at(-1) ?? null;
+
+  return {
+    activeScenario,
+    activeMetric,
+    scenarioOptions,
+    metricOptions,
+    lastObservedVisitsLabel: lastObservedVisits ? getProfileRowLabel(lastObservedVisits) : "Sin dato observado",
+    lastObservedRevenueLabel: lastObservedRevenue ? getProfileRowLabel(lastObservedRevenue) : "Sin dato observado",
+    horizonLabel:
+      firstForecastRow && finalForecastRow
+        ? `${getProfileRowLabel(firstForecastRow)} – ${getProfileRowLabel(finalForecastRow)}`
+        : "Sin horizonte forecast disponible",
+  };
+}
+
+function ProfileForecastSidebar({ context = {} }) {
+  return (
+    <section className="global-temporal-panel profile-temporal-panel">
+      <div className="global-temporal-copy">
+        <p className="analysis-label text-accent-500">Contexto forecast</p>
+        <h2>Proyección desde el último observado</h2>
+        <p>
+          En Forecast, la fecha no se selecciona manualmente: la proyección parte del último dato
+          observado disponible.
+        </p>
+      </div>
+      <div className="period-control-stack temporal-control-stack">
+        <div className="period-summary-card">
+          <span>Último observado</span>
+          <strong>Visitas · {context.lastObservedVisitsLabel || "Sin dato observado"}</strong>
+          <small>Facturación · {context.lastObservedRevenueLabel || "Sin dato observado"}</small>
+        </div>
+        <div className="period-summary-card">
+          <span>Horizonte forecast</span>
+          <strong>{context.horizonLabel || "Sin horizonte forecast disponible"}</strong>
+        </div>
+        <div className="period-summary-card">
+          <span>Controles activos</span>
+          <strong>Escenario: {getForecastScenarioLabel(context.activeScenario)}</strong>
+          <small>Métrica: {getProfileMetricLabel(context.activeMetric)}</small>
+        </div>
+      </div>
     </section>
   );
 }
 
 function ProfileView({
   rows,
+  observedRows = [],
+  profilePeriodRows = [],
+  allForecastRows = [],
   companies,
+  rankingMarket,
+  onRankingMarketChange,
+  rankingMarkets,
+  rankingSelectedTimeMode,
+  onRankingTimeModeChange,
+  rankingTimeModeOptions,
+  rankingSelectedYear,
+  onRankingSelectedYearChange,
+  rankingAvailableYears,
+  rankingSelectedMonth,
+  onRankingSelectedMonthChange,
+  rankingMonthOptions,
+  rankingRangeStartMonth,
+  onRankingRangeStartMonthChange,
+  rankingRangeEndMonth,
+  onRankingRangeEndMonthChange,
+  rankingRangeMonthOptions,
+  rankingSelectableRangeStartMonths,
+  rankingSelectableRangeEndMonths,
+  rankingDataNote,
+  rankingAvailabilityItems = [],
+  rankingPeriodStatusItems = [],
+  rankingDatasetCoverageItems = rankingAvailabilityItems,
+  rankingPeriodType,
+  onRankingPeriodTypeChange,
+  rankingPeriodTypes,
+  selectedRankingPeriodKey,
+  onSelectedRankingPeriodChange,
+  rankingPeriodOptions,
   chartRangeMode,
   onChartRangeModeChange,
   chartMarket,
@@ -3766,6 +10831,7 @@ function ProfileView({
   selectedChartYear,
   onSelectedChartYearChange,
   chartYears,
+  chartYearOptions,
   selectedCompanyId,
   onSelectedCompanyChange,
   selectedCompany,
@@ -3777,141 +10843,332 @@ function ProfileView({
     () => filterRowsByChartRange(rows, chartRangeMode, selectedChartYear),
     [chartRangeMode, selectedChartYear, rows],
   );
-  const accentColor =
-    selectedPeriodRow?.company_color || selectedCompany?.company_color || "#E4032C";
+  const [profileChartTab, setProfileChartTab] = useState(PROFILE_CHART_TABS[0].key);
+  const [profileChartMetric, setProfileChartMetric] = useState(
+    PROFILE_CHART_TABS[0].metrics[0],
+  );
+  const [profileMode, setProfileMode] = useState("historical");
+  const [profileForecastScenario, setProfileForecastScenario] = useState("base_case");
+  const [profileForecastMetric, setProfileForecastMetric] = useState("visits");
   const hasSelectedCompanyOption = companies.some((company) =>
     sameCompany(company.id, selectedCompanyId),
   );
-  const companyTitle = selectedCompany?.label || selectedCompanyId || "Company";
-  const profileChartItems = useMemo(
+  const activeProfileChartTab = useMemo(
     () =>
-      PROFILE_CHARTS.map((chart) => {
-        const series = groupSeriesByCompetitor(chartRows, chart.metricKey);
+      PROFILE_CHART_TABS.find((tab) => tab.key === profileChartTab) ??
+      PROFILE_CHART_TABS[0],
+    [profileChartTab],
+  );
+  useEffect(() => {
+    if (!activeProfileChartTab.metrics.includes(profileChartMetric)) {
+      setProfileChartMetric(activeProfileChartTab.metrics[0]);
+    }
+  }, [activeProfileChartTab, profileChartMetric]);
+  const profileChartCompanyIds = useMemo(() => {
+    const companyIds = new Map();
+    const addCompanyId = (companyId) => {
+      const id = normalizeCompanyId(companyId);
+      if (!id) return;
+      companyIds.set(id, companyId);
+    };
+
+    addCompanyId(selectedCompanyId);
+    companies.forEach((company) => addCompanyId(company.id));
+    chartRows.forEach((row) => {
+      if (isRealCompanyRow(row) || isBenchmarkRow(row)) addCompanyId(row.company_id);
+    });
+    addCompanyId(MARKET_BENCHMARK_ID);
+
+    return Array.from(companyIds.values());
+  }, [chartRows, companies, selectedCompanyId]);
+  const profileChartMetricOptions = useMemo(
+    () =>
+      activeProfileChartTab.metrics.map((metricKey) => {
+        const metricRows = chartRows.filter(
+          (row) =>
+            profileChartCompanyIds.some((companyId) =>
+              sameCompany(row?.company_id, companyId),
+            ) && hasMetricValue(row, metricKey),
+        );
 
         return {
-          ...chart,
-          series,
-          chartData: toMultiLineChartData(series),
+          key: metricKey,
+          label: getProfileMetricLabel(metricKey),
+          disabled: metricRows.length === 0,
+          reason: metricRows.length === 0 ? getProfileChartEmptyTitle(metricKey) : "",
         };
       }),
-    [chartRows],
+    [activeProfileChartTab, chartRows, profileChartCompanyIds],
+  );
+  const profileChartItems = useMemo(
+    () => {
+      const series = groupSeriesByCompetitor(
+        chartRows,
+        profileChartMetric,
+        profileChartCompanyIds,
+      );
+
+      return [
+        {
+          metricKey: profileChartMetric,
+          title: getProfileChartTitle(profileChartMetric),
+          series,
+          chartData: toMultiLineChartData(series),
+        },
+      ];
+    },
+    [chartRows, profileChartCompanyIds, profileChartMetric],
   );
   const profileLegendSeries = useMemo(
     () => mergeSeriesForLegend(profileChartItems.map((chart) => chart.series)),
     [profileChartItems],
   );
   const selectedCompanyDefault = useMemo(
-    () => [selectedCompanyId, "market_average"],
+    () => {
+      const defaults = [selectedCompanyId];
+      if (!sameCompany(selectedCompanyId, OWN_COMPANY_ID)) defaults.push(OWN_COMPANY_ID);
+      defaults.push(MARKET_BENCHMARK_ID);
+      return defaults;
+    },
     [selectedCompanyId],
   );
   const profileVisibility = useCompanyVisibility(profileLegendSeries, selectedCompanyDefault);
-  const chartRangeLabel = chartRangeMode === "year" ? selectedChartYear || "Year" : "All time";
+  const selectedChartYearOption = getSelectedPeriodOption(chartYearOptions, selectedChartYear);
+  const chartRangeLabel =
+    chartRangeMode === "year"
+      ? selectedChartYearOption?.label || selectedChartYear || "Año"
+      : "Todo el histórico disponible";
+  const profilePeriodLabel = getPeriodLabelFromRows(
+    profilePeriodRows,
+    selectedPeriod?.label || "Periodo seleccionado",
+  );
+  const profileForecastSidebarContext = useMemo(
+    () =>
+      buildProfileForecastSidebarContext({
+        allForecastRows,
+        observedRows,
+        selectedCompanyId,
+        selectedPeriodRow,
+        forecastScenario: profileForecastScenario,
+        forecastMetric: profileForecastMetric,
+      }),
+    [
+      allForecastRows,
+      observedRows,
+      profileForecastMetric,
+      profileForecastScenario,
+      selectedCompanyId,
+      selectedPeriodRow,
+    ],
+  );
+  useEffect(() => {
+    if (
+      profileForecastSidebarContext.activeScenario &&
+      profileForecastSidebarContext.activeScenario !== profileForecastScenario
+    ) {
+      setProfileForecastScenario(profileForecastSidebarContext.activeScenario);
+    }
+  }, [profileForecastScenario, profileForecastSidebarContext.activeScenario]);
+  useEffect(() => {
+    if (
+      profileForecastSidebarContext.activeMetric &&
+      profileForecastSidebarContext.activeMetric !== profileForecastMetric
+    ) {
+      setProfileForecastMetric(profileForecastSidebarContext.activeMetric);
+    }
+  }, [profileForecastMetric, profileForecastSidebarContext.activeMetric]);
+  const profilePeriodControls = (
+    <PeriodContextControls
+      market={rankingMarket}
+      onMarketChange={onRankingMarketChange}
+      markets={rankingMarkets}
+      selectedTimeMode={rankingSelectedTimeMode}
+      onTimeModeChange={onRankingTimeModeChange}
+      timeModeOptions={rankingTimeModeOptions}
+      selectedYear={rankingSelectedYear}
+      onSelectedYearChange={onRankingSelectedYearChange}
+      availableYears={rankingAvailableYears}
+      selectedMonth={rankingSelectedMonth}
+      onSelectedMonthChange={onRankingSelectedMonthChange}
+      monthOptions={rankingMonthOptions}
+      rangeStartMonth={rankingRangeStartMonth}
+      onRangeStartMonthChange={onRankingRangeStartMonthChange}
+      rangeEndMonth={rankingRangeEndMonth}
+      onRangeEndMonthChange={onRankingRangeEndMonthChange}
+      rangeMonthOptions={rankingRangeMonthOptions}
+      selectableRangeStartMonths={rankingSelectableRangeStartMonths}
+      selectableRangeEndMonths={rankingSelectableRangeEndMonths}
+      dataNote={rankingDataNote}
+      availabilityItems={rankingAvailabilityItems}
+      periodStatusItems={rankingPeriodStatusItems}
+      datasetCoverageItems={rankingDatasetCoverageItems}
+      periodType={rankingPeriodType}
+      onPeriodTypeChange={onRankingPeriodTypeChange}
+      periodTypes={rankingPeriodTypes}
+      selectedPeriodKey={selectedRankingPeriodKey}
+      onSelectedPeriodChange={onSelectedRankingPeriodChange}
+      periodOptions={rankingPeriodOptions}
+    />
+  );
 
   return (
-    <div className="space-y-6">
-      <section className="surface-card p-5 md:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <button type="button" className="section-link" onClick={onBack}>
-              Back to benchmark
-            </button>
-            <div className="mt-5 flex items-center gap-3">
-              <CompanyMark
-                companyId={selectedCompanyId}
-                label={companyTitle}
-                color={accentColor}
-                className="company-mark-profile"
-              />
-              <div>
-                <p className="analysis-label">Company profile</p>
-                <h2 className="mt-1 text-3xl font-semibold text-black">
-                  {companyTitle}
-                </h2>
-              </div>
+    <div className="profile-temporal-layout">
+      <aside className="temporal-sidebar" aria-label="Controles temporales de la ficha">
+        {profileMode === "forecast" ? (
+          <ProfileForecastSidebar context={profileForecastSidebarContext} />
+        ) : (
+          <section className="global-temporal-panel profile-temporal-panel">
+            <div className="global-temporal-copy">
+              <p className="analysis-label text-accent-500">Contexto de ficha</p>
+              <h2>Dónde y cuándo miramos</h2>
+              <p>
+                Este selector controla KPIs, snapshot y comparativas ejecutivas de la ficha. Las
+                gráficas mantienen su propio rango visual para explorar evolución.
+              </p>
             </div>
-            <p className="mt-3 text-sm text-neutral-600">
-              Individual view for {selectedPeriod?.label || "the selected period"}.
-            </p>
-          </div>
+            {profilePeriodControls}
+          </section>
+        )}
+      </aside>
 
-          <div className="grid gap-4 sm:grid-cols-[1fr_auto] lg:min-w-[520px]">
-            <SelectField
-              label="Change profile"
-              value={selectedCompanyId}
-              onChange={onSelectedCompanyChange}
-              disabled={!companies.length}
-            >
-              {!hasSelectedCompanyOption && selectedCompanyId && (
-                <option value={selectedCompanyId}>{selectedCompanyId}</option>
-              )}
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.label}
-                </option>
-              ))}
-            </SelectField>
-
-            <div className="rounded-sm border border-black/10 bg-[#fbf8f5] px-4 py-3">
-              <p className="analysis-label">Period</p>
-              <div className="mt-2 flex items-center gap-2">
-                <p className="font-semibold text-black">{selectedPeriod?.label || "N/A"}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {selectedPeriodRow ? (
-        <ProfileKpis row={selectedPeriodRow} company={selectedCompany} />
-      ) : (
-        <EmptyState
-          title="No data for the selected competitor."
-          message="Return to the benchmark and change the period or select another available company."
-        />
-      )}
-
-      <ContentSection
-        eyebrow="Charts"
-        title="Company charts"
-        detail={chartRangeLabel}
-        action={
-          <ChartRangeControls
-            market={chartMarket}
-            onMarketChange={onChartMarketChange}
-            markets={chartMarkets}
-            periodType={chartPeriodType}
-            onPeriodTypeChange={onChartPeriodTypeChange}
-            periodTypes={chartPeriodTypes}
-            chartRangeMode={chartRangeMode}
-            onChartRangeModeChange={onChartRangeModeChange}
-            selectedChartYear={selectedChartYear}
-            onSelectedChartYearChange={onSelectedChartYearChange}
-            chartYears={chartYears}
-          />
-        }
-      >
-        <CompanyLegend
-          series={profileLegendSeries}
-          hiddenCompanyIds={profileVisibility.hiddenCompanyIds}
-          onToggleCompany={profileVisibility.handleToggleCompany}
-          onShowAll={profileVisibility.handleShowAll}
-          onHideAll={profileVisibility.handleHideAll}
+      <div className="profile-content-stack">
+        <PlayerHeader
+          row={selectedPeriodRow}
+          company={selectedCompany}
+          selectedCompanyId={selectedCompanyId}
+          companies={companies}
+          onSelectedCompanyChange={onSelectedCompanyChange}
+          hasSelectedCompanyOption={hasSelectedCompanyOption}
+          observedRows={observedRows}
+          periodLabel={profilePeriodLabel}
+          profileMode={profileMode}
+          forecastScenario={profileForecastSidebarContext.activeScenario}
+          forecastMetric={profileForecastSidebarContext.activeMetric}
+          onBack={onBack}
         />
 
-        <section className="grid gap-6 xl:grid-cols-2">
-          {profileChartItems.map((chart) => (
-            <MetricChart
-              key={chart.metricKey}
-              title={chart.title}
-              metricKey={chart.metricKey}
-              series={chart.series}
-              chartData={chart.chartData}
-              emptyTitle={`Not enough data for ${chart.title}.`}
-              hiddenCompanyIds={profileVisibility.hiddenCompanyIds}
+        <ProfileTabs
+          options={PROFILE_MAIN_TABS}
+          value={profileMode}
+          onChange={setProfileMode}
+          label="Histórico o forecast"
+        />
+
+        {profileMode === "forecast" ? (
+          <ContentSection
+            eyebrow="Forecast"
+            title="Proyección del player"
+            detail="Separado del histórico real"
+          >
+            <ProfileForecastPanel
+              allForecastRows={allForecastRows}
+              observedRows={observedRows}
+              selectedCompanyId={selectedCompanyId}
+              selectedCompany={selectedCompany}
+              selectedPeriodRow={selectedPeriodRow}
+              forecastScenario={profileForecastSidebarContext.activeScenario}
+              onForecastScenarioChange={setProfileForecastScenario}
+              forecastMetric={profileForecastSidebarContext.activeMetric}
+              onForecastMetricChange={setProfileForecastMetric}
+              onOpenProfile={onSelectedCompanyChange}
             />
-          ))}
-        </section>
-      </ContentSection>
+          </ContentSection>
+        ) : selectedPeriodRow ? (
+          <>
+            <ProfileExecutiveSnapshot
+              row={selectedPeriodRow}
+              company={selectedCompany}
+              periodRows={profilePeriodRows}
+              periodLabel={profilePeriodLabel}
+            />
+            <ProfileKpis
+              row={selectedPeriodRow}
+              company={selectedCompany}
+              periodRows={profilePeriodRows}
+              periodLabel={profilePeriodLabel}
+            />
+            <ProfileMomentumBlock row={selectedPeriodRow} periodRows={profilePeriodRows} />
+
+            <ContentSection
+              eyebrow="Comparativa"
+              title={
+                sameCompany(selectedCompanyId, OWN_COMPANY_ID)
+                  ? "Focus Brand vs Market Average"
+                  : "Player vs Focus Brand y market average"
+              }
+              detail={profilePeriodLabel}
+            >
+              <ProfileComparisonPanel row={selectedPeriodRow} periodRows={profilePeriodRows} />
+            </ContentSection>
+          </>
+        ) : (
+          <EmptyState
+            title="No hay datos para el competidor seleccionado."
+            message="Cambia el periodo global o selecciona otra empresa disponible."
+          />
+        )}
+
+        {profileMode === "historical" && (
+        <ContentSection
+          eyebrow="Gráficas"
+          title="Gráficas de ficha"
+          detail={chartRangeLabel}
+          action={
+            <ChartRangeControls
+              market={chartMarket}
+              onMarketChange={onChartMarketChange}
+              markets={chartMarkets}
+              periodType={chartPeriodType}
+              onPeriodTypeChange={onChartPeriodTypeChange}
+              periodTypes={chartPeriodTypes}
+              chartRangeMode={chartRangeMode}
+              onChartRangeModeChange={onChartRangeModeChange}
+              selectedChartYear={selectedChartYear}
+              onSelectedChartYearChange={onSelectedChartYearChange}
+              chartYears={chartYears}
+              chartYearOptions={chartYearOptions}
+            />
+          }
+        >
+          <ProfileTabs
+            options={PROFILE_CHART_TABS}
+            value={profileChartTab}
+            onChange={setProfileChartTab}
+            label="Gráficas de ficha"
+          />
+
+          <MetricSwitch
+            options={profileChartMetricOptions}
+            value={profileChartMetric}
+            onChange={setProfileChartMetric}
+            label="Métrica"
+          />
+
+          <CompanyLegend
+            series={profileLegendSeries}
+            hiddenCompanyIds={profileVisibility.hiddenCompanyIds}
+            onToggleCompany={profileVisibility.handleToggleCompany}
+            onShowAll={profileVisibility.handleShowAll}
+            onHideAll={profileVisibility.handleHideAll}
+          />
+
+          <section className="grid gap-6">
+            {profileChartItems.map((chart) => (
+              <MetricChart
+                key={chart.metricKey}
+                title={chart.title}
+                metricKey={chart.metricKey}
+                series={chart.series}
+                chartData={chart.chartData}
+                emptyTitle={getProfileChartEmptyTitle(chart.metricKey)}
+                hiddenCompanyIds={profileVisibility.hiddenCompanyIds}
+                yAxisReversed={chart.metricKey.startsWith("rank_")}
+              />
+            ))}
+          </section>
+        </ContentSection>
+        )}
+      </div>
     </div>
   );
 }
@@ -3921,16 +11178,13 @@ export default function App() {
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [route, setRoute] = useState(getCurrentRoute);
-  const [rankingPeriodType, setRankingPeriodType] = useState("monthly");
-  const [rankingMarket, setRankingMarket] = useState("");
-  const [selectedRankingPeriodKey, setSelectedRankingPeriodKey] = useState("");
   const [forecastPeriodType, setForecastPeriodType] = useState("monthly");
   const [forecastMarket, setForecastMarket] = useState("");
   const [chartPeriodType, setChartPeriodType] = useState("monthly");
   const [chartMarket, setChartMarket] = useState("");
   const [chartRangeMode, setChartRangeMode] = useState("all");
   const [selectedChartYear, setSelectedChartYear] = useState("");
-  const [rankingSort, setRankingSort] = useState(benchmarkDashboardConfig.defaultMetric);
+  const [rankingSort, setRankingSort] = useState("revenue");
   const [forecastScenario, setForecastScenario] = useState("base_case");
   const [selectedCompanyId, setSelectedCompanyId] = useState(OWN_COMPANY_ID);
 
@@ -3940,7 +11194,7 @@ export default function App() {
     loadBenchmarkData()
       .then((json) => {
         if (!isMounted) return;
-        setPayload(buildBenchmarkDataset(json, benchmarkDashboardConfig));
+        setPayload(json);
         setStatus("ready");
       })
       .catch((apiError) => {
@@ -3970,7 +11224,6 @@ export default function App() {
   }, []);
 
   const rawInterfaceRows = payload?.data?.interface ?? [];
-  const rawInsights = payload?.data?.insights ?? [];
   const rows = useMemo(() => normalizeInterfaceRows(rawInterfaceRows), [rawInterfaceRows]);
   const realRows = useMemo(() => rows.filter(isRealCompanyRow), [rows]);
   const comparableRows = useMemo(() => rows.filter(isComparableRow), [rows]);
@@ -3996,13 +11249,15 @@ export default function App() {
     [forecastScenario, rows],
   );
   const forecastSourceRows = useMemo(
-    () => getForecastRows(forecastScenarioRows),
+    () => mergeForecastMetricRows(getForecastRows(forecastScenarioRows)),
     [forecastScenarioRows],
   );
-  const rankingSortOptions = useMemo(
-    () => getAvailableRankingSorts(realRows),
-    [realRows],
-  );
+  const allForecastSourceRows = useMemo(() => mergeForecastMetricRows(getForecastRows(rows)), [rows]);
+  const globalScope = useScopedPeriodSelection({
+    rows: realRows,
+    periodRowsValidator: (rowsForPeriod) => rowsForPeriod.length >= 1,
+  });
+  const rankingSortOptions = LOCAL_RANKING_SORTS;
 
   useEffect(() => {
     if (!rankingSortOptions.length) return;
@@ -4013,125 +11268,11 @@ export default function App() {
     }
   }, [rankingSort, rankingSortOptions]);
 
-  const rankingMetricRows = useMemo(
-    () => filterRowsWithMetrics(realRows, [rankingSort]),
-    [realRows, rankingSort],
-  );
-  const rankingSourcePeriodTypes = useMemo(
-    () => getPeriodTypes(rankingMetricRows),
-    [rankingMetricRows],
-  );
-  const rankingPeriodTypes = useMemo(
-    () => getRankingPeriodTypes(rankingMetricRows, rankingSourcePeriodTypes, rankingSort),
-    [rankingMetricRows, rankingSort, rankingSourcePeriodTypes],
-  );
-
-  useEffect(() => {
-    if (!rankingPeriodTypes.length) return;
-    if (!rankingPeriodTypes.includes(rankingPeriodType)) {
-      setRankingPeriodType(
-        rankingPeriodTypes.includes("monthly") ? "monthly" : rankingPeriodTypes[0],
-      );
-    }
-  }, [rankingPeriodType, rankingPeriodTypes]);
-
-  const rankingSourcePeriodType = useMemo(
-    () => getSourcePeriodType(rankingPeriodType, rankingSourcePeriodTypes),
-    [rankingPeriodType, rankingSourcePeriodTypes],
-  );
-  const rankingMarkets = useMemo(
-    () => getMarkets(rankingMetricRows, rankingSourcePeriodType),
-    [rankingMetricRows, rankingSourcePeriodType],
-  );
-
-  useEffect(() => {
-    if (!rankingMarkets.length) {
-      setRankingMarket("");
-      return;
-    }
-
-    if (!rankingMarket || !rankingMarkets.includes(rankingMarket)) {
-      setRankingMarket(
-        rankingMarkets.includes(benchmarkDashboardConfig.defaultMarket)
-          ? benchmarkDashboardConfig.defaultMarket
-          : rankingMarkets[0],
-      );
-    }
-  }, [rankingMarket, rankingMarkets]);
-
-  const rankingBenchmarkRows = useMemo(
-    () =>
-      preferObservedRows(
-        filterRowsWithMetrics(
-          filterInterfaceRows(
-            realRows,
-            {
-              periodType: rankingSourcePeriodType,
-              market: rankingMarket,
-            },
-            { realOnly: true },
-          ),
-          [rankingSort],
-        ),
-      ),
-    [realRows, rankingMarket, rankingSort, rankingSourcePeriodType],
-  );
-  const rankingPeriodOptions = useMemo(
-    () =>
-      rankingPeriodType === "annual"
-        ? getAvailableAnnualPeriods(rankingBenchmarkRows)
-        : getAvailablePeriods(rankingBenchmarkRows),
-    [rankingBenchmarkRows, rankingPeriodType],
-  );
-
-  useEffect(() => {
-    const periodKeys = new Set(rankingPeriodOptions.map((period) => period.key));
-
-    if (!rankingPeriodOptions.length) {
-      setSelectedRankingPeriodKey("");
-      return;
-    }
-
-    if (!selectedRankingPeriodKey || !periodKeys.has(selectedRankingPeriodKey)) {
-      const latestActualPeriod =
-        rankingPeriodOptions
-          .slice()
-          .reverse()
-          .find((period) => !period.has_forecast) ??
-        rankingPeriodOptions[rankingPeriodOptions.length - 1];
-      setSelectedRankingPeriodKey(latestActualPeriod.key);
-    }
-  }, [rankingPeriodOptions, selectedRankingPeriodKey]);
-
-  const selectedRankingPeriod = useMemo(
-    () =>
-      rankingPeriodOptions.find((period) => period.key === selectedRankingPeriodKey) ??
-      null,
-    [rankingPeriodOptions, selectedRankingPeriodKey],
-  );
+  const rankingPeriodOptions = globalScope.periodOptions;
+  const selectedRankingPeriod = globalScope.selectedPeriod;
   const rankingPeriodRows = useMemo(
-    () =>
-      rankingPeriodType === "annual"
-        ? getRowsForAnnualPeriod(rankingBenchmarkRows, selectedRankingPeriodKey)
-        : getRowsForPeriod(rankingBenchmarkRows, selectedRankingPeriodKey),
-    [rankingBenchmarkRows, rankingPeriodType, selectedRankingPeriodKey],
-  );
-  const rankingComparisonRows = useMemo(
-    () =>
-      preferObservedRows(
-        filterInterfaceRows(comparableRows, {
-          periodType: rankingSourcePeriodType,
-          market: rankingMarket,
-        }),
-      ),
-    [comparableRows, rankingMarket, rankingSourcePeriodType],
-  );
-  const rankingComparisonPeriodRows = useMemo(
-    () =>
-      rankingPeriodType === "annual"
-        ? getRowsForAnnualPeriod(rankingComparisonRows, selectedRankingPeriodKey)
-        : getRowsForPeriod(rankingComparisonRows, selectedRankingPeriodKey),
-    [rankingComparisonRows, rankingPeriodType, selectedRankingPeriodKey],
+    () => globalScope.periodRows,
+    [globalScope.periodRows],
   );
   const chartSelectableRows = useMemo(
     () => filterRowsWithMetrics(comparableRows, DASHBOARD_CHART_METRICS, false),
@@ -4166,11 +11307,7 @@ export default function App() {
     }
 
     if (!chartMarket || !chartMarkets.includes(chartMarket)) {
-      setChartMarket(
-        chartMarkets.includes(benchmarkDashboardConfig.defaultMarket)
-          ? benchmarkDashboardConfig.defaultMarket
-          : chartMarkets[0],
-      );
+      setChartMarket(chartMarkets[0]);
     }
   }, [chartMarket, chartMarkets]);
 
@@ -4188,9 +11325,13 @@ export default function App() {
       ),
     [chartMarket, chartSourcePeriodType, comparableRows],
   );
-  const chartYears = useMemo(
-    () => getAvailableChartYears(chartTrendRows, DASHBOARD_CHART_METRICS),
+  const chartYearOptions = useMemo(
+    () => getAvailableChartYearOptions(chartTrendRows, DASHBOARD_CHART_METRICS),
     [chartTrendRows],
+  );
+  const chartYears = useMemo(
+    () => chartYearOptions.map((period) => period.key),
+    [chartYearOptions],
   );
 
   useEffect(() => {
@@ -4206,7 +11347,7 @@ export default function App() {
   }, [chartYears, selectedChartYear]);
 
   const forecastSelectableRows = useMemo(
-    () => filterRowsWithMetrics(forecastSourceRows, FORECAST_DETAIL_METRICS),
+    () => filterRowsWithMetrics(forecastSourceRows, FORECAST_DETAIL_METRICS, false),
     [forecastSourceRows],
   );
   const forecastSourcePeriodTypes = useMemo(
@@ -4244,11 +11385,7 @@ export default function App() {
     }
 
     if (!forecastMarket || !forecastMarkets.includes(forecastMarket)) {
-      setForecastMarket(
-        forecastMarkets.includes(benchmarkDashboardConfig.defaultMarket)
-          ? benchmarkDashboardConfig.defaultMarket
-          : forecastMarkets[0],
-      );
+      setForecastMarket(forecastMarkets[0]);
     }
   }, [forecastMarket, forecastMarkets]);
 
@@ -4264,14 +11401,23 @@ export default function App() {
           { includeForecasts: true, realOnly: true },
         ),
         FORECAST_DETAIL_METRICS,
+        false,
       ),
     [forecastMarket, forecastSourcePeriodType, forecastSourceRows],
   );
-  const companies = useMemo(() => getUniqueCompanies(rankingBenchmarkRows), [rankingBenchmarkRows]);
-  const insightItems = useMemo(
-    () => getInsightItems(rawInsights, rankingPeriodRows),
-    [rankingPeriodRows, rawInsights],
+  const profileObservedRows = useMemo(
+    () =>
+      filterInterfaceRows(
+        comparableRows,
+        {
+          periodType: "monthly",
+          market: globalScope.market,
+        },
+        { includeBenchmark: true, includeForecasts: false },
+      ),
+    [comparableRows, globalScope.market],
   );
+  const companies = useMemo(() => getUniqueCompanies(realRows), [realRows]);
 
   useEffect(() => {
     if (!companies.length) {
@@ -4292,13 +11438,6 @@ export default function App() {
     }
   }, [companies, route.companyId, route.view, selectedCompanyId]);
 
-  const rankingRows = useMemo(
-    () =>
-      buildRankingViewModel(rankingPeriodRows, benchmarkDashboardConfig, {
-        metric: rankingSort,
-      }).rows,
-    [rankingPeriodRows, rankingSort],
-  );
   const selectedCompany = useMemo(
     () => companies.find((company) => sameCompany(company.id, selectedCompanyId)) ?? null,
     [companies, selectedCompanyId],
@@ -4306,6 +11445,16 @@ export default function App() {
   const selectedPeriodRow = useMemo(
     () => rankingPeriodRows.find((row) => sameCompany(row.company_id, selectedCompanyId)) ?? null,
     [rankingPeriodRows, selectedCompanyId],
+  );
+  const profilePeriodRows = useMemo(
+    () =>
+      buildRowsForTimeSelection(comparableRows, globalScope.timeSelection, {
+        market: globalScope.market,
+        metricKeys: BATTLE_METRICS.map((metric) => metric.key),
+        requireAll: false,
+        includeBenchmark: true,
+      }),
+    [comparableRows, globalScope.market, globalScope.timeSelection],
   );
 
   const handleOpenProfile = (companyId) => {
@@ -4318,6 +11467,25 @@ export default function App() {
 
   const handleGoBenchmark = () => {
     navigateToHash(HOME_HASH);
+  };
+
+  const handleOpenPlayers = () => {
+    const focus = companies.find((company) => sameCompany(company.id, OWN_COMPANY_ID));
+    const targetCompanyId =
+      selectedCompany?.id ||
+      focus?.id ||
+      companies[0]?.id ||
+      selectedCompanyId ||
+      OWN_COMPANY_ID;
+
+    if (targetCompanyId) {
+      setSelectedCompanyId(targetCompanyId);
+      navigateToHash(getProfileHash(targetCompanyId));
+    }
+  };
+
+  const handleOpenBattleArena = () => {
+    navigateToHash(BATTLE_ARENA_HASH);
   };
 
   const handleOpenForecast = () => {
@@ -4333,8 +11501,8 @@ export default function App() {
   if (!rawInterfaceRows.length) {
     return (
       <StatusShell
-        title="El snapshot no incluye filas de interface."
-        message="data.interface debe contener filas para alimentar el dashboard."
+        title="No hay datos disponibles para el dashboard."
+        message="Revisa que la fuente publicada incluya filas comparables antes de abrir la lectura ejecutiva."
       />
     );
   }
@@ -4345,53 +11513,24 @@ export default function App() {
         <AppHeader
           view={route.view}
           onGoBenchmark={handleGoBenchmark}
+          onOpenPlayers={handleOpenPlayers}
+          onOpenBattleArena={handleOpenBattleArena}
+          onOpenForecast={handleOpenForecast}
           generatedAt={formatGeneratedAt(payload?.meta?.generated_at)}
           rowCount={rawInterfaceRows.length}
         />
 
         {route.view === "home" ? (
           <HomeView
-            rankingRows={rankingRows}
-            rankingPeriodRows={rankingPeriodRows}
-            comparisonPeriodRows={rankingComparisonPeriodRows}
+            realRows={realRows}
+            comparableRows={comparableRows}
             rankingSort={rankingSort}
             onRankingSortChange={setRankingSort}
-            rankingSortOptions={rankingSortOptions}
-            rankingMarket={rankingMarket}
-            onRankingMarketChange={setRankingMarket}
-            rankingMarkets={rankingMarkets}
-            rankingPeriodType={rankingPeriodType}
-            onRankingPeriodTypeChange={setRankingPeriodType}
-            rankingPeriodTypes={rankingPeriodTypes}
-            selectedRankingPeriodKey={selectedRankingPeriodKey}
-            onSelectedRankingPeriodChange={setSelectedRankingPeriodKey}
-            rankingPeriodOptions={rankingPeriodOptions}
-            selectedRankingPeriod={selectedRankingPeriod}
-            insightItems={insightItems}
-            forecastRows={forecastRows}
-            forecastScenarios={forecastScenarios}
-            forecastScenario={forecastScenario}
-            onForecastScenarioChange={setForecastScenario}
-            forecastScenarioLabel={getForecastScenarioLabel(forecastScenario)}
-            forecastMarket={forecastMarket}
-            onForecastMarketChange={setForecastMarket}
-            forecastMarkets={forecastMarkets}
-            forecastPeriodType={forecastPeriodType}
-            onForecastPeriodTypeChange={setForecastPeriodType}
-            forecastPeriodTypes={forecastPeriodTypes}
-            chartTrendRows={chartTrendRows}
-            chartMarket={chartMarket}
-            onChartMarketChange={setChartMarket}
-            chartMarkets={chartMarkets}
-            chartPeriodType={chartPeriodType}
-            onChartPeriodTypeChange={setChartPeriodType}
-            chartPeriodTypes={chartPeriodTypes}
+            globalScope={globalScope}
             chartRangeMode={chartRangeMode}
-            onChartRangeModeChange={setChartRangeMode}
             selectedChartYear={selectedChartYear}
-            onSelectedChartYearChange={setSelectedChartYear}
-            chartYears={chartYears}
-            onOpenForecast={handleOpenForecast}
+            chartYearOptions={chartYearOptions}
+            onOpenBattleArena={handleOpenBattleArena}
             onOpenProfile={handleOpenProfile}
           />
         ) : route.view === "forecast" ? (
@@ -4410,10 +11549,52 @@ export default function App() {
             onBack={handleGoBenchmark}
             onOpenProfile={handleOpenProfile}
           />
+        ) : route.view === "battle" ? (
+          <BattleArenaView
+            realRows={realRows}
+            comparableRows={comparableRows}
+            forecastSourceRows={allForecastSourceRows}
+            companies={companies}
+            globalScope={globalScope}
+            forecastScenarios={forecastScenarios}
+            onOpenProfile={handleOpenProfile}
+          />
         ) : (
           <ProfileView
             rows={chartTrendRows}
+            observedRows={profileObservedRows}
+            profilePeriodRows={profilePeriodRows}
+            allForecastRows={allForecastSourceRows}
             companies={companies}
+            rankingMarket={globalScope.market}
+            onRankingMarketChange={globalScope.onMarketChange}
+            rankingMarkets={globalScope.markets}
+            rankingSelectedTimeMode={globalScope.selectedTimeMode}
+            onRankingTimeModeChange={globalScope.onTimeModeChange}
+            rankingTimeModeOptions={globalScope.timeModeOptions}
+            rankingSelectedYear={globalScope.selectedYear}
+            onRankingSelectedYearChange={globalScope.onSelectedYearChange}
+            rankingAvailableYears={globalScope.availableYears}
+            rankingSelectedMonth={globalScope.selectedMonth}
+            onRankingSelectedMonthChange={globalScope.onSelectedMonthChange}
+            rankingMonthOptions={globalScope.monthOptions}
+            rankingRangeStartMonth={globalScope.rangeStartMonth}
+            onRankingRangeStartMonthChange={globalScope.onRangeStartMonthChange}
+            rankingRangeEndMonth={globalScope.rangeEndMonth}
+            onRankingRangeEndMonthChange={globalScope.onRangeEndMonthChange}
+            rankingRangeMonthOptions={globalScope.rangeMonthOptions}
+            rankingSelectableRangeStartMonths={globalScope.selectableRangeStartMonths}
+            rankingSelectableRangeEndMonths={globalScope.selectableRangeEndMonths}
+            rankingDataNote={globalScope.dataNote}
+            rankingAvailabilityItems={globalScope.availabilityItems}
+            rankingPeriodStatusItems={globalScope.periodStatusItems}
+            rankingDatasetCoverageItems={globalScope.datasetCoverageItems}
+            rankingPeriodType={globalScope.periodType}
+            onRankingPeriodTypeChange={globalScope.onPeriodTypeChange}
+            rankingPeriodTypes={globalScope.periodTypes}
+            selectedRankingPeriodKey={globalScope.selectedPeriodKey}
+            onSelectedRankingPeriodChange={globalScope.onSelectedPeriodChange}
+            rankingPeriodOptions={rankingPeriodOptions}
             chartRangeMode={chartRangeMode}
             onChartRangeModeChange={setChartRangeMode}
             chartMarket={chartMarket}
@@ -4425,6 +11606,7 @@ export default function App() {
             selectedChartYear={selectedChartYear}
             onSelectedChartYearChange={setSelectedChartYear}
             chartYears={chartYears}
+            chartYearOptions={chartYearOptions}
             selectedCompanyId={selectedCompanyId}
             onSelectedCompanyChange={handleOpenProfile}
             selectedCompany={selectedCompany}

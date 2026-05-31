@@ -1,24 +1,19 @@
-import { roundMetric, safeNumber, shouldWriteDerived } from "./benchmarkUtils.js";
+import { safeNumber } from "./helpers.js";
 
-export function calculateEfficiencyMetrics(rows = [], options = {}) {
-  const preserveExisting = options.preserveExisting ?? true;
-
+export function calculateEfficiencyMetrics(rows = []) {
   return rows.map((row) => {
-    const nextRow = { ...row };
-    const revenue = safeNumber(nextRow.revenue);
-    const visits = safeNumber(nextRow.visits);
-    const revenueShare = safeNumber(nextRow.market_share_revenue);
-    const visitsShare = safeNumber(nextRow.market_share_visits);
-
-    if (shouldWriteDerived(nextRow, "revenue_per_visit", preserveExisting)) {
-      nextRow.revenue_per_visit = visits && revenue !== null ? roundMetric(revenue / visits, 4) : null;
-    }
-
-    if (shouldWriteDerived(nextRow, "revenue_share_vs_visit_share", preserveExisting)) {
-      nextRow.revenue_share_vs_visit_share =
-        revenueShare !== null && visitsShare !== null ? roundMetric(revenueShare - visitsShare) : null;
-    }
-
-    return nextRow;
+    const revenue = safeNumber(row.revenue);
+    const visits = safeNumber(row.visits);
+    const revenuePerVisit = revenue !== null && visits ? revenue / visits : row.revenue_per_visit;
+    const revenueShare = safeNumber(row.market_share_revenue);
+    const visitShare = safeNumber(row.market_share_visits);
+    const gap = revenueShare !== null && visitShare !== null ? revenueShare - visitShare : row.revenue_share_vs_visit_share;
+    return {
+      ...row,
+      revenue_per_visit: revenuePerVisit === undefined ? null : revenuePerVisit,
+      revenue_share_vs_visit_share: gap === undefined ? null : gap,
+      monetization_gap: gap === undefined ? null : gap,
+      has_efficiency: revenuePerVisit !== null && revenuePerVisit !== undefined,
+    };
   });
 }

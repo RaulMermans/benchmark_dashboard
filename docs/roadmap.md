@@ -1,11 +1,9 @@
 # Roadmap
 
-Future framework upgrades:
-
 - CSV adapter
 - Google Sheets adapter
-- CLI for validation and adapter runs
-- dashboard config generator
+- CLI for data validation and mock-data generation
+- npm package extraction for the framework layer
 - AI/model benchmark template
-- AgentPulse benchmark integration
-- npm package extraction for the schema, adapters, and core engine
+- AgentPulse trace benchmark integration
+- Smaller modular dashboard views

@@ -1,25 +1,25 @@
-import { getPeriodKey, groupRows, roundMetric, safeNumber, shouldWriteDerived } from "./benchmarkUtils.js";
-
-const SHARE_FIELD_BY_METRIC = {
-  revenue: "market_share_revenue",
-  visits: "market_share_visits",
-};
+import { groupBy, isBenchmarkRow, safeNumber } from "./helpers.js";
 
 export function calculateMarketShares(rows = [], metric = "revenue", options = {}) {
-  const shareField = SHARE_FIELD_BY_METRIC[metric] || `market_share_${metric}`;
-  const preserveExisting = options.preserveExisting ?? true;
-  const nextRows = rows.map((row) => ({ ...row }));
-  const groups = groupRows(nextRows, getPeriodKey);
+  const shareField = metric === "visits" ? "market_share_visits" : "market_share_revenue";
+  const includeBenchmark = options.includeBenchmarkInShareTotal === true;
+  const groups = groupBy(rows, (row) => [row.date, row.market, row.data_type, row.forecast_scenario || ""].join("|"));
+  const totals = new Map();
 
-  groups.forEach((groupRowsForPeriod) => {
-    const total = groupRowsForPeriod.reduce((sum, row) => sum + (safeNumber(row?.[metric]) ?? 0), 0);
-
-    groupRowsForPeriod.forEach((row) => {
-      if (!shouldWriteDerived(row, shareField, preserveExisting)) return;
-      const value = safeNumber(row?.[metric]);
-      row[shareField] = total > 0 && value !== null ? roundMetric(value / total) : null;
-    });
+  groups.forEach((group, key) => {
+    const denominatorRows = group.filter((row) => includeBenchmark || !isBenchmarkRow(row, options));
+    const total = denominatorRows.reduce((sum, row) => sum + (safeNumber(row[metric]) || 0), 0);
+    totals.set(key, total);
   });
 
-  return nextRows;
+  return rows.map((row) => {
+    const key = [row.date, row.market, row.data_type, row.forecast_scenario || ""].join("|");
+    const total = totals.get(key) || 0;
+    const value = safeNumber(row[metric]);
+    const isBenchmark = isBenchmarkRow(row, options);
+    return {
+      ...row,
+      [shareField]: total && value !== null && (includeBenchmark || !isBenchmark) ? value / total : row[shareField] ?? null,
+    };
+  });
 }
