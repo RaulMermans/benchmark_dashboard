@@ -116,6 +116,17 @@ export function formatPercentagePoints(value, { compact = false, signed = true }
   }).format(displayValue)} ${label}`;
 }
 
+export function formatSignedPercent(value) {
+  const number = safeNumber(value);
+  if (number === null) return formatPercent(value);
+
+  const normalized = number * 100;
+  return `${number > 0 ? "+" : ""}${new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(normalized)}%`;
+}
+
 export function formatMetric(value, metricKey) {
   if (metricKey === "revenue") {
     return formatCurrency(value);

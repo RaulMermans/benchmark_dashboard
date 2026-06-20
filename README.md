@@ -120,10 +120,10 @@ The public version is a framework/template using synthetic mock data.
 ## System architecture
 
 ```text
-Simple monthly data / mock JSON
+Simple monthly data / mock JSON / live API
   -> adapter
   -> schema validator
-  -> benchmark engine
+  -> benchmark engine (core calculations)
   -> view-model builders
   -> React + Vite dashboard
   -> Vercel deployment
@@ -145,18 +145,30 @@ Simple monthly data / mock JSON
 
 ## Framework modules
 
-| Module                      | Purpose                                                                                  |
-| --------------------------- | ---------------------------------------------------------------------------------------- |
-| `src/framework/schema`      | Validates the benchmark payload contract                                                 |
-| `src/framework/core`        | Normalizes rows and calculates shares, ranks, growth, efficiency, and aggregations       |
-| `src/framework/adapters`    | Converts JSON or simple monthly rows into benchmark payloads                             |
-| `src/framework/view-models` | Builds chart-ready and table-ready data structures                                       |
-| `src/framework/config`      | Controls focus company, benchmark company, enabled views, currency, locale, and defaults |
-| `src/App.jsx`               | Renders the polished executive dashboard interface                                       |
+| Module                          | Purpose                                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/framework/schema`          | Validates the benchmark payload contract                                                 |
+| `src/framework/core`            | Normalizes rows and calculates shares, ranks, growth, efficiency, and aggregations       |
+| `src/framework/adapters`        | Converts JSON or simple monthly rows into benchmark payloads                             |
+| `src/framework/view-models`     | Builds chart-ready and table-ready data structures                                       |
+| `src/framework/config`          | Controls focus company, benchmark company, enabled views, currency, locale, and defaults |
+| `src/config/benchmarkConfig.js` | Centralizes entity IDs, routes, period types, scenario order, and thresholds for the App |
+| `src/config/metricRegistry.js`  | Centralizes metric definitions, labels, and named option arrays used across the App      |
+| `src/lib/metricFormatters.js`   | Resolves string formatter keys from the registry to formatting functions                 |
+| `src/viewModels/`               | Wraps framework view-model builders for each dashboard section                           |
+| `src/App.jsx`                   | Renders the polished executive dashboard interface                                       |
 
 The framework is designed so that benchmark logic and interface rendering remain separated.
 
 ---
+
+## Data modes
+
+| Mode | When | How |
+|------|------|-----|
+| **Local snapshot** | No env vars set (default) | Reads `/public/data/benchmark-data.json` |
+| **Live API** | `VITE_BENCHMARK_API_URL` set | Fetches from live API; falls back to local snapshot on failure |
+| **CI API** | `VITE_CI_API_URL` set | Same as live API |
 
 ## Data contract
 
@@ -193,6 +205,26 @@ The public demo includes enriched fields such as:
 * event metadata
 
 ---
+
+See [`docs/data-contract.md`](docs/data-contract.md) for the full field list and derivation rules.
+
+## How to connect your own data
+
+1. **Match the payload shape** — `ok: true`, `data.interface` array with required fields.
+2. **Set the API URL** in `.env`:
+   ```
+   VITE_BENCHMARK_API_URL=https://your-api/benchmark
+   ```
+3. **Return required fields** consistently across all rows.
+4. **Adjust entity IDs** in `src/config/benchmarkConfig.js` if your `company_id` values differ from `focus`, `peer_a`, `peer_b`, `market_average`.
+5. **Run validation**:
+   ```bash
+   pnpm validate:data
+   pnpm test
+   pnpm build
+   ```
+
+For simple monthly rows (revenue + visits per company per month), use the adapter in `src/framework/adapters/simpleMonthlyAdapter.js` — it computes all derived fields automatically.
 
 ## Replace mock data
 
@@ -253,12 +285,15 @@ Start here:
 4. `src/framework/adapters` — adapter layer for converting simpler data into benchmark payloads
 5. `src/framework/view-models` — chart-ready and table-ready view models
 6. `src/framework/config` — dashboard settings, focus company, benchmark company, locale, and defaults
-7. `src/App.jsx` — executive dashboard interface
-8. Public audit script — safety check for public data exposure
+7. `src/config/benchmarkConfig.js` — entity IDs, routes, period types, and thresholds for the App
+8. `src/config/metricRegistry.js` — metric definitions, labels, and named option arrays
+9. `src/App.jsx` — executive dashboard interface
+10. Public audit script — safety check for public data exposure
 
 This repo is best reviewed as a reusable business intelligence framework, not only as a visual dashboard.
 
 ---
+
 
 ## Run locally
 
@@ -356,11 +391,12 @@ This project demonstrates:
 * business intelligence product thinking
 * executive dashboard design
 * benchmark data modeling
-* reusable data contracts
+* reusable data contracts and metric registries
 * schema validation
 * adapter-based data ingestion
 * benchmark calculation logic
 * chart/table view-model architecture
+* configuration-driven design (entity IDs, routes, metrics all centralised)
 * public-safe demo design
 * strategic data communication
 * React + Vite dashboard execution

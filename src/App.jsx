@@ -63,72 +63,34 @@ import {
   formatPp,
   safeNumber,
 } from "./lib/formatters.js";
+import { benchmarkConfig } from "./config/benchmarkConfig.js";
+import {
+  RANKING_SORTS,
+  LOCAL_RANKING_SORTS,
+  EXECUTIVE_METRIC_OPTIONS,
+  GLOBAL_CONTEXT_METRICS,
+  PROFILE_CHART_TABS,
+  PROFILE_FORECAST_METRICS,
+  DASHBOARD_CHART_METRICS,
+  FORECAST_DETAIL_METRICS,
+  DISTRIBUTION_METRICS,
+  INDEXED_METRIC_OPTIONS,
+  MOMENTUM_METRIC_OPTIONS,
+  BATTLE_METRICS,
+  BATTLE_FORECAST_METRIC_OPTIONS,
+} from "./config/metricRegistry.js";
 
-const OWN_COMPANY_ID = "focus";
-const MARKET_BENCHMARK_ID = "market_average";
-const CORE_RACE_COMPANY_IDS = [OWN_COMPANY_ID, "peer_a", "peer_b", MARKET_BENCHMARK_ID];
-const BATTLE_TARGET_IDS = ["peer_a", "peer_b", MARKET_BENCHMARK_ID];
-
-const PERIOD_TYPE_LABELS = {
-  monthly: "Mes",
-  annual: "Año",
-  yearly: "Año",
-  quarterly: "Trimestre",
-  historical: "Histórico",
-};
-
-const TIME_MODE_OPTIONS = [
-  { key: "month", label: "Mes" },
-  { key: "annual", label: "Año" },
-  { key: "range", label: "Rango" },
-  { key: "historical", label: "Histórico" },
-];
+const OWN_COMPANY_ID = benchmarkConfig.identity.focusEntityId;
+const MARKET_BENCHMARK_ID = benchmarkConfig.identity.benchmarkEntityId;
+const CORE_RACE_COMPANY_IDS = benchmarkConfig.comparisonSets.coreRaceEntityIds;
+const BATTLE_TARGET_IDS = benchmarkConfig.comparisonSets.battleTargetEntityIds;
+const PERIOD_TYPE_LABELS = benchmarkConfig.periods.labels;
+const TIME_MODE_OPTIONS = benchmarkConfig.periods.timeModes;
 const TIME_MODE_KEYS = TIME_MODE_OPTIONS.map((option) => option.key);
-
-const FORECAST_TIME_MODE_OPTIONS = [
-  { key: "month", label: "Mes" },
-  { key: "annual", label: "Año" },
-  { key: "range", label: "Rango" },
-  { key: "horizon", label: "Horizonte" },
-];
+const FORECAST_TIME_MODE_OPTIONS = benchmarkConfig.periods.forecastTimeModes;
 const FORECAST_TIME_MODE_KEYS = FORECAST_TIME_MODE_OPTIONS.map((option) => option.key);
-
-const DASHBOARD_PERIOD_TYPE_ORDER = ["monthly", "quarterly", "annual"];
-const FORECAST_SCENARIO_ORDER = ["base_case", "conservative", "aggressive", "unknown"];
-
-const RANKING_SORTS = [
-  { key: "revenue", label: "Facturación" },
-  { key: "visits", label: "Visitas" },
-  { key: "market_share_revenue", label: "Cuota facturación" },
-  { key: "market_share_visits", label: "Cuota visitas" },
-  { key: "revenue_per_visit", label: "Facturación por visita" },
-  { key: "revenue_mom_growth", label: "Crecimiento mensual facturación" },
-  { key: "visits_mom_growth", label: "Crecimiento mensual visitas" },
-  { key: "revenue_yoy_growth", label: "Crecimiento interanual facturación" },
-  { key: "visits_yoy_growth", label: "Crecimiento interanual visitas" },
-];
-
-const LOCAL_RANKING_SORTS = [
-  { key: "revenue", label: "Facturación" },
-  { key: "visits", label: "Visitas" },
-  { key: "market_share_revenue", label: "Cuota facturación" },
-  { key: "market_share_visits", label: "Cuota visitas" },
-  { key: "growth_revenue", label: "Crecimiento facturación" },
-  { key: "growth_visits", label: "Crecimiento visitas" },
-  { key: "revenue_per_visit", label: "Eficiencia" },
-];
-const EXECUTIVE_METRIC_OPTIONS = [
-  { key: "revenue", label: "Facturación" },
-  { key: "visits", label: "Visitas" },
-];
-const GLOBAL_CONTEXT_METRICS = [
-  "revenue",
-  "visits",
-  "market_share_revenue",
-  "market_share_visits",
-  "revenue_per_visit",
-  "monetization_gap",
-];
+const DASHBOARD_PERIOD_TYPE_ORDER = benchmarkConfig.periods.dashboardOrder;
+const FORECAST_SCENARIO_ORDER = benchmarkConfig.forecast.scenarioOrder;
 const COMPETITIVE_MAP_OPTIONS = [
   {
     key: "traffic_revenue",
@@ -177,76 +139,23 @@ const COMPETITIVE_MAP_OPTIONS = [
   },
 ];
 
-const HOME_HASH = "#/benchmark";
-const FORECAST_HASH = "#/forecast";
-const BATTLE_ARENA_HASH = "#/battle-arena";
-const PROFILE_HASH_PREFIX = "#/empresa/";
+const HOME_HASH = benchmarkConfig.routes.home;
+const FORECAST_HASH = benchmarkConfig.routes.forecast;
+const BATTLE_ARENA_HASH = benchmarkConfig.routes.battleArena;
+const PROFILE_HASH_PREFIX = benchmarkConfig.routes.profilePrefix;
+const BATTLE_TECHNICAL_DRAW_THRESHOLD = benchmarkConfig.thresholds.battleTechnicalDraw;
 const FOCUS_LOGO_SRC = "";
 const EMPTY_HIDDEN_COMPANY_IDS = new Set();
-const BATTLE_TECHNICAL_DRAW_THRESHOLD = 0.02;
+const PROFILE_FORECAST_SCENARIO_ORDER = FORECAST_SCENARIO_ORDER;
 
-const PROFILE_CHART_TABS = [
-  {
-    key: "revenue",
-    label: "Facturación",
-    metrics: ["revenue"],
-  },
-  {
-    key: "visits",
-    label: "Visitas",
-    metrics: ["visits"],
-  },
-  {
-    key: "share",
-    label: "Cuota",
-    metrics: ["market_share_revenue", "market_share_visits"],
-  },
-  {
-    key: "efficiency",
-    label: "Eficiencia",
-    metrics: ["revenue_per_visit", "monetization_gap"],
-  },
-  {
-    key: "ranking",
-    label: "Ranking",
-    metrics: ["rank_revenue", "rank_visits", "rank_share_revenue", "rank_share_visits"],
-  },
-];
 const PROFILE_MAIN_TABS = [
   { key: "historical", label: "Histórico" },
   { key: "forecast", label: "Forecast" },
-];
-const PROFILE_FORECAST_METRICS = [
-  { key: "visits", label: "Visitas" },
-  { key: "revenue", label: "Facturación" },
-];
-const PROFILE_FORECAST_SCENARIO_ORDER = ["base_case", "conservative", "aggressive", "unknown"];
-
-const DASHBOARD_CHART_METRICS = [
-  "visits",
-  "revenue",
-  "market_share_visits",
-  "market_share_revenue",
-];
-const FORECAST_DETAIL_METRICS = ["visits", "revenue"];
-const DISTRIBUTION_METRICS = new Set([
-  "revenue",
-  "visits",
-  "market_share_revenue",
-  "market_share_visits",
-]);
-const INDEXED_METRIC_OPTIONS = [
-  { key: "indexed_revenue", label: "Facturación" },
-  { key: "indexed_visits", label: "Visitas" },
 ];
 const INDEXED_SOURCE_METRICS = {
   indexed_revenue: "revenue",
   indexed_visits: "visits",
 };
-const MOMENTUM_METRIC_OPTIONS = [
-  { key: "visits", label: "Visitas" },
-  { key: "revenue", label: "Facturación" },
-];
 const MOMENTUM_READING_OPTIONS = [
   { key: "absolute", label: "Volumen añadido" },
   { key: "yoy", label: "Crecimiento %" },
@@ -268,23 +177,9 @@ const EXECUTIVE_METRIC_LABELS = {
   indexed_revenue: "índice de facturación",
   indexed_visits: "índice de visitas",
 };
-const BATTLE_METRICS = [
-  { key: "revenue", label: "Facturación", formatter: (value) => formatCurrency(value) },
-  { key: "visits", label: "Visitas", formatter: (value) => formatCompact(value) },
-  { key: "market_share_revenue", label: "Cuota facturación", formatter: (value) => formatPercent(value), deltaType: "sharePoints" },
-  { key: "market_share_visits", label: "Cuota visitas", formatter: (value) => formatPercent(value), deltaType: "sharePoints" },
-  { key: "revenue_yoy_growth", label: "Crecimiento facturación YoY", formatter: (value) => formatSignedPercent(value), deltaType: "percentagePoints" },
-  { key: "visits_yoy_growth", label: "Crecimiento visitas YoY", formatter: (value) => formatSignedPercent(value), deltaType: "percentagePoints" },
-  { key: "revenue_per_visit", label: "Revenue / visita", formatter: (value) => formatCurrencyDecimal(value) },
-  { key: "monetization_gap", label: "Brecha monetización", formatter: (value) => formatPercentagePoints(value, { compact: true }), deltaType: "points" },
-];
 const BATTLE_MODE_OPTIONS = [
   { key: "historical", label: "Histórico" },
   { key: "forecast", label: "Forecast" },
-];
-const BATTLE_FORECAST_METRIC_OPTIONS = [
-  { key: "visits", label: "Visitas" },
-  { key: "revenue", label: "Facturación" },
 ];
 
 function normalizeCompanyId(companyId) {

@@ -12,6 +12,19 @@ import {
   buildExecutiveSummaryViewModel,
   demoBenchmarkConfig,
 } from "../src/framework/index.js";
+import { benchmarkConfig } from "../src/config/benchmarkConfig.js";
+import {
+  METRIC_REGISTRY,
+  RANKING_SORTS,
+  LOCAL_RANKING_SORTS,
+  BATTLE_METRICS,
+  PROFILE_CHART_TABS,
+  GLOBAL_CONTEXT_METRICS,
+  DISTRIBUTION_METRICS,
+  DASHBOARD_CHART_METRICS,
+  FORECAST_DETAIL_METRICS,
+} from "../src/config/metricRegistry.js";
+import { formatMetricValue, getFormatterForMetric } from "../src/lib/metricFormatters.js";
 
 const payload = JSON.parse(fs.readFileSync("public/data/benchmark-data.json", "utf8"));
 
@@ -67,4 +80,162 @@ test("view models return usable data", () => {
   assert.ok(buildRankingViewModel(rows, demoBenchmarkConfig).length > 0);
   assert.ok(buildMarketShareViewModel(rows, demoBenchmarkConfig).length > 0);
   assert.ok(buildExecutiveSummaryViewModel(rows, demoBenchmarkConfig).companyCount > 0);
+});
+
+test("benchmarkConfig has required identity fields", () => {
+  assert.equal(benchmarkConfig.identity.focusEntityId, "focus");
+  assert.equal(benchmarkConfig.identity.benchmarkEntityId, "market_average");
+});
+
+test("benchmarkConfig comparisonSets include focus and peers", () => {
+  const { coreRaceEntityIds, battleTargetEntityIds } = benchmarkConfig.comparisonSets;
+  assert.ok(coreRaceEntityIds.includes("focus"));
+  assert.ok(coreRaceEntityIds.includes("market_average"));
+  assert.ok(coreRaceEntityIds.includes("peer_a"));
+  assert.ok(battleTargetEntityIds.includes("peer_a"));
+  assert.ok(battleTargetEntityIds.includes("peer_b"));
+  assert.ok(!battleTargetEntityIds.includes("focus"), "focus should not be a battle target");
+});
+
+test("benchmarkConfig routes are well-formed hash strings", () => {
+  const { routes } = benchmarkConfig;
+  assert.ok(routes.home.startsWith("#/"));
+  assert.ok(routes.forecast.startsWith("#/"));
+  assert.ok(routes.battleArena.startsWith("#/"));
+  assert.ok(routes.profilePrefix.startsWith("#/"));
+});
+
+test("benchmarkConfig periods have all required keys", () => {
+  const { periods } = benchmarkConfig;
+  assert.ok(Array.isArray(periods.timeModes));
+  assert.ok(Array.isArray(periods.forecastTimeModes));
+  assert.ok(Array.isArray(periods.dashboardOrder));
+  assert.ok(typeof periods.labels === "object");
+  assert.ok(periods.timeModes.every((m) => m.key && m.label));
+});
+
+test("benchmarkConfig forecast scenarioOrder includes base_case", () => {
+  assert.ok(benchmarkConfig.forecast.scenarioOrder.includes("base_case"));
+  assert.ok(benchmarkConfig.forecast.scenarioOrder.includes("conservative"));
+  assert.ok(benchmarkConfig.forecast.scenarioOrder.includes("aggressive"));
+});
+
+test("benchmarkConfig thresholds.battleTechnicalDraw is a positive number", () => {
+  const threshold = benchmarkConfig.thresholds.battleTechnicalDraw;
+  assert.ok(typeof threshold === "number" && threshold > 0 && threshold < 1);
+});
+
+test("METRIC_REGISTRY contains all core metric keys", () => {
+  const keys = METRIC_REGISTRY.map((m) => m.key);
+  const required = [
+    "revenue", "visits", "market_share_revenue", "market_share_visits",
+    "revenue_per_visit", "monetization_gap", "revenue_yoy_growth", "visits_yoy_growth",
+    "rank_revenue", "rank_visits",
+  ];
+  required.forEach((key) => {
+    assert.ok(keys.includes(key), `METRIC_REGISTRY missing: ${key}`);
+  });
+});
+
+test("METRIC_REGISTRY entries have required shape fields", () => {
+  METRIC_REGISTRY.forEach((metric) => {
+    assert.ok(metric.key, `entry missing key`);
+    assert.ok(metric.label, `${metric.key} missing label`);
+    assert.ok(metric.formatter, `${metric.key} missing formatter`);
+    assert.ok(Array.isArray(metric.availableIn), `${metric.key} missing availableIn`);
+    assert.ok(typeof metric.higherIsBetter === "boolean", `${metric.key} missing higherIsBetter`);
+  });
+});
+
+test("RANKING_SORTS has revenue and visits at minimum", () => {
+  const keys = RANKING_SORTS.map((s) => s.key);
+  assert.ok(keys.includes("revenue"));
+  assert.ok(keys.includes("visits"));
+  assert.ok(RANKING_SORTS.every((s) => s.key && s.label));
+});
+
+test("LOCAL_RANKING_SORTS has required entries", () => {
+  const keys = LOCAL_RANKING_SORTS.map((s) => s.key);
+  assert.ok(keys.includes("revenue"));
+  assert.ok(keys.includes("revenue_per_visit"));
+  assert.ok(LOCAL_RANKING_SORTS.every((s) => s.key && s.label));
+});
+
+test("BATTLE_METRICS formatters are callable and return strings", () => {
+  BATTLE_METRICS.forEach((metric) => {
+    if (metric.formatter) {
+      const result = metric.formatter(1000);
+      assert.equal(typeof result, "string", `${metric.key} formatter should return string`);
+      assert.ok(result.length > 0, `${metric.key} formatter returned empty string`);
+    }
+  });
+});
+
+test("BATTLE_METRICS has revenue, visits, and share metrics", () => {
+  const keys = BATTLE_METRICS.map((m) => m.key);
+  assert.ok(keys.includes("revenue"));
+  assert.ok(keys.includes("visits"));
+  assert.ok(keys.includes("market_share_revenue"));
+  assert.ok(keys.includes("revenue_per_visit"));
+});
+
+test("PROFILE_CHART_TABS has required tab keys", () => {
+  const tabKeys = PROFILE_CHART_TABS.map((t) => t.key);
+  assert.ok(tabKeys.includes("revenue"));
+  assert.ok(tabKeys.includes("visits"));
+  assert.ok(tabKeys.includes("share"));
+  assert.ok(tabKeys.includes("efficiency"));
+  assert.ok(tabKeys.includes("ranking"));
+  assert.ok(PROFILE_CHART_TABS.every((t) => Array.isArray(t.metrics) && t.metrics.length > 0));
+});
+
+test("GLOBAL_CONTEXT_METRICS includes core metrics", () => {
+  assert.ok(GLOBAL_CONTEXT_METRICS.includes("revenue"));
+  assert.ok(GLOBAL_CONTEXT_METRICS.includes("visits"));
+  assert.ok(GLOBAL_CONTEXT_METRICS.includes("market_share_revenue"));
+  assert.ok(GLOBAL_CONTEXT_METRICS.includes("revenue_per_visit"));
+});
+
+test("DISTRIBUTION_METRICS is a Set with expected entries", () => {
+  assert.ok(DISTRIBUTION_METRICS instanceof Set);
+  assert.ok(DISTRIBUTION_METRICS.has("revenue"));
+  assert.ok(DISTRIBUTION_METRICS.has("visits"));
+  assert.ok(DISTRIBUTION_METRICS.has("market_share_revenue"));
+});
+
+test("DASHBOARD_CHART_METRICS and FORECAST_DETAIL_METRICS are arrays", () => {
+  assert.ok(Array.isArray(DASHBOARD_CHART_METRICS));
+  assert.ok(Array.isArray(FORECAST_DETAIL_METRICS));
+  assert.ok(DASHBOARD_CHART_METRICS.includes("revenue"));
+  assert.ok(FORECAST_DETAIL_METRICS.includes("revenue"));
+});
+
+test("formatMetricValue resolves currency formatter", () => {
+  const result = formatMetricValue(1000, "currency");
+  assert.equal(typeof result, "string");
+  assert.ok(result.length > 0);
+});
+
+test("formatMetricValue resolves percent formatter", () => {
+  const result = formatMetricValue(0.25, "percent");
+  assert.equal(typeof result, "string");
+  assert.ok(result.includes("%"));
+});
+
+test("formatMetricValue resolves signedPercent formatter with sign", () => {
+  const positive = formatMetricValue(0.05, "signedPercent");
+  assert.ok(positive.startsWith("+"), `expected + sign, got: ${positive}`);
+});
+
+test("formatMetricValue handles unknown formatter key gracefully", () => {
+  const result = formatMetricValue(42, "unknown_key");
+  assert.equal(typeof result, "string");
+});
+
+test("getFormatterForMetric returns expected keys", () => {
+  assert.equal(getFormatterForMetric("revenue"), "currency");
+  assert.equal(getFormatterForMetric("revenue_per_visit"), "currencyDecimal");
+  assert.equal(getFormatterForMetric("visits"), "compact");
+  assert.equal(getFormatterForMetric("rank_revenue"), "rank");
+  assert.equal(getFormatterForMetric("market_share_revenue"), "percent");
 });
