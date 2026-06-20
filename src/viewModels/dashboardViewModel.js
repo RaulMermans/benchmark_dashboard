@@ -16,3 +16,25 @@ export function getDashboardPeriodTypes(sourcePeriodTypes = [], orderedPeriods =
     return a.localeCompare(b);
   });
 }
+
+export function getSourcePeriodType(periodType, sourcePeriodTypes = []) {
+  if (sourcePeriodTypes.includes(periodType)) return periodType;
+  return sourcePeriodTypes[0] || "";
+}
+
+const DATA_SOURCE_LABELS = {
+  "local-snapshot": "Sample data",
+  "live-api": "Live API",
+  "snapshot-fallback": "Snapshot fallback",
+};
+
+export function getDataSourceStatus(dataSourceMetadata = {}) {
+  const type = DATA_SOURCE_LABELS[dataSourceMetadata?.type]
+    ? dataSourceMetadata.type
+    : "local-snapshot";
+
+  return {
+    type,
+    label: dataSourceMetadata?.label || DATA_SOURCE_LABELS[type],
+  };
+}

@@ -80,6 +80,25 @@ select:disabled {
     color: var(--brand-surface);
   }
 
+  .data-source-badge {
+    @apply inline-flex rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+    border-color: var(--brand-border);
+    background: var(--brand-surface-muted);
+    color: var(--brand-muted);
+  }
+
+  .data-source-badge-live-api {
+    border-color: rgb(15 122 74 / 0.3);
+    background: rgb(15 122 74 / 0.08);
+    color: var(--brand-success);
+  }
+
+  .data-source-badge-snapshot-fallback {
+    border-color: rgb(161 92 0 / 0.3);
+    background: rgb(161 92 0 / 0.08);
+    color: var(--brand-warning);
+  }
+
   .brand-lockup {
     @apply flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center;
   }

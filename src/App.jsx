@@ -79,6 +79,16 @@ import {
   BATTLE_METRICS,
   BATTLE_FORECAST_METRIC_OPTIONS,
 } from "./config/metricRegistry.js";
+import {
+  getDataSourceStatus,
+  getSourcePeriodType,
+} from "./viewModels/dashboardViewModel.js";
+import {
+  filterRowsByForecastScenario,
+  getAvailableForecastScenarios,
+  getForecastScenarioLabel,
+} from "./viewModels/forecastViewModel.js";
+import { getProfileHash as buildProfileHash } from "./viewModels/profileViewModel.js";
 
 const OWN_COMPANY_ID = benchmarkConfig.identity.focusEntityId;
 const MARKET_BENCHMARK_ID = benchmarkConfig.identity.benchmarkEntityId;
@@ -89,55 +99,8 @@ const TIME_MODE_OPTIONS = benchmarkConfig.periods.timeModes;
 const TIME_MODE_KEYS = TIME_MODE_OPTIONS.map((option) => option.key);
 const FORECAST_TIME_MODE_OPTIONS = benchmarkConfig.periods.forecastTimeModes;
 const FORECAST_TIME_MODE_KEYS = FORECAST_TIME_MODE_OPTIONS.map((option) => option.key);
-const DASHBOARD_PERIOD_TYPE_ORDER = benchmarkConfig.periods.dashboardOrder;
 const FORECAST_SCENARIO_ORDER = benchmarkConfig.forecast.scenarioOrder;
-const COMPETITIVE_MAP_OPTIONS = [
-  {
-    key: "traffic_revenue",
-    label: "Tráfico vs facturación",
-    xMetric: "visits",
-    yMetric: "revenue",
-    sizeMetric: "market_share_revenue",
-    description: "Relaciona escala de audiencia con facturación medida.",
-    unavailableReason: "Falta facturación.",
-    quadrants: [
-      "Líder de escala: alto tráfico + alta facturación.",
-      "Audiencia fuerte: alto tráfico + menor facturación.",
-      "Alta monetización relativa: menor tráfico + alta facturación.",
-      "Jugador pequeño: bajo tráfico + baja facturación.",
-    ],
-  },
-  {
-    key: "traffic_efficiency",
-    label: "Tráfico vs eficiencia",
-    xMetric: "visits",
-    yMetric: "revenue_per_visit",
-    sizeMetric: "market_share_revenue",
-    description: "Mide quién convierte mejor el tráfico en facturación.",
-    unavailableReason: "Requiere facturación y visitas.",
-    quadrants: [
-      "Líder eficiente: alto tráfico + alta eficiencia.",
-      "Tráfico infra-monetizado: alto tráfico + baja eficiencia.",
-      "Nicho eficiente: bajo tráfico + alta eficiencia.",
-      "Jugador débil: bajo tráfico + baja eficiencia.",
-    ],
-  },
-  {
-    key: "share_growth",
-    label: "Posición vs momentum",
-    xMetric: "market_share_revenue",
-    yMetric: "revenue_yoy_growth",
-    sizeMetric: "visits",
-    description: "Cruza cuota de facturación con crecimiento interanual.",
-    unavailableReason: "Falta facturación o periodo comparable.",
-    quadrants: [
-      "Líder en aceleración: alta cuota + alto crecimiento.",
-      "Líder maduro: alta cuota + bajo crecimiento.",
-      "Challenger emergente: baja cuota + alto crecimiento.",
-      "Jugador débil: baja cuota + bajo crecimiento.",
-    ],
-  },
-];
+const COMPETITIVE_MAP_OPTIONS = benchmarkConfig.views.competitiveMapOptions;
 
 const HOME_HASH = benchmarkConfig.routes.home;
 const FORECAST_HASH = benchmarkConfig.routes.forecast;
@@ -148,39 +111,11 @@ const FOCUS_LOGO_SRC = "";
 const EMPTY_HIDDEN_COMPANY_IDS = new Set();
 const PROFILE_FORECAST_SCENARIO_ORDER = FORECAST_SCENARIO_ORDER;
 
-const PROFILE_MAIN_TABS = [
-  { key: "historical", label: "Histórico" },
-  { key: "forecast", label: "Forecast" },
-];
-const INDEXED_SOURCE_METRICS = {
-  indexed_revenue: "revenue",
-  indexed_visits: "visits",
-};
-const MOMENTUM_READING_OPTIONS = [
-  { key: "absolute", label: "Volumen añadido" },
-  { key: "yoy", label: "Crecimiento %" },
-];
-const EXECUTIVE_METRIC_LABELS = {
-  revenue: "facturación",
-  visits: "visitas",
-  market_share_revenue: "cuota de facturación",
-  market_share_visits: "cuota de visitas",
-  revenue_yoy_growth: "crecimiento interanual de facturación",
-  visits_yoy_growth: "crecimiento interanual de visitas",
-  share_revenue_change_yoy: "variación interanual de cuota de facturación",
-  share_revenue_change_mom: "variación mensual de cuota de facturación",
-  share_revenue_change_range: "cambio de cuota de facturación",
-  share_visits_change_yoy: "variación interanual de cuota de visitas",
-  share_visits_change_mom: "variación mensual de cuota de visitas",
-  share_visits_change_range: "cambio de cuota de visitas",
-  revenue_per_visit: "facturación por visita",
-  indexed_revenue: "índice de facturación",
-  indexed_visits: "índice de visitas",
-};
-const BATTLE_MODE_OPTIONS = [
-  { key: "historical", label: "Histórico" },
-  { key: "forecast", label: "Forecast" },
-];
+const PROFILE_MAIN_TABS = benchmarkConfig.views.profileMainTabs;
+const INDEXED_SOURCE_METRICS = benchmarkConfig.views.indexedSourceMetrics;
+const MOMENTUM_READING_OPTIONS = benchmarkConfig.views.momentumReadingOptions;
+const EXECUTIVE_METRIC_LABELS = benchmarkConfig.views.executiveMetricLabels;
+const BATTLE_MODE_OPTIONS = benchmarkConfig.views.battleModeOptions;
 
 function normalizeCompanyId(companyId) {
   return String(companyId ?? "")
@@ -253,7 +188,7 @@ function getCurrentRoute() {
 }
 
 function getProfileHash(companyId) {
-  return `${PROFILE_HASH_PREFIX}${encodeURIComponent(companyId)}`;
+  return buildProfileHash(PROFILE_HASH_PREFIX, companyId);
 }
 
 function navigateToHash(hash) {
@@ -284,45 +219,6 @@ function mergeSeriesForLegend(seriesGroups = []) {
 
   return Array.from(seriesMap.values()).sort((a, b) =>
     a.display_name.localeCompare(b.display_name),
-  );
-}
-
-function getForecastScenarioLabel(scenario) {
-  if (scenario === "base_case") return "Base";
-  if (scenario === "aggressive") return "Agresivo";
-  if (scenario === "conservative") return "Conservador";
-  if (scenario === "unknown") return "Sin escenario";
-
-  return String(scenario || "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function getAvailableForecastScenarios(rows = []) {
-  const scenarios = new Set(
-    rows
-      .filter(isForecastRow)
-      .map(getForecastScenario)
-      .filter(Boolean),
-  );
-
-  return Array.from(scenarios).sort((a, b) => {
-    const aIndex = FORECAST_SCENARIO_ORDER.indexOf(a);
-    const bIndex = FORECAST_SCENARIO_ORDER.indexOf(b);
-    if (aIndex !== -1 || bIndex !== -1) {
-      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-    }
-    return a.localeCompare(b);
-  });
-}
-
-function filterRowsByForecastScenario(rows = [], forecastScenario = "") {
-  if (!forecastScenario) return rows;
-  const selectedScenario = getForecastScenario({ forecast_scenario: forecastScenario });
-  if (!selectedScenario) return rows;
-
-  return rows.filter(
-    (row) => !isForecastRow(row) || getForecastScenario(row) === selectedScenario,
   );
 }
 
@@ -433,25 +329,6 @@ function filterRowsWithMetrics(rows = [], metricKeys = [], requireAll = true) {
     const checks = keys.map((metricKey) => hasMetricValue(row, metricKey));
     return requireAll ? checks.every(Boolean) : checks.some(Boolean);
   });
-}
-
-function _getDashboardPeriodTypes(_rows = [], sourcePeriodTypes = []) {
-  const periodTypeSet = new Set(sourcePeriodTypes);
-
-  return Array.from(periodTypeSet).sort((a, b) => {
-    const aIndex = DASHBOARD_PERIOD_TYPE_ORDER.indexOf(a);
-    const bIndex = DASHBOARD_PERIOD_TYPE_ORDER.indexOf(b);
-    if (aIndex !== -1 || bIndex !== -1) {
-      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-    }
-    return a.localeCompare(b);
-  });
-}
-
-
-function getSourcePeriodType(periodType, sourcePeriodTypes = []) {
-  if (sourcePeriodTypes.includes(periodType)) return periodType;
-  return sourcePeriodTypes[0] || "";
 }
 
 function getAvailableChartYearOptions(rows = [], metricKeys = []) {
@@ -2333,6 +2210,7 @@ function AppHeader({
   onOpenForecast,
   generatedAt,
   rowCount,
+  dataSourceStatus,
 }) {
   const isProfile = view === "profile";
   const isForecast = view === "forecast";
@@ -2362,6 +2240,14 @@ function AppHeader({
           <span className="font-medium text-black">{generatedAt}</span>
           <span>Filas interface</span>
           <span className="font-medium text-black">{rowCount}</span>
+          <span>Fuente de datos</span>
+          <span>
+            <span
+              className={`data-source-badge data-source-badge-${dataSourceStatus.type}`}
+            >
+              {dataSourceStatus.label}
+            </span>
+          </span>
         </div>
       </div>
 
@@ -11103,7 +10989,11 @@ export default function App() {
   const rows = useMemo(() => normalizeInterfaceRows(rawInterfaceRows), [rawInterfaceRows]);
   const realRows = useMemo(() => rows.filter(isRealCompanyRow), [rows]);
   const comparableRows = useMemo(() => rows.filter(isComparableRow), [rows]);
-  const forecastScenarios = useMemo(() => getAvailableForecastScenarios(rows), [rows]);
+  const forecastScenarios = useMemo(
+    () => getAvailableForecastScenarios(rows, FORECAST_SCENARIO_ORDER),
+    [rows],
+  );
+  const dataSourceStatus = getDataSourceStatus(payload?.meta?.data_source);
 
   useEffect(() => {
     if (!rows.length) return;
@@ -11394,6 +11284,7 @@ export default function App() {
           onOpenForecast={handleOpenForecast}
           generatedAt={formatGeneratedAt(payload?.meta?.generated_at)}
           rowCount={rawInterfaceRows.length}
+          dataSourceStatus={dataSourceStatus}
         />
 
         {route.view === "home" ? (

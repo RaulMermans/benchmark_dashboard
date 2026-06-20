@@ -1,6 +1,19 @@
 const SNAPSHOT_URL = "/data/benchmark-data.json";
+const VITE_ENV = import.meta.env || {};
 const RAW_LIVE_API_URL =
-  import.meta.env.VITE_BENCHMARK_API_URL || import.meta.env.VITE_CI_API_URL || "";
+  VITE_ENV.VITE_BENCHMARK_API_URL || VITE_ENV.VITE_CI_API_URL || "";
+
+export const DATA_SOURCE_TYPES = {
+  LOCAL_SNAPSHOT: "local-snapshot",
+  LIVE_API: "live-api",
+  SNAPSHOT_FALLBACK: "snapshot-fallback",
+};
+
+const DATA_SOURCE_LABELS = {
+  [DATA_SOURCE_TYPES.LOCAL_SNAPSHOT]: "Sample data",
+  [DATA_SOURCE_TYPES.LIVE_API]: "Live API",
+  [DATA_SOURCE_TYPES.SNAPSHOT_FALLBACK]: "Snapshot fallback",
+};
 
 const LIVE_API_DEFAULT_PARAMS = {
   period_type: "monthly",
@@ -13,7 +26,7 @@ const LIVE_API_DEFAULT_PARAMS = {
 };
 
 function isDevelopment() {
-  return Boolean(import.meta.env.DEV);
+  return Boolean(VITE_ENV.DEV);
 }
 
 function logDataSource(level, message, detail) {
@@ -88,6 +101,25 @@ function normalizePayload(json, sourceLabel) {
   return json;
 }
 
+export function createDataSourceMetadata(type, details = {}) {
+  const normalizedType = DATA_SOURCE_LABELS[type] ? type : DATA_SOURCE_TYPES.LOCAL_SNAPSHOT;
+  return {
+    type: normalizedType,
+    label: DATA_SOURCE_LABELS[normalizedType],
+    ...details,
+  };
+}
+
+function withDataSourceMetadata(json, metadata) {
+  return {
+    ...json,
+    meta: {
+      ...(json.meta || {}),
+      data_source: metadata,
+    },
+  };
+}
+
 async function fetchBenchmarkJson(url, sourceLabel) {
   let response;
 
@@ -115,18 +147,23 @@ async function fetchBenchmarkJson(url, sourceLabel) {
 
 export async function loadBenchmarkData() {
   const liveApiUrl = buildLiveApiUrl(RAW_LIVE_API_URL);
+  let liveApiError = "";
 
   if (liveApiUrl) {
     try {
       logDataSource("info", "Trying live API first.", liveApiUrl);
       const json = await fetchBenchmarkJson(liveApiUrl, "Live benchmark API");
       logDataSource("info", "Loaded live API successfully.");
-      return json;
+      return withDataSourceMetadata(
+        json,
+        createDataSourceMetadata(DATA_SOURCE_TYPES.LIVE_API),
+      );
     } catch (error) {
+      liveApiError = error?.message || "Unknown live API error.";
       logDataSource(
         "warn",
         "Live API failed; falling back to local snapshot.",
-        error?.message || error,
+        liveApiError,
       );
     }
   } else {
@@ -136,9 +173,19 @@ export async function loadBenchmarkData() {
   try {
     const json = await fetchBenchmarkJson(SNAPSHOT_URL, "Local benchmark snapshot");
     logDataSource("info", "Loaded local snapshot successfully.");
-    return json;
+    const sourceType = liveApiUrl
+      ? DATA_SOURCE_TYPES.SNAPSHOT_FALLBACK
+      : DATA_SOURCE_TYPES.LOCAL_SNAPSHOT;
+    const details = liveApiError ? { fallbackReason: liveApiError } : {};
+    return withDataSourceMetadata(json, createDataSourceMetadata(sourceType, details));
   } catch (error) {
-    throw new Error(error?.message || "Could not load benchmark data.");
+    const snapshotError = error?.message || "Unknown snapshot error.";
+    if (liveApiError) {
+      throw new Error(
+        `Live benchmark API failed (${liveApiError}). Local snapshot fallback also failed (${snapshotError}).`,
+      );
+    }
+    throw new Error(`Local benchmark snapshot failed (${snapshotError}).`);
   }
 }
 

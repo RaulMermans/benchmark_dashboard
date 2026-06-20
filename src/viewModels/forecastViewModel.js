@@ -1,3 +1,5 @@
+import { getForecastScenario, isForecastRow } from "../lib/data.js";
+
 export { buildForecastViewModel } from "../framework/index.js";
 
 export function getForecastScenarioLabel(scenario) {
@@ -11,10 +13,12 @@ export function getForecastScenarioLabel(scenario) {
 }
 
 export function getAvailableForecastScenarios(rows = [], scenarioOrder = [], isForecastRowFn, getScenarioFn) {
+  const rowIsForecast = isForecastRowFn || isForecastRow;
+  const readScenario = getScenarioFn || getForecastScenario;
   const scenarios = new Set(
     rows
-      .filter(isForecastRowFn)
-      .map(getScenarioFn)
+      .filter(rowIsForecast)
+      .map(readScenario)
       .filter(Boolean),
   );
   return Array.from(scenarios).sort((a, b) => {
@@ -25,4 +29,14 @@ export function getAvailableForecastScenarios(rows = [], scenarioOrder = [], isF
     }
     return a.localeCompare(b);
   });
+}
+
+export function filterRowsByForecastScenario(rows = [], forecastScenario = "") {
+  if (!forecastScenario) return rows;
+  const selectedScenario = getForecastScenario({ forecast_scenario: forecastScenario });
+  if (!selectedScenario) return rows;
+
+  return rows.filter(
+    (row) => !isForecastRow(row) || getForecastScenario(row) === selectedScenario,
+  );
 }

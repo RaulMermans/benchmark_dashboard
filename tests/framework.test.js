@@ -25,6 +25,22 @@ import {
   FORECAST_DETAIL_METRICS,
 } from "../src/config/metricRegistry.js";
 import { formatMetricValue, getFormatterForMetric } from "../src/lib/metricFormatters.js";
+import {
+  DATA_SOURCE_TYPES,
+  createDataSourceMetadata,
+  loadBenchmarkData,
+} from "../src/lib/api.js";
+import {
+  getDashboardPeriodTypes,
+  getDataSourceStatus,
+  getSourcePeriodType,
+} from "../src/viewModels/dashboardViewModel.js";
+import {
+  filterRowsByForecastScenario,
+  getAvailableForecastScenarios,
+  getForecastScenarioLabel,
+} from "../src/viewModels/forecastViewModel.js";
+import { getProfileHash } from "../src/viewModels/profileViewModel.js";
 
 const payload = JSON.parse(fs.readFileSync("public/data/benchmark-data.json", "utf8"));
 
@@ -123,6 +139,81 @@ test("benchmarkConfig forecast scenarioOrder includes base_case", () => {
 test("benchmarkConfig thresholds.battleTechnicalDraw is a positive number", () => {
   const threshold = benchmarkConfig.thresholds.battleTechnicalDraw;
   assert.ok(typeof threshold === "number" && threshold > 0 && threshold < 1);
+});
+
+test("benchmarkConfig centralizes view option definitions", () => {
+  const { views } = benchmarkConfig;
+  assert.ok(views.competitiveMapOptions.length >= 3);
+  assert.deepEqual(views.profileMainTabs.map((tab) => tab.key), ["historical", "forecast"]);
+  assert.equal(views.indexedSourceMetrics.indexed_revenue, "revenue");
+  assert.ok(views.momentumReadingOptions.every((option) => option.key && option.label));
+  assert.ok(views.battleModeOptions.every((option) => option.key && option.label));
+});
+
+test("dashboard period helpers preserve preferred order and select a fallback", () => {
+  assert.deepEqual(
+    getDashboardPeriodTypes(
+      ["annual", "monthly", "quarterly"],
+      benchmarkConfig.periods.dashboardOrder,
+    ),
+    ["monthly", "quarterly", "annual"],
+  );
+  assert.equal(getSourcePeriodType("annual", ["monthly", "annual"]), "annual");
+  assert.equal(getSourcePeriodType("quarterly", ["monthly", "annual"]), "monthly");
+});
+
+test("profile hash helper safely encodes company IDs", () => {
+  assert.equal(getProfileHash("#/empresa/", "peer a/b"), "#/empresa/peer%20a%2Fb");
+});
+
+test("forecast helpers label, order, and filter scenarios", () => {
+  const rows = [
+    { data_type: "actual", company_id: "focus" },
+    { data_type: "forecast", forecast_scenario: "aggressive", company_id: "focus" },
+    { data_type: "forecast", forecast_scenario: "base_case", company_id: "focus" },
+  ];
+  assert.equal(getForecastScenarioLabel("base_case"), "Base");
+  assert.deepEqual(
+    getAvailableForecastScenarios(rows, benchmarkConfig.forecast.scenarioOrder),
+    ["base_case", "aggressive"],
+  );
+  assert.deepEqual(
+    filterRowsByForecastScenario(rows, "base_case"),
+    [rows[0], rows[2]],
+  );
+});
+
+test("data-source metadata and badge status classify all loading modes", () => {
+  const cases = [
+    [DATA_SOURCE_TYPES.LOCAL_SNAPSHOT, "Sample data"],
+    [DATA_SOURCE_TYPES.LIVE_API, "Live API"],
+    [DATA_SOURCE_TYPES.SNAPSHOT_FALLBACK, "Snapshot fallback"],
+  ];
+
+  cases.forEach(([type, label]) => {
+    const metadata = createDataSourceMetadata(type);
+    assert.equal(metadata.type, type);
+    assert.equal(metadata.label, label);
+    assert.deepEqual(getDataSourceStatus(metadata), { type, label });
+  });
+});
+
+test("local data loading attaches sample-data source metadata", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ ok: true, data: { interface: [] } }),
+  });
+
+  try {
+    const result = await loadBenchmarkData();
+    assert.equal(result.meta.data_source.type, DATA_SOURCE_TYPES.LOCAL_SNAPSHOT);
+    assert.equal(result.meta.data_source.label, "Sample data");
+    assert.deepEqual(result.data.events, []);
+    assert.deepEqual(result.data.forecasts, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("METRIC_REGISTRY contains all core metric keys", () => {

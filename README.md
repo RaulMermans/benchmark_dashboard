@@ -1,8 +1,8 @@
-# Benchmark Intelligence Framework / Dashboard Template
+# Benchmark Dashboard Framework
 
-Framework-ready competitive intelligence dashboard for turning benchmark data into executive-facing rankings, market-share views, growth analysis, period aggregation, forecasts, event overlays, profile cards, and decision-ready benchmark insights.
+Reusable benchmark dashboard framework for JSON/API-driven competitive analysis.
 
-This project converts mock or user-provided benchmark data into a polished business intelligence interface supported by a reusable data contract, validation layer, benchmark calculation engine, adapters, view models, and public-safe mock data policy.
+This project is a reusable dashboard shell for turning structured benchmark data into rankings, market-share analysis, growth views, forecasts, profile cards, and executive-ready insights. It ships with synthetic sample data by default; replace the local JSON snapshot or connect a live API without redesigning the interface.
 
 This public repo uses **synthetic mock data only**. No private client data, real brand data, real logos, or private API URLs are included.
 
@@ -170,6 +170,8 @@ The framework is designed so that benchmark logic and interface rendering remain
 | **Live API** | `VITE_BENCHMARK_API_URL` set | Fetches from live API; falls back to local snapshot on failure |
 | **CI API** | `VITE_CI_API_URL` set | Same as live API |
 
+The dashboard header identifies the active result as `Sample data`, `Live API`, or `Snapshot fallback`.
+
 ## Data contract
 
 The dashboard expects a benchmark payload shaped like this:
@@ -210,21 +212,13 @@ See [`docs/data-contract.md`](docs/data-contract.md) for the full field list and
 
 ## How to connect your own data
 
-1. **Match the payload shape** — `ok: true`, `data.interface` array with required fields.
-2. **Set the API URL** in `.env`:
-   ```
-   VITE_BENCHMARK_API_URL=https://your-api/benchmark
-   ```
-3. **Return required fields** consistently across all rows.
-4. **Adjust entity IDs** in `src/config/benchmarkConfig.js` if your `company_id` values differ from `focus`, `peer_a`, `peer_b`, `market_average`.
-5. **Run validation**:
-   ```bash
-   pnpm validate:data
-   pnpm test
-   pnpm build
-   ```
+- Read the full [data contract](docs/data-contract.md).
+- Follow the [custom-data quickstart](docs/quickstart-custom-data.md).
+- Copy the [example benchmark payload](public/data/example-benchmark-data.json).
 
-For simple monthly rows (revenue + visits per company per month), use the adapter in `src/framework/adapters/simpleMonthlyAdapter.js` — it computes all derived fields automatically.
+Use local mode by replacing `public/data/benchmark-data.json`, or set `VITE_BENCHMARK_API_URL` to a compatible endpoint. Adjust entity IDs in `src/config/benchmarkConfig.js` when your identifiers differ from the included sample.
+
+For simple monthly rows (revenue + visits per company per month), use `src/framework/adapters/simpleMonthlyAdapter.js`; it computes the derived benchmark fields.
 
 ## Replace mock data
 
@@ -308,6 +302,12 @@ Start local development:
 ```bash
 pnpm dev
 ```
+
+---
+
+## Screenshots
+
+Screenshots should be added after the public deployment is finalized.
 
 ---
 
