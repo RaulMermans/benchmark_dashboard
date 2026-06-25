@@ -4,6 +4,22 @@ import { calculateGrowthRates } from "../core/calculateGrowthRates.js";
 import { calculateRanks } from "../core/calculateRanks.js";
 import { calculateEfficiencyMetrics } from "../core/calculateEfficiencyMetrics.js";
 
+export function adaptSourceMonthlyRowsToInterface(rows = [], config = {}) {
+  const focusId = config.focusCompanyId || "focus";
+  return rows.map((row) => ({
+    date: row.date,
+    period_type: "monthly",
+    company_id: row.company_id,
+    display_name: row.display_name ?? row.company_id,
+    type: row.type ?? (row.company_id === focusId ? "own" : "competitor"),
+    market: row.market ?? config.defaultMarket ?? "default",
+    revenue: row.revenue,
+    visits: row.visits,
+    data_type: "actual",
+    active: row.active ?? true,
+  }));
+}
+
 export function adaptSimpleMonthlyRows(inputRows = [], config = {}) {
   const rows = inputRows.map((row) => ({
     date: row.date,

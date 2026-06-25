@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   validateBenchmarkPayload,
+  validateSourceMonthlyRows,
   buildBenchmarkDataset,
   calculateMarketShares,
   calculateRanks,
   adaptSimpleMonthlyRows,
+  adaptSourceMonthlyRowsToInterface,
   buildRankingViewModel,
   buildMarketShareViewModel,
   buildExecutiveSummaryViewModel,
@@ -329,4 +331,148 @@ test("getFormatterForMetric returns expected keys", () => {
   assert.equal(getFormatterForMetric("visits"), "compact");
   assert.equal(getFormatterForMetric("rank_revenue"), "rank");
   assert.equal(getFormatterForMetric("market_share_revenue"), "percent");
+});
+
+// --- Sprint 01: raw monthly data contract ---
+
+const RAW_MONTHLY_ROWS = [
+  { date: "2025-01-01", company_id: "focus", display_name: "Focus Brand", market: "Demo Market", type: "own", revenue: 120000, visits: 80000 },
+  { date: "2025-01-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo Market", type: "competitor", revenue: 200000, visits: 140000 },
+  { date: "2025-01-01", company_id: "peer_b", display_name: "Peer Beta", market: "Demo Market", type: "competitor", revenue: 160000, visits: 110000 },
+  { date: "2025-02-01", company_id: "focus", display_name: "Focus Brand", market: "Demo Market", type: "own", revenue: 125000, visits: 82000 },
+  { date: "2025-02-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo Market", type: "competitor", revenue: 210000, visits: 145000 },
+  { date: "2025-02-01", company_id: "peer_b", display_name: "Peer Beta", market: "Demo Market", type: "competitor", revenue: 155000, visits: 108000 },
+];
+
+test("validateSourceMonthlyRows accepts valid rows", () => {
+  const result = validateSourceMonthlyRows(RAW_MONTHLY_ROWS);
+  assert.equal(result.ok, true);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.summary.companyCount, 3);
+  assert.equal(result.summary.rowCount, 6);
+  assert.ok(result.summary.dateRange);
+});
+
+test("validateSourceMonthlyRows rejects non-array input", () => {
+  const result = validateSourceMonthlyRows(null);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors[0].includes("array"));
+});
+
+test("validateSourceMonthlyRows rejects missing required fields", () => {
+  const bad = [
+    { company_id: "focus", revenue: 100, visits: 50 },
+    { date: "2025-01-01", revenue: 100, visits: 50 },
+    { date: "2025-01-01", company_id: "focus", visits: 50 },
+    { date: "2025-01-01", company_id: "focus", revenue: 100 },
+    { date: "2025-01-01", company_id: "focus", revenue: -1, visits: 50 },
+    { date: "not-a-date", company_id: "focus", revenue: 100, visits: 50 },
+  ];
+  const result = validateSourceMonthlyRows(bad);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.length >= 5);
+});
+
+test("validateSourceMonthlyRows warns about missing optional fields", () => {
+  const minimal = [{ date: "2025-01-01", company_id: "focus", revenue: 100, visits: 50 }];
+  const result = validateSourceMonthlyRows(minimal);
+  assert.equal(result.ok, true);
+  assert.ok(result.warnings.length > 0);
+});
+
+test("adaptSourceMonthlyRowsToInterface converts raw rows to interface shape", () => {
+  const iface = adaptSourceMonthlyRowsToInterface(RAW_MONTHLY_ROWS, demoBenchmarkConfig);
+  assert.equal(iface.length, RAW_MONTHLY_ROWS.length);
+  iface.forEach((row) => {
+    assert.ok(row.date);
+    assert.equal(row.period_type, "monthly");
+    assert.ok(row.company_id);
+    assert.ok(row.display_name);
+    assert.ok(row.type);
+    assert.ok(row.market);
+    assert.ok(typeof row.revenue === "number");
+    assert.ok(typeof row.visits === "number");
+    assert.equal(row.data_type, "actual");
+  });
+  assert.equal(iface.find((r) => r.company_id === "focus").type, "own");
+  assert.equal(iface.find((r) => r.company_id === "peer_a").type, "competitor");
+});
+
+test("adaptSourceMonthlyRowsToInterface applies display_name fallback to company_id", () => {
+  const rows = [{ date: "2025-01-01", company_id: "anon", revenue: 0, visits: 0 }];
+  const iface = adaptSourceMonthlyRowsToInterface(rows);
+  assert.equal(iface[0].display_name, "anon");
+});
+
+test("source_monthly payload is adapted into data.interface via loadBenchmarkData", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      meta: { source_type: "raw_monthly_observations" },
+      data: { source_monthly: RAW_MONTHLY_ROWS },
+    }),
+  });
+  try {
+    const { loadBenchmarkData } = await import("../src/lib/api.js");
+    const result = await loadBenchmarkData();
+    assert.ok(Array.isArray(result.data.interface));
+    assert.equal(result.data.interface.length, RAW_MONTHLY_ROWS.length);
+    assert.equal(result.data.interface[0].period_type, "monthly");
+    assert.equal(result.meta.generated_interface, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("bare array payload is treated as source_monthly by loadBenchmarkData", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => RAW_MONTHLY_ROWS,
+  });
+  try {
+    const { loadBenchmarkData } = await import("../src/lib/api.js");
+    const result = await loadBenchmarkData();
+    assert.ok(Array.isArray(result.data.interface));
+    assert.equal(result.data.interface.length, RAW_MONTHLY_ROWS.length);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("legacy data.interface payload still loads without modification", async () => {
+  const legacyRows = [
+    { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", type: "own", market: "Demo", revenue: 100, visits: 50, data_type: "actual" },
+  ];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ ok: true, data: { interface: legacyRows } }),
+  });
+  try {
+    const { loadBenchmarkData } = await import("../src/lib/api.js");
+    const result = await loadBenchmarkData();
+    assert.ok(Array.isArray(result.data.interface));
+    assert.equal(result.data.interface.length, 1);
+    assert.equal(result.data.interface[0].company_id, "focus");
+    assert.equal(result.meta?.generated_interface, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("validateBenchmarkPayload still validates legacy data.interface payloads", () => {
+  const legacy = {
+    ok: true,
+    data: {
+      interface: [
+        { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", type: "own", market: "Demo", revenue: 100, visits: 50, data_type: "actual" },
+      ],
+    },
+  };
+  const result = validateBenchmarkPayload(legacy);
+  assert.equal(result.valid, true);
+  assert.equal(result.errors.length, 0);
 });

@@ -1,6 +1,62 @@
 # Data contract
 
-## Payload shape
+## Preferred input: raw monthly observations
+
+The preferred way to supply data is as raw monthly observations in `data.source_monthly`. The framework adapts them internally into `data.interface` before the dashboard renders.
+
+```json
+{
+  "ok": true,
+  "meta": {
+    "dataset_name": "My Benchmark Dataset",
+    "currency": "EUR",
+    "source_type": "raw_monthly_observations"
+  },
+  "data": {
+    "source_monthly": [
+      {
+        "date": "2025-01-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 125000,
+        "visits": 82000
+      }
+    ]
+  }
+}
+```
+
+### Required raw fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `date` | `string` | ISO date string, e.g. `"2025-01-01"` |
+| `company_id` | `string` | Unique entity identifier |
+| `revenue` | `number` | Gross revenue for the period (≥ 0) |
+| `visits` | `number` | Visit count for the period (≥ 0) |
+
+### Optional recommended fields
+
+| Field | Default if absent | Description |
+|-------|------------------|-------------|
+| `display_name` | `company_id` | Human-readable entity name |
+| `type` | `"competitor"` | `"own"`, `"competitor"`, or `"benchmark"` |
+| `market` | `"default"` | Market or comparison-group label |
+| `active` | `true` | Whether to include this row in calculations |
+
+Raw rows must **not** include derived fields such as `market_share_*`, `*_growth`, `rank_*`, `indexed_*`, or `revenue_per_visit`. Those are computed internally.
+
+As a shorthand, a bare JSON array of raw monthly rows is also accepted (treated as `source_monthly`).
+
+---
+
+## Legacy input: enriched interface rows
+
+Legacy payloads using `data.interface` continue to work. This format is supported but no longer the preferred intake.
+
+## Payload shape (legacy)
 
 ```json
 {
@@ -18,7 +74,7 @@
 
 `ok` must be `true`. `data.interface` must be an array. All other arrays default to empty if absent.
 
-## Required fields per row
+## Required fields per legacy interface row
 
 Every row in `data.interface` must include:
 

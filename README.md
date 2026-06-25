@@ -65,9 +65,10 @@ The goal is to create a reusable intelligence layer for comparison, prioritizati
 
 ### Data ingestion
 
-* Loads benchmark data from JSON.
-* Supports simple monthly rows through an adapter.
-* Converts raw or mock benchmark data into a consistent payload shape.
+* Loads benchmark data from JSON or a live API.
+* Accepts raw monthly observations (`date`, `company_id`, `revenue`, `visits`) as the preferred intake.
+* Adapts raw rows into the internal benchmark payload shape automatically.
+* Also accepts legacy enriched `data.interface` payloads.
 * Keeps the public demo independent from private APIs or client data.
 
 ### Schema validation
@@ -172,39 +173,41 @@ The framework is designed so that benchmark logic and interface rendering remain
 
 The dashboard header identifies the active result as `Sample data`, `Live API`, or `Snapshot fallback`.
 
+Both `data.source_monthly` (preferred) and `data.interface` (legacy) are accepted from any source.
+
 ## Data contract
 
-The dashboard expects a benchmark payload shaped like this:
+### Preferred: raw monthly observations
+
+The preferred input is raw monthly observations in `data.source_monthly`. Supply one row per company per month with only four required fields:
+
+```text
+date, company_id, revenue, visits
+```
+
+The framework computes all derived metrics (shares, ranks, growth, efficiency) internally.
 
 ```json
 {
   "ok": true,
-  "meta": {},
+  "meta": { "source_type": "raw_monthly_observations" },
   "data": {
-    "interface": [],
-    "events": [],
-    "dictionary": []
+    "source_monthly": [
+      { "date": "2025-01-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 125000, "visits": 82000 }
+    ]
   }
 }
 ```
 
-`data.interface` is the source of truth.
+A bare JSON array of monthly rows is also accepted.
 
-Minimum row fields:
+### Legacy: enriched interface rows
+
+Payloads with `data.interface` continue to work. Every interface row requires:
 
 ```text
 date, period_type, company_id, display_name, type, market, revenue, visits, data_type
 ```
-
-The public demo includes enriched fields such as:
-
-* market shares
-* growth values
-* ranks
-* indexed metrics
-* revenue per visit
-* forecast scenario
-* event metadata
 
 ---
 
@@ -214,11 +217,9 @@ See [`docs/data-contract.md`](docs/data-contract.md) for the full field list and
 
 - Read the full [data contract](docs/data-contract.md).
 - Follow the [custom-data quickstart](docs/quickstart-custom-data.md).
-- Copy the [example benchmark payload](public/data/example-benchmark-data.json).
+- Copy the [example benchmark payload](public/data/example-benchmark-data.json) (source_monthly format).
 
 Use local mode by replacing `public/data/benchmark-data.json`, or set `VITE_BENCHMARK_API_URL` to a compatible endpoint. Adjust entity IDs in `src/config/benchmarkConfig.js` when your identifiers differ from the included sample.
-
-For simple monthly rows (revenue + visits per company per month), use `src/framework/adapters/simpleMonthlyAdapter.js`; it computes the derived benchmark fields.
 
 ## Replace mock data
 

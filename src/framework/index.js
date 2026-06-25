@@ -1,4 +1,5 @@
 export { validateBenchmarkPayload } from "./schema/validateBenchmarkPayload.js";
+export { validateSourceMonthlyRows } from "./schema/validateSourceMonthlyRows.js";
 export { benchmarkPayloadContract, requiredBenchmarkRowFields, enrichedBenchmarkRowFields } from "./schema/benchmarkSchema.js";
 export { normalizeRows } from "./core/normalizeRows.js";
 export { calculateMarketShares } from "./core/calculateMarketShares.js";
@@ -8,7 +9,7 @@ export { calculateEfficiencyMetrics } from "./core/calculateEfficiencyMetrics.js
 export { aggregatePeriods } from "./core/aggregatePeriods.js";
 export { buildBenchmarkDataset } from "./core/buildBenchmarkDataset.js";
 export { adaptJsonPayload } from "./adapters/jsonAdapter.js";
-export { adaptSimpleMonthlyRows } from "./adapters/simpleMonthlyAdapter.js";
+export { adaptSimpleMonthlyRows, adaptSourceMonthlyRowsToInterface } from "./adapters/simpleMonthlyAdapter.js";
 export { buildRankingViewModel } from "./view-models/buildRankingViewModel.js";
 export { buildMarketShareViewModel } from "./view-models/buildMarketShareViewModel.js";
 export { buildGrowthViewModel } from "./view-models/buildGrowthViewModel.js";

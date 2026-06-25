@@ -2,26 +2,45 @@
 
 The dashboard ships with synthetic sample data. You can replace the local JSON snapshot or connect an HTTP API without changing the dashboard components.
 
+## Preferred format: raw monthly observations
+
+Supply one row per company per month with only the raw fields the framework needs. The framework derives all other metrics internally.
+
+```json
+{
+  "ok": true,
+  "meta": { "dataset_name": "My Benchmark", "currency": "EUR", "source_type": "raw_monthly_observations" },
+  "data": {
+    "source_monthly": [
+      { "date": "2025-01-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 125000, "visits": 82000 },
+      { "date": "2025-01-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 200000, "visits": 140000 }
+    ]
+  }
+}
+```
+
+See `public/data/example-benchmark-data.json` for a minimal copyable example.
+
 ## Option 1: Use a local JSON file
 
 1. Copy `public/data/example-benchmark-data.json`.
-2. Replace the example entities and metric values with your own structured benchmark data.
+2. Replace the example entities and values with your own monthly observations.
 3. Save the result as `public/data/benchmark-data.json`.
 4. Run `pnpm validate:data`.
 5. Run `pnpm dev`.
 6. Confirm the dashboard header shows `Sample data`.
 
-The local file must contain the complete response envelope, including `ok: true` and `data.interface`.
+The file must include `ok: true` and either `data.source_monthly` (preferred) or `data.interface` (legacy).
 
 ## Option 2: Use a live API
 
-1. Build an endpoint that returns:
+1. Build an endpoint that returns raw monthly observations or a legacy interface payload:
 
    ```json
    {
      "ok": true,
      "data": {
-       "interface": []
+       "source_monthly": []
      }
    }
    ```
@@ -40,27 +59,24 @@ The local file must contain the complete response envelope, including `ok: true`
 
 If the live request fails, the app loads `/data/benchmark-data.json` and shows `Snapshot fallback`. Both sources must use the same payload contract.
 
-## Minimum payload shape
+## Required raw monthly fields
 
-```json
-{
-  "ok": true,
-  "meta": {},
-  "data": {
-    "interface": [],
-    "events": [],
-    "dictionary": [],
-    "forecasts": [],
-    "insights": []
-  }
-}
-```
+| Field | Type | Description |
+| --- | --- | --- |
+| `date` | ISO date string | e.g. `"2025-01-01"` |
+| `company_id` | string | Stable entity identifier |
+| `revenue` | number (≥ 0) | Gross revenue for the period |
+| `visits` | number (≥ 0) | Visit count for the period |
 
-`ok` must be `true`. `data.interface` must be an array. The other arrays are optional and default to empty arrays.
+Optional but recommended: `display_name`, `type`, `market`.
 
-## Required `data.interface` fields
+Do **not** include pre-computed derived fields (`market_share_*`, `*_growth`, `rank_*`, `indexed_*`, `revenue_per_visit`). The framework computes these internally.
 
-Every interface row requires:
+Update entity IDs in `src/config/benchmarkConfig.js` if your identifiers differ from `focus`, `peer_a`, `peer_b`, `market_average`.
+
+## Legacy data.interface format
+
+Legacy payloads with `data.interface` continue to work. Every interface row requires:
 
 | Field | Expected value |
 | --- | --- |
@@ -74,22 +90,11 @@ Every interface row requires:
 | `visits` | Numeric visit count |
 | `data_type` | `actual` or `forecast` |
 
-Update the entity IDs in `src/config/benchmarkConfig.js` if your focus, peers, or benchmark use different identifiers.
-
-## Derived fields
-
-The framework can derive enriched values when they are missing. In particular:
-
-- `revenue_per_visit` is calculated as `revenue / visits`.
-- `monetization_gap` is calculated as `market_share_revenue - market_share_visits`.
-
-The framework can also calculate shares, rankings, growth rates, indexed values, and period aggregations from suitable monthly data. See `docs/data-contract.md` for the full field and derivation rules.
-
 ## Start from the example
 
-Use `public/data/example-benchmark-data.json` as the smallest copyable reference. Keep its envelope and required row fields, then replace the entities, dates, markets, revenue, and visits.
+Use `public/data/example-benchmark-data.json` as the smallest copyable reference in `source_monthly` format.
 
-For simpler monthly input rows, `src/framework/adapters/simpleMonthlyAdapter.js` can build the enriched benchmark payload.
+**Note:** Google TimesFM forecasting is planned for a later sprint and is not implemented yet. Forecast rows in legacy `data.interface` payloads are still supported.
 
 ## Validation
 
@@ -109,13 +114,11 @@ pnpm audit:public
 
 ## Common mistakes
 
-- Returning an array directly instead of `{ ok: true, data: { interface: [] } }`.
 - Omitting `ok: true`.
-- Providing `data.interface` as an object or `null`.
+- Including pre-computed derived fields (`market_share_*`, growth, ranks) in `source_monthly` rows — the framework computes these.
+- Supplying non-numeric strings for `revenue` or `visits`.
 - Using inconsistent `company_id` values across periods.
 - Using entity IDs that do not match `src/config/benchmarkConfig.js`.
-- Mixing percentages represented as `25` with percentages represented as `0.25`.
-- Supplying non-numeric strings for `revenue` or `visits`.
 - Omitting comparable historical periods needed for growth calculations.
 - Setting the environment variable but not restarting the Vite development server.
 - Forgetting that a failed live API intentionally produces `Snapshot fallback` when the local snapshot is valid.
