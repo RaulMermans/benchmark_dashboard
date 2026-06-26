@@ -88,6 +88,15 @@ The goal is to create a reusable intelligence layer for comparison, prioritizati
 * Provides period intelligence helpers: latest complete month, available years, date-range bounds, and coverage metadata including missing-month detection.
 * Supports period-based analysis and enriched fields such as forecast scenarios and event metadata.
 
+### Forecasting layer
+
+* Generates forward-looking forecast rows from actual monthly `revenue` and `visits` via a provider-based interface.
+* Intended production provider: **Google TimesFM** (`google-research/timesfm`), called through a configurable service endpoint (`VITE_TIMESFM_API_URL`). TimesFM runs server-side only; Python, JAX/PyTorch, and model weights are never bundled into the Vite app.
+* Local deterministic fallback (`local_fallback`) is available for tests, offline development, and demo resilience. It uses trailing growth rates and requires no network or model files.
+* Supports three forecast scenarios: `base_case` (median/point), `conservative` (lower quantile), `aggressive` (upper quantile).
+* After forecast rows are generated, the full derived-metrics pipeline runs on them so charts receive consistent market shares, efficiency metrics, and ranks.
+* Raw JSON should not include forecast rows; they are generated at runtime from actual data.
+
 ### View-model generation
 
 * Converts calculated benchmark outputs into chart-ready and table-ready structures.
@@ -156,11 +165,13 @@ Simple monthly data / mock JSON / live API
 | `src/framework/adapters`        | Converts JSON or simple monthly rows into benchmark payloads                             |
 | `src/framework/view-models`     | Builds chart-ready and table-ready data structures                                       |
 | `src/framework/config`          | Controls focus company, benchmark company, enabled views, currency, locale, and defaults |
+| `src/framework/forecasting`     | Provider-based forecasting layer: timeseries prep, local fallback, TimesFM adapter, row mapper |
 | `src/config/benchmarkConfig.js` | Centralizes entity IDs, routes, period types, scenario order, and thresholds for the App |
 | `src/config/metricRegistry.js`  | Centralizes metric definitions, labels, and named option arrays used across the App      |
 | `src/lib/metricFormatters.js`   | Resolves string formatter keys from the registry to formatting functions                 |
 | `src/viewModels/`               | Wraps framework view-model builders for each dashboard section                           |
 | `src/App.jsx`                   | Renders the polished executive dashboard interface                                       |
+| `services/timesfm-forecast/`    | Reference scaffold for the TimesFM Python service (not bundled into the Vite app)        |
 
 The framework is designed so that benchmark logic and interface rendering remain separated.
 

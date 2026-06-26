@@ -1,4 +1,5 @@
 import { buildBenchmarkPayloadFromSourceMonthlyRows } from "../framework/core/buildBenchmarkPayloadFromSourceMonthlyRows.js";
+import { generateForecastRows } from "../framework/forecasting/generateForecastRows.js";
 
 const SNAPSHOT_URL = "/data/benchmark-data.json";
 const VITE_ENV = import.meta.env || {};
@@ -70,7 +71,7 @@ function buildLiveApiUrl(rawUrl = "") {
   }
 }
 
-function normalizePayload(json, sourceLabel) {
+async function normalizePayload(json, sourceLabel) {
   // Array shorthand: bare array is treated as source_monthly rows.
   if (Array.isArray(json)) {
     json = { ok: true, data: { source_monthly: json } };
@@ -95,6 +96,17 @@ function normalizePayload(json, sourceLabel) {
     }
     json.data.interface = built.data.interface;
     json.meta = { ...(json.meta || {}), ...built.meta };
+
+    // Forecast enrichment: generate forecast rows and append to interface.
+    // Non-blocking: if generation fails, actual data is still returned.
+    try {
+      const forecastRows = await generateForecastRows(json.data.interface);
+      if (forecastRows.length) {
+        json.data.interface = [...json.data.interface, ...forecastRows];
+      }
+    } catch {
+      // Continue without forecasts
+    }
   } else if (!Array.isArray(json.data.interface)) {
     // Legacy path: data.interface must exist.
     throw new Error(`${sourceLabel} is missing data.interface as an array.`);
@@ -160,7 +172,7 @@ async function fetchBenchmarkJson(url, sourceLabel) {
     throw new Error(`${sourceLabel} did not return valid JSON.`);
   }
 
-  return normalizePayload(json, sourceLabel);
+  return await normalizePayload(json, sourceLabel);
 }
 
 export async function loadBenchmarkData() {

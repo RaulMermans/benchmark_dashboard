@@ -21,6 +21,11 @@ import {
   buildMarketShareViewModel,
   buildExecutiveSummaryViewModel,
   demoBenchmarkConfig,
+  generateForecastRows,
+  prepareTimeseries,
+  mapForecastsToRows,
+  localFallbackProvider,
+  timesfmProvider,
 } from "../src/framework/index.js";
 import { benchmarkConfig } from "../src/config/benchmarkConfig.js";
 import {
@@ -874,4 +879,225 @@ test("legacy data.interface payload still loads without modification (Sprint 03 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// ─── Sprint 04: Forecasting Layer ───────────────────────────────────────────
+
+const FORECAST_ROWS = [
+  { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 100, visits: 200 },
+  { date: "2025-02-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 110, visits: 220 },
+  { date: "2025-03-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 121, visits: 242 },
+  { date: "2025-04-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 133, visits: 266 },
+  { date: "2025-05-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 146, visits: 292 },
+  { date: "2025-06-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 161, visits: 322 },
+  { date: "2025-01-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 300, visits: 600 },
+  { date: "2025-02-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 330, visits: 660 },
+  { date: "2025-03-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 363, visits: 726 },
+  { date: "2025-04-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 399, visits: 798 },
+  { date: "2025-05-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 439, visits: 878 },
+  { date: "2025-06-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 483, visits: 966 },
+  // Existing forecast row (should be ignored by prepareTimeseries)
+  { date: "2025-07-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "forecast", revenue: 180, visits: 360 },
+  // Synthetic row (should be ignored by prepareTimeseries)
+  { date: "2025-01-01", period_type: "monthly", company_id: "market_average", type: "benchmark", market: "Demo", revenue: 230, visits: 460 },
+];
+
+test("prepareTimeseries groups rows by company+market+metric", () => {
+  const ts = prepareTimeseries(FORECAST_ROWS, { metrics: ["revenue"] });
+  assert.ok(ts.length >= 2, "must have at least 2 series (focus+peer_a revenue)");
+  const focusSeries = ts.find((s) => s.company_id === "focus" && s.metric === "revenue");
+  assert.ok(focusSeries, "focus revenue series must exist");
+  assert.deepEqual(focusSeries.dates.length, 6, "focus must have 6 date points");
+  assert.equal(focusSeries.values[0], 100, "first value must be Jan revenue");
+  assert.equal(focusSeries.market, "Demo");
+});
+
+test("prepareTimeseries ignores forecast rows", () => {
+  const ts = prepareTimeseries(FORECAST_ROWS, { metrics: ["revenue"] });
+  const focusSeries = ts.find((s) => s.company_id === "focus" && s.metric === "revenue");
+  // Jul is a forecast row — must not appear
+  assert.ok(!focusSeries.dates.includes("2025-07-01"), "forecast date must not be included");
+  assert.equal(focusSeries.dates.length, 6);
+});
+
+test("prepareTimeseries ignores synthetic benchmark rows by default", () => {
+  const ts = prepareTimeseries(FORECAST_ROWS, { metrics: ["revenue"] });
+  const marketAvgSeries = ts.find((s) => s.company_id === "market_average");
+  assert.equal(marketAvgSeries, undefined, "market_average must be excluded");
+});
+
+test("prepareTimeseries returns sorted dates ascending", () => {
+  const shuffled = [...FORECAST_ROWS.slice(0, 12)].sort(() => Math.random() - 0.5);
+  const ts = prepareTimeseries(shuffled, { metrics: ["revenue"] });
+  const focus = ts.find((s) => s.company_id === "focus" && s.metric === "revenue");
+  const dates = focus.dates;
+  for (let i = 1; i < dates.length; i++) {
+    assert.ok(dates[i] >= dates[i - 1], "dates must be ascending");
+  }
+});
+
+test("localFallbackProvider returns deterministic forecasts", async () => {
+  const series = [
+    { id: "focus::Demo::revenue", company_id: "focus", market: "Demo", metric: "revenue", dates: [], values: [100, 110, 121, 133, 146, 161] },
+  ];
+  const result1 = await localFallbackProvider({ series, horizonMonths: 3 });
+  const result2 = await localFallbackProvider({ series, horizonMonths: 3 });
+  assert.equal(result1.ok, true);
+  assert.deepStrictEqual(result1.forecasts[0].point, result2.forecasts[0].point, "local fallback must be deterministic");
+});
+
+test("localFallbackProvider projects positive values forward", async () => {
+  const series = [
+    { id: "focus::Demo::revenue", company_id: "focus", market: "Demo", metric: "revenue", dates: [], values: [100, 110, 121, 133, 146, 161] },
+  ];
+  const result = await localFallbackProvider({ series, horizonMonths: 6 });
+  assert.equal(result.ok, true);
+  const forecast = result.forecasts[0];
+  assert.equal(forecast.point.length, 6);
+  forecast.point.forEach((v) => assert.ok(v >= 0, "all forecast values must be non-negative"));
+});
+
+test("timesfmProvider returns ok=false when endpoint not configured", async () => {
+  const series = [{ id: "x", metric: "revenue", values: [100] }];
+  // Pass empty apiUrl to simulate no VITE_TIMESFM_API_URL
+  const result = await timesfmProvider({ series, horizonMonths: 3 }, { apiUrl: "" });
+  assert.equal(result.ok, false);
+  assert.ok(result.error, "must include error message");
+  assert.equal(result.provider, "timesfm");
+});
+
+test("timesfmProvider returns ok=false on network error", async () => {
+  const series = [{ id: "x", metric: "revenue", values: [100] }];
+  const mockFetch = async () => { throw new Error("network down"); };
+  const result = await timesfmProvider({ series, horizonMonths: 3 }, { apiUrl: "http://localhost:9999", fetchFn: mockFetch });
+  assert.equal(result.ok, false);
+  assert.ok(result.error.includes("network down") || result.error.includes("TimesFM"));
+});
+
+test("mapForecastsToRows converts provider output to canonical rows", () => {
+  const providerResult = {
+    ok: true,
+    provider: "local_fallback",
+    model: "trailing_growth_fallback",
+    forecasts: [
+      { id: "focus::Demo::revenue", metric: "revenue", point: [170, 187], quantiles: { "0.1": [160, 175], "0.5": [170, 187], "0.9": [180, 200] } },
+      { id: "focus::Demo::visits", metric: "visits", point: [340, 374], quantiles: { "0.1": [320, 350], "0.5": [340, 374], "0.9": [360, 400] } },
+    ],
+  };
+  const timeseriesInput = [
+    { id: "focus::Demo::revenue", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", metric: "revenue", dates: ["2025-06-01"], values: [161] },
+    { id: "focus::Demo::visits", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", metric: "visits", dates: ["2025-06-01"], values: [322] },
+  ];
+  const rows = mapForecastsToRows(providerResult, timeseriesInput, {
+    horizonMonths: 2,
+    scenarios: ["base_case", "conservative"],
+  });
+  // 2 scenarios × 2 months = 4 rows, all for focus
+  assert.equal(rows.length, 4);
+  const baseRow = rows.find((r) => r.forecast_scenario === "base_case" && r.forecast_horizon_month === 1);
+  assert.ok(baseRow, "base_case month 1 row must exist");
+  assert.equal(baseRow.company_id, "focus");
+  assert.equal(baseRow.data_type, "forecast");
+  assert.equal(baseRow.period_type, "monthly");
+  assert.equal(baseRow.date, "2025-07-01", "first forecast month must be July 2025");
+});
+
+test("mapForecastsToRows merges revenue and visits into one row per company/month/scenario", () => {
+  const providerResult = {
+    ok: true,
+    provider: "local_fallback",
+    model: "trailing_growth_fallback",
+    forecasts: [
+      { id: "focus::Demo::revenue", metric: "revenue", point: [170], quantiles: { "0.5": [170] } },
+      { id: "focus::Demo::visits", metric: "visits", point: [340], quantiles: { "0.5": [340] } },
+    ],
+  };
+  const timeseriesInput = [
+    { id: "focus::Demo::revenue", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", metric: "revenue", dates: ["2025-06-01"], values: [161] },
+    { id: "focus::Demo::visits", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", metric: "visits", dates: ["2025-06-01"], values: [322] },
+  ];
+  const rows = mapForecastsToRows(providerResult, timeseriesInput, {
+    horizonMonths: 1,
+    scenarios: ["base_case"],
+  });
+  assert.equal(rows.length, 1, "revenue + visits must merge into one row");
+  assert.equal(rows[0].revenue, 170);
+  assert.equal(rows[0].visits, 340);
+});
+
+test("mapForecastsToRows includes required forecast metadata fields", () => {
+  const providerResult = {
+    ok: true,
+    provider: "timesfm",
+    model: "timesfm-2.5",
+    forecasts: [
+      { id: "focus::Demo::revenue", metric: "revenue", point: [170], quantiles: { "0.1": [160], "0.5": [170], "0.9": [180] } },
+    ],
+  };
+  const timeseriesInput = [
+    { id: "focus::Demo::revenue", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", metric: "revenue", dates: ["2025-06-01"], values: [161] },
+  ];
+  const rows = mapForecastsToRows(providerResult, timeseriesInput, {
+    horizonMonths: 1,
+    scenarios: ["base_case"],
+    generatedAt: "2026-06-26T00:00:00.000Z",
+  });
+  const row = rows[0];
+  assert.equal(row.forecast_provider, "timesfm");
+  assert.equal(row.forecast_method, "timesfm-2.5");
+  assert.equal(row.forecast_scenario, "base_case");
+  assert.ok(row.forecast_confidence, "must have forecast_confidence");
+  assert.equal(row.forecast_horizon_month, 1);
+  assert.equal(row.forecast_generated_at, "2026-06-26T00:00:00.000Z");
+  assert.equal(row.is_forecast, true);
+});
+
+test("mapForecastsToRows clamps negative forecast values to zero", () => {
+  const providerResult = {
+    ok: true,
+    provider: "local_fallback",
+    model: "trailing_growth_fallback",
+    forecasts: [
+      { id: "focus::Demo::revenue", metric: "revenue", point: [-50], quantiles: { "0.1": [-200], "0.5": [-50], "0.9": [10] } },
+    ],
+  };
+  const timeseriesInput = [
+    { id: "focus::Demo::revenue", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", metric: "revenue", dates: ["2025-06-01"], values: [161] },
+  ];
+  const rows = mapForecastsToRows(providerResult, timeseriesInput, { horizonMonths: 1, scenarios: ["base_case", "conservative"] });
+  rows.forEach((r) => {
+    assert.ok(r.revenue >= 0, `revenue must be >= 0, got ${r.revenue}`);
+  });
+});
+
+test("generateForecastRows returns empty array when disabled", async () => {
+  const rows = await generateForecastRows(FORECAST_ROWS, { enabled: false });
+  assert.equal(rows.length, 0);
+});
+
+test("generateForecastRows uses local fallback when TimesFM not configured", async () => {
+  const rows = await generateForecastRows(FORECAST_ROWS, {
+    provider: "timesfm",
+    fallbackProvider: "local_fallback",
+    horizonMonths: 3,
+    scenarios: ["base_case"],
+    minHistoryMonths: 6,
+  });
+  // 2 companies × 3 months × 1 scenario = 6 rows (TimesFM not configured → falls back)
+  assert.ok(rows.length > 0, "must produce forecast rows via local fallback");
+  rows.forEach((r) => {
+    assert.equal(r.data_type, "forecast");
+    assert.ok(r.forecast_provider, "must have forecast_provider");
+  });
+});
+
+test("generateForecastRows skips companies with insufficient history", async () => {
+  const shortRows = FORECAST_ROWS.slice(0, 4); // only Jan+Feb for focus+peer_a (2 months each)
+  const rows = await generateForecastRows(shortRows, {
+    provider: "local_fallback",
+    horizonMonths: 3,
+    scenarios: ["base_case"],
+    minHistoryMonths: 6, // require 6 months — short rows won't qualify
+  });
+  assert.equal(rows.length, 0, "short history must not produce forecasts");
 });

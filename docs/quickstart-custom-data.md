@@ -94,7 +94,7 @@ Legacy payloads with `data.interface` continue to work. Every interface row requ
 
 Use `public/data/example-benchmark-data.json` as the smallest copyable reference in `source_monthly` format.
 
-**Note:** Google TimesFM forecasting is planned for a later sprint and is not implemented yet. Forecast rows in legacy `data.interface` payloads are still supported.
+Forecast rows are generated at runtime from actual monthly data — do not include them in raw JSON. See [data-contract.md](data-contract.md) for the generated forecast row shape.
 
 ## Validation
 
@@ -130,12 +130,39 @@ Available helpers:
 
 `data.interface` legacy payloads remain fully supported.
 
-Google TimesFM forecasting is planned for Sprint 04.
+## Forecasting
+
+The framework generates forecast rows automatically from actual `revenue` and `visits` timeseries.
+
+**Architecture:**
+- Provider interface: `src/framework/forecasting/generateForecastRows.js`
+- Intended production provider: **Google TimesFM** (`google-research/timesfm`)
+- The Vite app does **not** run TimesFM directly. Python, JAX/PyTorch, and model weights run in `services/timesfm-forecast/` (server-side only).
+- Local deterministic fallback: `local_fallback` — uses trailing growth rates, no network or model files required.
+- Forecast rows are appended to `data.interface` after the normal pipeline runs.
+
+**To use the TimesFM provider:**
+
+```bash
+cd services/timesfm-forecast
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 8787
+```
+
+Add to `.env.local`:
+```
+VITE_TIMESFM_API_URL=http://localhost:8787/forecast
+```
+
+If `VITE_TIMESFM_API_URL` is not set, the local fallback runs automatically. The dashboard renders actual data regardless of forecast provider availability.
+
+**Raw JSON should not include forecast rows.** They are generated at runtime from `revenue` and `visits`. Do not include `market_share_*`, `rank_*`, or other derived fields in forecast rows — these are recalculated by the same derived-metrics engine.
 
 ## Common mistakes
 
 - Omitting `ok: true`.
-- Including pre-computed derived fields (`market_share_*`, growth, ranks, indexed, efficiency) in `source_monthly` rows — the framework computes all of these, plus synthetic `market_total` and `market_average` rows, and aggregated period metrics.
+- Including pre-computed derived fields (`market_share_*`, growth, ranks, indexed, efficiency) in `source_monthly` rows — the framework computes all of these, plus synthetic `market_total` and `market_average` rows, aggregated period metrics, and forecast rows.
+- Including forecast rows in raw JSON — forecasts are generated at runtime and must not be in the source data file.
 - Supplying non-numeric strings for `revenue` or `visits`.
 - Using inconsistent `company_id` values across periods.
 - Using entity IDs that do not match `src/config/benchmarkConfig.js`.

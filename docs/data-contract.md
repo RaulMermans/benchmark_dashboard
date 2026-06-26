@@ -185,7 +185,55 @@ These IDs are configurable in `benchmarkConfig.identity` and `benchmarkConfig.co
 
 ## Forecast rows
 
-Forecast rows set `data_type: "forecast"` and optionally `forecast_scenario`. The scenario order is defined in `benchmarkConfig.forecast.scenarioOrder`.
+Forecast rows are generated at runtime by the forecasting layer. Raw JSON should not include them.
+
+The forecast pipeline:
+
+1. Extracts actual monthly `revenue` and `visits` timeseries per company.
+2. Calls a forecast provider (Google TimesFM via `VITE_TIMESFM_API_URL`, or local fallback).
+3. Maps provider output to canonical forecast rows.
+4. Appends forecast rows to `data.interface`.
+
+Generated forecast row shape:
+
+```json
+{
+  "date": "2026-01-01",
+  "period_type": "monthly",
+  "company_id": "focus",
+  "display_name": "Focus Brand",
+  "market": "Demo Market",
+  "type": "own",
+  "revenue": 150000,
+  "visits": 92000,
+  "data_type": "forecast",
+  "forecast_provider": "timesfm",
+  "forecast_method": "timesfm-2.5",
+  "forecast_scenario": "base_case",
+  "forecast_confidence": "medium",
+  "forecast_horizon_month": 1,
+  "forecast_generated_at": "2026-06-26T00:00:00.000Z",
+  "is_forecast": true
+}
+```
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `forecast_provider` | `"timesfm"`, `"local_fallback"` | Provider used |
+| `forecast_method` | e.g. `"timesfm-2.5"`, `"trailing_growth_fallback"` | Model or method name |
+| `forecast_scenario` | `"base_case"`, `"conservative"`, `"aggressive"` | Maps to p50, p10, p90 quantiles |
+| `forecast_confidence` | `"medium"`, `"low"`, `"high"` | Corresponds to scenario |
+| `forecast_horizon_month` | integer ≥ 1 | Months ahead (1 = next month) |
+
+**Do not directly forecast derived fields** such as `market_share_*`, `rank_*`, or `revenue_per_visit`. These are recalculated from forecasted `revenue` and `visits` by the same derived-metrics engine used for actual data.
+
+To use the TimesFM provider, run the service in `services/timesfm-forecast/` and set:
+
+```
+VITE_TIMESFM_API_URL=http://localhost:8787/forecast
+```
+
+If `VITE_TIMESFM_API_URL` is not configured, the local deterministic fallback is used automatically.
 
 ## Minimum example row
 
