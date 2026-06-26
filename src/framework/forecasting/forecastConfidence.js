@@ -1,4 +1,4 @@
-export function scoreConfidence({ historyMonths, missingMonthCount, volatility, seasonalityAvailable, outlierCount, trendStability }) {
+export function scoreConfidence({ historyMonths, missingMonthCount, volatility, seasonalityAvailable, outlierCount }) {
   let score = 0.5;
   const reasons = [];
 

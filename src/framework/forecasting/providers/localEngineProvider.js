@@ -43,7 +43,6 @@ function forecastSeries(values, dates, horizonMonths) {
     volatility: features.volatility,
     seasonalityAvailable: features.seasonalityAvailable,
     outlierCount: features.outlierCount,
-    trendStability: features.trendStability,
   });
 
   const diagnostics = {
