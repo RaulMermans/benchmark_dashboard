@@ -10,6 +10,11 @@ import {
   calculateIndexedMetrics,
   generateSyntheticBenchmarkRows,
   buildBenchmarkPayloadFromSourceMonthlyRows,
+  aggregatePeriods,
+  getAvailableYears,
+  getAvailableDateRange,
+  getLatestCompleteMonth,
+  buildCoverageMetadata,
   adaptSimpleMonthlyRows,
   adaptSourceMonthlyRowsToInterface,
   buildRankingViewModel,
@@ -667,4 +672,206 @@ test("validateBenchmarkPayload still validates legacy data.interface payloads", 
   const result = validateBenchmarkPayload(legacy);
   assert.equal(result.valid, true);
   assert.equal(result.errors.length, 0);
+});
+
+// --- Sprint 03: aggregation & period intelligence ---
+
+const SPRINT03_ROWS = [
+  { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 100, visits: 200 },
+  { date: "2025-01-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 300, visits: 600 },
+  { date: "2025-02-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 110, visits: 220 },
+  { date: "2025-02-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 330, visits: 660 },
+  { date: "2026-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 150, visits: 300 },
+  { date: "2026-01-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 450, visits: 900 },
+  { date: "2026-02-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 160, visits: 320 },
+  { date: "2026-02-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", data_type: "actual", revenue: 480, visits: 960 },
+];
+
+test("aggregatePeriods annual sums revenue correctly", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, { periodType: "annual" });
+  const real2025 = result.filter((r) => !r.is_synthetic && r.year === "2025");
+  const focus2025 = real2025.find((r) => r.company_id === "focus");
+  const peer2025 = real2025.find((r) => r.company_id === "peer_a");
+  assert.ok(focus2025, "focus 2025 annual row must exist");
+  assert.equal(focus2025.revenue, 210, "focus 2025 revenue: 100+110=210");
+  assert.equal(peer2025.revenue, 630, "peer_a 2025 revenue: 300+330=630");
+});
+
+test("aggregatePeriods annual sums visits correctly", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, { periodType: "annual" });
+  const real2025 = result.filter((r) => !r.is_synthetic && r.year === "2025");
+  const focus2025 = real2025.find((r) => r.company_id === "focus");
+  assert.equal(focus2025.visits, 420, "focus 2025 visits: 200+220=420");
+});
+
+test("aggregatePeriods annual market shares recalculated from sums", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, { periodType: "annual" });
+  const real2025 = result.filter((r) => !r.is_synthetic && r.year === "2025");
+  const focus = real2025.find((r) => r.company_id === "focus");
+  const peer = real2025.find((r) => r.company_id === "peer_a");
+  // focus: 210/(210+630)=0.25; peer: 630/840=0.75
+  assert.ok(Math.abs(focus.market_share_revenue - 0.25) < 0.0001, "focus share must be 0.25");
+  assert.ok(Math.abs(peer.market_share_revenue - 0.75) < 0.0001, "peer share must be 0.75");
+  assert.ok(Math.abs(focus.market_share_revenue + peer.market_share_revenue - 1) < 0.0001, "shares must sum to 1");
+});
+
+test("aggregatePeriods annual ranks recalculated from aggregated values", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, { periodType: "annual" });
+  const real2025 = result.filter((r) => !r.is_synthetic && r.year === "2025");
+  const focus = real2025.find((r) => r.company_id === "focus");
+  const peer = real2025.find((r) => r.company_id === "peer_a");
+  assert.equal(peer.rank_revenue, 1, "peer_a should rank 1 (higher revenue)");
+  assert.equal(focus.rank_revenue, 2, "focus should rank 2");
+});
+
+test("aggregatePeriods annual produces market_total and market_average synthetic rows", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, { periodType: "annual" });
+  // Synthetic rows carry date but not year — filter by date prefix
+  const synth2025 = result.filter((r) => r.is_synthetic && String(r.date || "").startsWith("2025"));
+  const total = synth2025.find((r) => r.company_id === "market_total");
+  const avg = synth2025.find((r) => r.company_id === "market_average");
+  assert.ok(total, "market_total must be generated for aggregated period");
+  assert.ok(avg, "market_average must be generated for aggregated period");
+  assert.equal(total.revenue, 840, "market_total: 210+630=840");
+  assert.equal(avg.revenue, 420, "market_average: 840/2=420");
+});
+
+test("aggregatePeriods annual synthetic rows excluded from ranks", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, { periodType: "annual" });
+  const synth = result.filter((r) => r.is_synthetic && String(r.date || "").startsWith("2025"));
+  assert.ok(synth.length > 0, "must have synthetic rows");
+  synth.forEach((row) => {
+    assert.equal(row.rank_revenue, null, `${row.company_id} must not have rank_revenue`);
+  });
+});
+
+test("aggregatePeriods range filters dates and aggregates correctly", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, {
+    periodType: "range",
+    startDate: "2025-01-01",
+    endDate: "2025-02-01",
+  });
+  const real = result.filter((r) => !r.is_synthetic);
+  const focus = real.find((r) => r.company_id === "focus");
+  const peer = real.find((r) => r.company_id === "peer_a");
+  assert.ok(focus, "focus range row must exist");
+  // Only 2025 months included: focus 100+110=210, peer 300+330=630
+  assert.equal(focus.revenue, 210);
+  assert.equal(peer.revenue, 630);
+  // 2026 data must be excluded
+  assert.equal(real.filter((r) => r.year === "2026").length, 0, "2026 rows excluded from range");
+});
+
+test("aggregatePeriods range market shares computed from summed values", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS, {
+    periodType: "range",
+    startDate: "2025-01-01",
+    endDate: "2025-02-01",
+  });
+  const real = result.filter((r) => !r.is_synthetic);
+  const focus = real.find((r) => r.company_id === "focus");
+  assert.ok(Math.abs(focus.market_share_revenue - 0.25) < 0.0001, "focus range share must be 0.25");
+});
+
+test("aggregatePeriods monthly returns rows unchanged", () => {
+  const result = aggregatePeriods(SPRINT03_ROWS.slice(0, 2), { periodType: "monthly" });
+  assert.equal(result.length, 2);
+  assert.equal(result[0].period_type, "monthly");
+});
+
+test("aggregatePeriods excludes existing synthetic rows from aggregation input", () => {
+  const withSynthetic = [
+    ...SPRINT03_ROWS.slice(0, 4),
+    { date: "2025-01-01", period_type: "monthly", company_id: "market_total", type: "benchmark", market: "Demo", data_type: "actual", revenue: 9999, visits: 9999, is_synthetic: true },
+  ];
+  const result = aggregatePeriods(withSynthetic, { periodType: "annual" });
+  // market_total is synthetic — filter by company_id + date prefix (no year field on synthetic rows)
+  const total2025 = result.find((r) => r.company_id === "market_total" && String(r.date || "").startsWith("2025"));
+  // market_total should be regenerated from real companies only (210+630=840), not from pre-existing 9999
+  assert.ok(total2025, "market_total must exist");
+  assert.equal(total2025.revenue, 840, "synthetic input rows must not pollute aggregation");
+});
+
+test("getAvailableYears returns sorted distinct years from actual rows", () => {
+  const years = getAvailableYears(SPRINT03_ROWS);
+  assert.deepEqual(years, ["2025", "2026"]);
+});
+
+test("getAvailableYears excludes forecast rows", () => {
+  const rows = [
+    ...SPRINT03_ROWS.slice(0, 2),
+    { date: "2024-01-01", company_id: "focus", data_type: "forecast", revenue: 50, visits: 100 },
+  ];
+  const years = getAvailableYears(rows);
+  assert.ok(!years.includes("2024"), "forecast year must be excluded");
+});
+
+test("getAvailableDateRange returns min and max actual dates", () => {
+  const range = getAvailableDateRange(SPRINT03_ROWS);
+  assert.equal(range.min_date, "2025-01-01");
+  assert.equal(range.max_date, "2026-02-01");
+});
+
+test("getLatestCompleteMonth returns most recent month where all companies have data", () => {
+  const latest = getLatestCompleteMonth(SPRINT03_ROWS);
+  assert.equal(latest, "2026-02-01");
+});
+
+test("getLatestCompleteMonth falls back when latest month is incomplete", () => {
+  // Remove peer_a from 2026-02-01 so that month is incomplete
+  const gapped = SPRINT03_ROWS.filter((r) => !(r.company_id === "peer_a" && r.date === "2026-02-01"));
+  const latest = getLatestCompleteMonth(gapped);
+  assert.equal(latest, "2026-01-01", "must fall back to last complete month");
+});
+
+test("buildCoverageMetadata returns correct month and company counts", () => {
+  // Use only Jan-Feb 2025 (consecutive months, no gaps) for the no-missing-months assertion
+  const rows = SPRINT03_ROWS.slice(0, 4);
+  const meta = buildCoverageMetadata(rows);
+  assert.equal(meta.min_date, "2025-01-01");
+  assert.equal(meta.max_date, "2025-02-01");
+  assert.equal(meta.month_count, 2);
+  assert.equal(meta.company_count, 2);
+  assert.equal(meta.market_count, 1);
+  assert.equal(meta.has_missing_months, false);
+  assert.equal(meta.missing_months.length, 0);
+});
+
+test("buildCoverageMetadata detects missing months", () => {
+  const gapped = SPRINT03_ROWS.filter((r) => !(r.company_id === "peer_a" && r.date === "2026-02-01"));
+  const meta = buildCoverageMetadata(gapped);
+  assert.equal(meta.has_missing_months, true);
+  const missing = meta.missing_months;
+  assert.ok(missing.some((m) => m.company_id === "peer_a" && m.month === "2026-02-01"), "gap must be reported");
+});
+
+test("buildCoverageMetadata excludes benchmark and forecast rows", () => {
+  const rows = [
+    ...SPRINT03_ROWS,
+    { date: "2024-01-01", company_id: "market_average", type: "benchmark", revenue: 500, visits: 1000 },
+    { date: "2027-01-01", company_id: "focus", data_type: "forecast", revenue: 200, visits: 400 },
+  ];
+  const meta = buildCoverageMetadata(rows);
+  assert.equal(meta.min_date, "2025-01-01", "benchmark/forecast rows must not affect min date");
+  assert.equal(meta.max_date, "2026-02-01", "forecast rows must not affect max date");
+});
+
+test("legacy data.interface payload still loads without modification (Sprint 03 compatibility)", async () => {
+  const legacyRows = [
+    { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", type: "own", market: "Demo", revenue: 100, visits: 50, data_type: "actual" },
+    { date: "2025-01-01", period_type: "annual", company_id: "focus", display_name: "Focus", type: "own", market: "Demo", revenue: 1200, visits: 600, data_type: "actual" },
+  ];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ ok: true, data: { interface: legacyRows } }),
+  });
+  try {
+    const { loadBenchmarkData } = await import("../src/lib/api.js");
+    const result = await loadBenchmarkData();
+    assert.equal(result.data.interface.length, 2, "legacy interface rows preserved as-is");
+    assert.ok(result.data.interface.some((r) => r.period_type === "annual"), "annual rows preserved");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

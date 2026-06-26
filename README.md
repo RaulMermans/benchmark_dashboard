@@ -84,6 +84,8 @@ The goal is to create a reusable intelligence layer for comparison, prioritizati
 * Computes market shares, revenue per visit, monetization gap, MoM/YoY growth, indexed metrics, and ranks internally.
 * Generates synthetic `market_total` and `market_average` benchmark rows automatically.
 * Raw JSON does not need pre-computed derived fields — the framework derives everything from `revenue` and `visits`.
+* Aggregates monthly rows into annual or custom-range periods, then recalculates all benchmark metrics from the summed revenue and visits — never by averaging monthly percentages.
+* Provides period intelligence helpers: latest complete month, available years, date-range bounds, and coverage metadata including missing-month detection.
 * Supports period-based analysis and enriched fields such as forecast scenarios and event metadata.
 
 ### View-model generation

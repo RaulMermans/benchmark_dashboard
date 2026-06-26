@@ -112,10 +112,30 @@ pnpm audit:public
 - `pnpm build` confirms the Vite production bundle compiles.
 - `pnpm audit:public` checks the repository for unsafe public content.
 
+## Aggregation and period intelligence
+
+Raw monthly data is still the preferred intake. The framework now derives annual and custom-range benchmark intelligence internally via `aggregatePeriods`.
+
+After summing revenue and visits per company per period, all benchmark metrics are recalculated from scratch:
+
+- Annual market share = annual company revenue / annual market revenue (not an average of monthly shares)
+- Annual ranks are recalculated from aggregated values
+- Synthetic `market_total` and `market_average` rows are generated per aggregated period
+
+Available helpers:
+- `getAvailableYears(rows)` — distinct years in actual rows
+- `getAvailableDateRange(rows)` — `{ min_date, max_date }` from actual rows
+- `getLatestCompleteMonth(rows)` — most recent month where all companies have data
+- `buildCoverageMetadata(rows)` — month count, company count, and missing-month detection
+
+`data.interface` legacy payloads remain fully supported.
+
+Google TimesFM forecasting is planned for Sprint 04.
+
 ## Common mistakes
 
 - Omitting `ok: true`.
-- Including pre-computed derived fields (`market_share_*`, growth, ranks, indexed, efficiency) in `source_monthly` rows — the framework computes all of these, plus synthetic `market_total` and `market_average` rows.
+- Including pre-computed derived fields (`market_share_*`, growth, ranks, indexed, efficiency) in `source_monthly` rows — the framework computes all of these, plus synthetic `market_total` and `market_average` rows, and aggregated period metrics.
 - Supplying non-numeric strings for `revenue` or `visits`.
 - Using inconsistent `company_id` values across periods.
 - Using entity IDs that do not match `src/config/benchmarkConfig.js`.

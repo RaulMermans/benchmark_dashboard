@@ -82,6 +82,33 @@ The pipeline also generates two synthetic rows per date+market+data_type group:
 
 These rows carry `type: "benchmark"` and `is_synthetic: true`. They are excluded from share denominators and ranks.
 
+### Period aggregation
+
+The framework can aggregate monthly rows into annual or custom-range periods via `aggregatePeriods`:
+
+```js
+aggregatePeriods(rows, { periodType: "annual" | "range", startDate, endDate })
+```
+
+After summing `revenue` and `visits` per company per period, the full benchmark pipeline re-runs on the aggregated sums:
+
+> aggregate revenue + visits → generate synthetic benchmarks → calculate market shares → efficiency → ranks → indexed metrics
+
+**Do not average monthly percentages.** Annual market share is computed as `annual company revenue / annual market revenue`, not as the average of monthly shares.
+
+Aggregated rows carry `aggregate_source: "framework_period_aggregation"`, `period_type: "annual"` or `"range"`, and `period_start` / `period_end` ISO date strings.
+
+### Period intelligence helpers
+
+| Helper | Returns |
+|--------|---------|
+| `getAvailableYears(rows)` | Sorted list of years present in actual rows |
+| `getAvailableDateRange(rows)` | `{ min_date, max_date }` from actual rows |
+| `getLatestCompleteMonth(rows)` | Most recent month where all companies have data |
+| `buildCoverageMetadata(rows)` | `{ min_date, max_date, month_count, company_count, market_count, has_missing_months, missing_months }` |
+
+All helpers exclude forecast rows and benchmark/synthetic rows.
+
 ---
 
 ## Legacy input: enriched interface rows
