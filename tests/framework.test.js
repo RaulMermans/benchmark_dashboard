@@ -24,8 +24,14 @@ import {
   generateForecastRows,
   prepareTimeseries,
   mapForecastsToRows,
+  enrichForecastRows,
   localFallbackProvider,
+  localEngineProvider,
   timesfmProvider,
+  extractForecastFeatures,
+  scoreConfidence,
+  backtestForecast,
+  DEFAULT_FORECAST_CONFIG,
 } from "../src/framework/index.js";
 import { benchmarkConfig } from "../src/config/benchmarkConfig.js";
 import {
@@ -1100,4 +1106,201 @@ test("generateForecastRows skips companies with insufficient history", async () 
     minHistoryMonths: 6, // require 6 months — short rows won't qualify
   });
   assert.equal(rows.length, 0, "short history must not produce forecasts");
+});
+
+// --- Sprint 04b: local_engine, confidence, diagnostics, derived forecast metrics ---
+
+test("DEFAULT_FORECAST_CONFIG uses local_engine as default provider", () => {
+  assert.equal(DEFAULT_FORECAST_CONFIG.provider, "local_engine");
+  assert.equal(DEFAULT_FORECAST_CONFIG.enabled, true);
+  assert.equal(DEFAULT_FORECAST_CONFIG.minHistoryMonths, 3);
+});
+
+test("benchmarkConfig forecast has local_engine as provider", () => {
+  assert.equal(benchmarkConfig.forecast.provider, "local_engine");
+  assert.equal(benchmarkConfig.forecast.enabled, true);
+  assert.ok(benchmarkConfig.forecast.scenarioOrder.includes("base_case"));
+});
+
+test("localEngineProvider returns deterministic forecasts", async () => {
+  const series = [
+    { id: "focus::Demo::revenue", company_id: "focus", market: "Demo", metric: "revenue", type: "own",
+      dates: ["2025-01-01","2025-02-01","2025-03-01","2025-04-01","2025-05-01","2025-06-01"],
+      values: [100000, 102000, 104000, 106000, 108000, 110000] },
+  ];
+  const r1 = await localEngineProvider({ series, horizonMonths: 3 });
+  const r2 = await localEngineProvider({ series, horizonMonths: 3 });
+  assert.equal(r1.ok, true);
+  assert.deepEqual(r1.forecasts[0].point, r2.forecasts[0].point, "point forecast must be deterministic");
+});
+
+test("localEngineProvider clamps negative values to zero", async () => {
+  const series = [
+    { id: "x::Demo::revenue", company_id: "x", market: "Demo", metric: "revenue", type: "own",
+      dates: ["2025-01-01","2025-02-01","2025-03-01"],
+      values: [100, 50, 10] }, // sharply declining — could go negative
+  ];
+  const result = await localEngineProvider({ series, horizonMonths: 6 });
+  assert.equal(result.ok, true);
+  result.forecasts[0].point.forEach((v) => assert.ok(v >= 0, `forecast value must be >= 0, got ${v}`));
+  result.forecasts[0].quantiles["0.1"].forEach((v) => assert.ok(v >= 0, `lower bound must be >= 0, got ${v}`));
+});
+
+test("localEngineProvider includes diagnostics and confidence in output", async () => {
+  const series = [
+    { id: "focus::Demo::revenue", company_id: "focus", market: "Demo", metric: "revenue", type: "own",
+      dates: ["2025-01-01","2025-02-01","2025-03-01","2025-04-01","2025-05-01","2025-06-01"],
+      values: [100000, 102000, 104000, 106000, 108000, 110000] },
+  ];
+  const result = await localEngineProvider({ series, horizonMonths: 3 });
+  const fc = result.forecasts[0];
+  assert.ok(fc.forecast_diagnostics, "diagnostics must be present");
+  assert.equal(typeof fc.forecast_diagnostics.history_months, "number");
+  assert.equal(typeof fc.forecast_diagnostics.volatility, "number");
+  assert.equal(typeof fc.forecast_diagnostics.seasonality_used, "boolean");
+  assert.equal(fc.forecast_diagnostics.model_family, "local_statistical_ensemble");
+  assert.ok(typeof fc.confidence_score === "number", "confidence_score must be number");
+  assert.ok(Array.isArray(fc.confidence_reasons), "confidence_reasons must be array");
+});
+
+test("localEngineProvider aggressive quantile >= base >= conservative", async () => {
+  const series = [
+    { id: "focus::Demo::revenue", company_id: "focus", market: "Demo", metric: "revenue", type: "own",
+      dates: ["2025-01-01","2025-02-01","2025-03-01","2025-04-01","2025-05-01","2025-06-01"],
+      values: [100000, 102000, 104000, 106000, 108000, 110000] },
+  ];
+  const result = await localEngineProvider({ series, horizonMonths: 3 });
+  const fc = result.forecasts[0];
+  fc.point.forEach((base, i) => {
+    assert.ok(fc.quantiles["0.9"][i] >= base, `aggressive >= base at index ${i}`);
+    assert.ok(base >= fc.quantiles["0.1"][i], `base >= conservative at index ${i}`);
+  });
+});
+
+test("localEngineProvider uses seasonality when 14+ months available", async () => {
+  const dates = Array.from({ length: 14 }, (_, i) => {
+    const y = 2024 + Math.floor(i / 12);
+    const m = (i % 12) + 1;
+    return `${y}-${String(m).padStart(2, "0")}-01`;
+  });
+  const series14m = [
+    { id: "focus::Demo::revenue", company_id: "focus", market: "Demo", metric: "revenue", type: "own",
+      dates, values: dates.map((_, i) => 100000 + i * 1000) },
+  ];
+  const result = await localEngineProvider({ series: series14m, horizonMonths: 3 });
+  const fc = result.forecasts[0];
+  assert.equal(fc.forecast_diagnostics?.seasonality_used, true, "14+ months should enable seasonality");
+  assert.ok(fc.forecast_method?.includes("seasonality"), `expected seasonality method, got ${fc.forecast_method}`);
+});
+
+test("scoreConfidence returns low for very short history and high for long stable history", () => {
+  const low = scoreConfidence({ historyMonths: 3, missingMonthCount: 0, volatility: 0.05, seasonalityAvailable: false, outlierCount: 0 });
+  assert.equal(low.forecast_confidence, "low");
+
+  const high = scoreConfidence({ historyMonths: 18, missingMonthCount: 0, volatility: 0.02, seasonalityAvailable: true, outlierCount: 0 });
+  assert.equal(high.forecast_confidence, "high");
+  assert.ok(high.confidence_score > low.confidence_score);
+});
+
+test("extractForecastFeatures returns expected feature shape", () => {
+  const values = [100, 110, 121, 133, 146, 161];
+  const dates = ["2025-01-01","2025-02-01","2025-03-01","2025-04-01","2025-05-01","2025-06-01"];
+  const features = extractForecastFeatures(values, dates);
+  assert.equal(features.historyMonths, 6);
+  assert.equal(features.latestValue, 161);
+  assert.ok(typeof features.trailing3Growth === "number");
+  assert.ok(typeof features.volatility === "number");
+  assert.equal(features.seasonalityAvailable, false);
+  assert.ok(typeof features.outlierCount === "number");
+});
+
+test("enrichForecastRows adds market_share and ranks per scenario group", () => {
+  const forecastRows = [
+    { date: "2025-07-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", revenue: 110000, visits: 55000, data_type: "forecast", forecast_scenario: "base_case" },
+    { date: "2025-07-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", revenue: 210000, visits: 105000, data_type: "forecast", forecast_scenario: "base_case" },
+  ];
+  const enriched = enrichForecastRows(forecastRows);
+  const real = enriched.filter((r) => !r.is_synthetic);
+  const focus = real.find((r) => r.company_id === "focus");
+  const peer = real.find((r) => r.company_id === "peer_a");
+  assert.ok(focus.market_share_revenue !== null, "focus must have market_share_revenue");
+  assert.ok(Math.abs(focus.market_share_revenue - (110000 / 320000)) < 0.001);
+  assert.ok(focus.rank_revenue !== null, "focus must have rank_revenue");
+  assert.equal(peer.rank_revenue, 1);
+  assert.equal(focus.rank_revenue, 2);
+});
+
+test("enrichForecastRows generates synthetic market_total and market_average for forecast groups", () => {
+  const forecastRows = [
+    { date: "2025-07-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", revenue: 110000, visits: 55000, data_type: "forecast", forecast_scenario: "base_case" },
+    { date: "2025-07-01", period_type: "monthly", company_id: "peer_a", display_name: "Peer A", market: "Demo", type: "competitor", revenue: 210000, visits: 105000, data_type: "forecast", forecast_scenario: "base_case" },
+  ];
+  const enriched = enrichForecastRows(forecastRows);
+  const synth = enriched.filter((r) => r.is_synthetic);
+  assert.ok(synth.length >= 2, "must have synthetic rows");
+  const total = synth.find((r) => r.company_id === "market_total");
+  const avg = synth.find((r) => r.company_id === "market_average");
+  assert.ok(total, "market_total must exist");
+  assert.ok(avg, "market_average must exist");
+  assert.equal(total.revenue, 320000);
+  assert.equal(avg.revenue, 160000);
+});
+
+test("generateForecastRows with local_engine produces enrichable rows", async () => {
+  const rows = await generateForecastRows(FORECAST_ROWS, { provider: "local_engine", horizonMonths: 3, scenarios: ["base_case"] });
+  assert.ok(rows.length > 0, "local_engine must produce forecast rows");
+  rows.forEach((r) => {
+    assert.equal(r.data_type, "forecast");
+    assert.equal(r.forecast_provider, "local_engine");
+    assert.ok(typeof r.revenue === "number");
+    assert.ok(typeof r.visits === "number");
+    assert.ok(r.revenue >= 0);
+    assert.ok(r.visits >= 0);
+  });
+});
+
+test("TimesFM is optional — local_engine works without VITE_TIMESFM_API_URL", async () => {
+  const rows = await generateForecastRows(FORECAST_ROWS, { provider: "local_engine", horizonMonths: 2, scenarios: ["base_case"] });
+  assert.ok(rows.length > 0, "local_engine produces rows without any API key");
+  rows.forEach((r) => assert.equal(r.forecast_provider, "local_engine"));
+});
+
+test("raw demo data (example-benchmark-data.json) does not require market_average row", () => {
+  const json = JSON.parse(fs.readFileSync("public/data/example-benchmark-data.json", "utf8"));
+  const sourceMonthly = json?.data?.source_monthly;
+  assert.ok(Array.isArray(sourceMonthly), "example data must use source_monthly format");
+  const hasMarketAvg = sourceMonthly.some((r) => r.company_id === "market_average");
+  assert.equal(hasMarketAvg, false, "source_monthly must not contain market_average row");
+});
+
+test("backtestForecast returns MAE, MAPE, RMSE, bias, and quality label", async () => {
+  const rows9m = Array.from({ length: 9 }, (_, i) => ({
+    date: `2024-${String(i + 1).padStart(2, "0")}-01`,
+    company_id: "focus", display_name: "Focus", market: "Demo", type: "own",
+    revenue: 100000 + i * 2000, visits: 50000 + i * 1000,
+  }));
+  const results = await backtestForecast(rows9m, { horizonMonths: 3, minHistoryMonths: 6, metric: "revenue" });
+  assert.ok(results.length > 0, "backtest must return results");
+  const r = results[0];
+  assert.equal(r.company_id, "focus");
+  assert.equal(r.metric, "revenue");
+  assert.equal(r.horizon_months, 3);
+  assert.equal(typeof r.mae, "number");
+  assert.equal(typeof r.mape, "number");
+  assert.equal(typeof r.rmse, "number");
+  assert.equal(typeof r.bias, "number");
+  assert.ok(["excellent", "good", "usable", "weak"].includes(r.quality), `unexpected quality: ${r.quality}`);
+});
+
+test("backtestForecast is deterministic", async () => {
+  const rows9m = Array.from({ length: 9 }, (_, i) => ({
+    date: `2024-${String(i + 1).padStart(2, "0")}-01`,
+    company_id: "focus", display_name: "Focus", market: "Demo", type: "own",
+    revenue: 100000 + i * 1500, visits: 50000 + i * 800,
+  }));
+  const [r1, r2] = await Promise.all([
+    backtestForecast(rows9m, { horizonMonths: 3, minHistoryMonths: 6, metric: "revenue" }),
+    backtestForecast(rows9m, { horizonMonths: 3, minHistoryMonths: 6, metric: "revenue" }),
+  ]);
+  assert.deepEqual(r1, r2, "backtest must be deterministic");
 });

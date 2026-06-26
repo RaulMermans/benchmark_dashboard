@@ -4,82 +4,28 @@
     "dataset_name": "Example Benchmark Dataset",
     "currency": "EUR",
     "source_type": "raw_monthly_observations",
-    "data_policy": "Minimal example — safe to share publicly."
+    "data_policy": "Minimal example — safe to share publicly. Forecast rows are generated at runtime by the local statistical engine."
   },
   "data": {
     "source_monthly": [
-      {
-        "date": "2025-11-01",
-        "company_id": "focus",
-        "display_name": "Focus Brand",
-        "market": "Demo Market",
-        "type": "own",
-        "revenue": 120000,
-        "visits": 80000
-      },
-      {
-        "date": "2025-11-01",
-        "company_id": "peer_a",
-        "display_name": "Peer Alpha",
-        "market": "Demo Market",
-        "type": "competitor",
-        "revenue": 200000,
-        "visits": 140000
-      },
-      {
-        "date": "2025-11-01",
-        "company_id": "peer_b",
-        "display_name": "Peer Beta",
-        "market": "Demo Market",
-        "type": "competitor",
-        "revenue": 160000,
-        "visits": 110000
-      },
-      {
-        "date": "2025-11-01",
-        "company_id": "market_average",
-        "display_name": "Market Average",
-        "market": "Demo Market",
-        "type": "benchmark",
-        "revenue": 160000,
-        "visits": 110000
-      },
-      {
-        "date": "2025-12-01",
-        "company_id": "focus",
-        "display_name": "Focus Brand",
-        "market": "Demo Market",
-        "type": "own",
-        "revenue": 125000,
-        "visits": 82000
-      },
-      {
-        "date": "2025-12-01",
-        "company_id": "peer_a",
-        "display_name": "Peer Alpha",
-        "market": "Demo Market",
-        "type": "competitor",
-        "revenue": 210000,
-        "visits": 145000
-      },
-      {
-        "date": "2025-12-01",
-        "company_id": "peer_b",
-        "display_name": "Peer Beta",
-        "market": "Demo Market",
-        "type": "competitor",
-        "revenue": 155000,
-        "visits": 108000
-      },
-      {
-        "date": "2025-12-01",
-        "company_id": "market_average",
-        "display_name": "Market Average",
-        "market": "Demo Market",
-        "type": "benchmark",
-        "revenue": 163000,
-        "visits": 112000
-      }
+      { "date": "2025-07-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 110000, "visits": 75000 },
+      { "date": "2025-07-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 190000, "visits": 132000 },
+      { "date": "2025-07-01", "company_id": "peer_b", "display_name": "Peer Beta", "market": "Demo Market", "type": "competitor", "revenue": 152000, "visits": 105000 },
+      { "date": "2025-08-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 114000, "visits": 77000 },
+      { "date": "2025-08-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 195000, "visits": 135000 },
+      { "date": "2025-08-01", "company_id": "peer_b", "display_name": "Peer Beta", "market": "Demo Market", "type": "competitor", "revenue": 154000, "visits": 107000 },
+      { "date": "2025-09-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 117000, "visits": 78000 },
+      { "date": "2025-09-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 198000, "visits": 137000 },
+      { "date": "2025-09-01", "company_id": "peer_b", "display_name": "Peer Beta", "market": "Demo Market", "type": "competitor", "revenue": 156000, "visits": 108000 },
+      { "date": "2025-10-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 119000, "visits": 79000 },
+      { "date": "2025-10-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 198000, "visits": 138000 },
+      { "date": "2025-10-01", "company_id": "peer_b", "display_name": "Peer Beta", "market": "Demo Market", "type": "competitor", "revenue": 157000, "visits": 109000 },
+      { "date": "2025-11-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 120000, "visits": 80000 },
+      { "date": "2025-11-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 200000, "visits": 140000 },
+      { "date": "2025-11-01", "company_id": "peer_b", "display_name": "Peer Beta", "market": "Demo Market", "type": "competitor", "revenue": 160000, "visits": 110000 },
+      { "date": "2025-12-01", "company_id": "focus", "display_name": "Focus Brand", "market": "Demo Market", "type": "own", "revenue": 125000, "visits": 82000 },
+      { "date": "2025-12-01", "company_id": "peer_a", "display_name": "Peer Alpha", "market": "Demo Market", "type": "competitor", "revenue": 210000, "visits": 145000 },
+      { "date": "2025-12-01", "company_id": "peer_b", "display_name": "Peer Beta", "market": "Demo Market", "type": "competitor", "revenue": 155000, "visits": 108000 }
     ]
   }
 }

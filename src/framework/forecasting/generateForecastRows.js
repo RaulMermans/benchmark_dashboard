@@ -2,9 +2,11 @@ import { DEFAULT_FORECAST_CONFIG } from "./config.js";
 import { prepareTimeseries } from "./prepareTimeseries.js";
 import { mapForecastsToRows } from "./mapForecastsToRows.js";
 import { localFallbackProvider } from "./providers/localFallbackProvider.js";
+import { localEngineProvider } from "./providers/localEngineProvider.js";
 import { timesfmProvider } from "./providers/timesfmProvider.js";
 
 const PROVIDERS = {
+  local_engine: localEngineProvider,
   local_fallback: localFallbackProvider,
   timesfm: timesfmProvider,
 };

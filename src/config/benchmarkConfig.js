@@ -36,7 +36,14 @@ export const benchmarkConfig = {
     ],
   },
   forecast: {
+    enabled: true,
+    provider: "local_engine",
+    fallbackProvider: "local_engine",
+    horizonMonths: 6,
+    scenarios: ["base_case", "conservative", "aggressive"],
     scenarioOrder: ["base_case", "conservative", "aggressive", "unknown"],
+    metrics: ["revenue", "visits"],
+    minHistoryMonths: 3,
   },
   thresholds: {
     battleTechnicalDraw: 0.02,

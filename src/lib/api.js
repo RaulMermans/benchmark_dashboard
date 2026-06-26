@@ -1,5 +1,6 @@
 import { buildBenchmarkPayloadFromSourceMonthlyRows } from "../framework/core/buildBenchmarkPayloadFromSourceMonthlyRows.js";
 import { generateForecastRows } from "../framework/forecasting/generateForecastRows.js";
+import { enrichForecastRows } from "../framework/forecasting/enrichForecastRows.js";
 
 const SNAPSHOT_URL = "/data/benchmark-data.json";
 const VITE_ENV = import.meta.env || {};
@@ -97,12 +98,13 @@ async function normalizePayload(json, sourceLabel) {
     json.data.interface = built.data.interface;
     json.meta = { ...(json.meta || {}), ...built.meta };
 
-    // Forecast enrichment: generate forecast rows and append to interface.
+    // Forecast enrichment: generate forecast rows, enrich with derived metrics, append.
     // Non-blocking: if generation fails, actual data is still returned.
     try {
       const forecastRows = await generateForecastRows(json.data.interface);
       if (forecastRows.length) {
-        json.data.interface = [...json.data.interface, ...forecastRows];
+        const enriched = enrichForecastRows(forecastRows);
+        json.data.interface = [...json.data.interface, ...enriched];
       }
     } catch {
       // Continue without forecasts

@@ -82,6 +82,13 @@ export function mapForecastsToRows(
           return Math.max(0, Math.round(vals[i]));
         };
 
+        // Prefer per-metric enhanced fields from local_engine provider
+        const revForecast = group.metrics.revenue?.forecast;
+        const diagnostics = revForecast?.forecast_diagnostics ?? null;
+        const confidenceScore = revForecast?.confidence_score ?? null;
+        const confidenceReasons = revForecast?.confidence_reasons ?? null;
+        const forecastMethod = revForecast?.forecast_method || model;
+
         rows.push({
           date,
           period_type: "monthly",
@@ -93,12 +100,15 @@ export function mapForecastsToRows(
           visits: getVal("visits"),
           data_type: "forecast",
           forecast_provider: provider,
-          forecast_method: model,
+          forecast_method: forecastMethod,
           forecast_scenario: scenario,
           forecast_confidence: confidence,
           forecast_horizon_month: i + 1,
           forecast_generated_at: generatedAtStr,
           is_forecast: true,
+          ...(diagnostics ? { forecast_diagnostics: diagnostics } : {}),
+          ...(confidenceScore !== null ? { confidence_score: confidenceScore } : {}),
+          ...(confidenceReasons ? { confidence_reasons: confidenceReasons } : {}),
         });
       }
     }

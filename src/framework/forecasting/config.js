@@ -1,9 +1,9 @@
 export const DEFAULT_FORECAST_CONFIG = {
   enabled: true,
-  provider: "timesfm",
-  fallbackProvider: "local_fallback",
+  provider: "local_engine",
+  fallbackProvider: "local_engine",
   horizonMonths: 6,
   scenarios: ["base_case", "conservative", "aggressive"],
   metrics: ["revenue", "visits"],
-  minHistoryMonths: 6,
+  minHistoryMonths: 3,
 };
