@@ -1,5 +1,4 @@
-import { validateSourceMonthlyRows } from "../framework/schema/validateSourceMonthlyRows.js";
-import { adaptSourceMonthlyRowsToInterface } from "../framework/adapters/simpleMonthlyAdapter.js";
+import { buildBenchmarkPayloadFromSourceMonthlyRows } from "../framework/core/buildBenchmarkPayloadFromSourceMonthlyRows.js";
 
 const SNAPSHOT_URL = "/data/benchmark-data.json";
 const VITE_ENV = import.meta.env || {};
@@ -86,20 +85,16 @@ function normalizePayload(json, sourceLabel) {
     json.data = {};
   }
 
-  // source_monthly path: validate raw rows and adapt to data.interface.
+  // source_monthly path: run full derived-metrics pipeline, then merge result into json.
   if (Array.isArray(json.data.source_monthly)) {
-    const validation = validateSourceMonthlyRows(json.data.source_monthly);
-    if (!validation.ok) {
-      throw new Error(
-        `${sourceLabel} source_monthly validation failed: ${validation.errors[0]}`,
-      );
+    let built;
+    try {
+      built = buildBenchmarkPayloadFromSourceMonthlyRows(json.data.source_monthly);
+    } catch (err) {
+      throw new Error(`${sourceLabel} source_monthly pipeline failed: ${err.message}`);
     }
-    json.data.interface = adaptSourceMonthlyRowsToInterface(json.data.source_monthly);
-    json.meta = {
-      ...(json.meta || {}),
-      source_type: "raw_monthly_observations",
-      generated_interface: true,
-    };
+    json.data.interface = built.data.interface;
+    json.meta = { ...(json.meta || {}), ...built.meta };
   } else if (!Array.isArray(json.data.interface)) {
     // Legacy path: data.interface must exist.
     throw new Error(`${sourceLabel} is missing data.interface as an array.`);

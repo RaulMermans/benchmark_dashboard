@@ -46,9 +46,41 @@ The preferred way to supply data is as raw monthly observations in `data.source_
 | `market` | `"default"` | Market or comparison-group label |
 | `active` | `true` | Whether to include this row in calculations |
 
-Raw rows must **not** include derived fields such as `market_share_*`, `*_growth`, `rank_*`, `indexed_*`, or `revenue_per_visit`. Those are computed internally.
+Raw rows must **not** include derived fields such as `market_share_*`, `*_growth`, `rank_*`, `indexed_*`, or `revenue_per_visit`. The framework computes all of these internally from the raw revenue and visits values.
 
 As a shorthand, a bare JSON array of raw monthly rows is also accepted (treated as `source_monthly`).
+
+### Derived metrics computed from raw rows
+
+The pipeline calculates all the following fields automatically:
+
+| Metric | How |
+|--------|-----|
+| `market_share_revenue` | `revenue / sum(revenue)` per date+market group; benchmark rows excluded |
+| `market_share_visits` | `visits / sum(visits)` per date+market group; benchmark rows excluded |
+| `revenue_per_visit` | `revenue / visits`; null when visits is zero |
+| `monetization_gap` | `market_share_revenue − market_share_visits` |
+| `revenue_mom_growth` | MoM change vs prior calendar month; null when prior month missing |
+| `visits_mom_growth` | MoM change vs prior calendar month |
+| `revenue_yoy_growth` | YoY change vs same month prior year; null when prior year missing |
+| `visits_yoy_growth` | YoY change vs same month prior year |
+| `indexed_revenue` | Indexed to first valid month (= 100) per company |
+| `indexed_visits` | Indexed to first valid month (= 100) per company |
+| `rank_revenue` | Descending revenue rank per date+market; benchmark rows excluded |
+| `rank_visits` | Descending visits rank per date+market; benchmark rows excluded |
+| `rank_share_revenue` | Descending revenue-share rank per date+market |
+| `rank_share_visits` | Descending visits-share rank per date+market |
+
+### Synthetic benchmark rows
+
+The pipeline also generates two synthetic rows per date+market+data_type group:
+
+| company_id | Role |
+|------------|------|
+| `market_total` | Sum of all real-company revenue and visits |
+| `market_average` | Average of all real-company revenue and visits |
+
+These rows carry `type: "benchmark"` and `is_synthetic: true`. They are excluded from share denominators and ranks.
 
 ---
 

@@ -7,6 +7,9 @@ import {
   buildBenchmarkDataset,
   calculateMarketShares,
   calculateRanks,
+  calculateIndexedMetrics,
+  generateSyntheticBenchmarkRows,
+  buildBenchmarkPayloadFromSourceMonthlyRows,
   adaptSimpleMonthlyRows,
   adaptSourceMonthlyRowsToInterface,
   buildRankingViewModel,
@@ -418,7 +421,10 @@ test("source_monthly payload is adapted into data.interface via loadBenchmarkDat
     const { loadBenchmarkData } = await import("../src/lib/api.js");
     const result = await loadBenchmarkData();
     assert.ok(Array.isArray(result.data.interface));
-    assert.equal(result.data.interface.length, RAW_MONTHLY_ROWS.length);
+    // Pipeline adds synthetic rows (market_total, market_average) so length > RAW_MONTHLY_ROWS.length
+    assert.ok(result.data.interface.length >= RAW_MONTHLY_ROWS.length);
+    const realRows = result.data.interface.filter((r) => !r.is_synthetic);
+    assert.equal(realRows.length, RAW_MONTHLY_ROWS.length);
     assert.equal(result.data.interface[0].period_type, "monthly");
     assert.equal(result.meta.generated_interface, true);
   } finally {
@@ -436,7 +442,8 @@ test("bare array payload is treated as source_monthly by loadBenchmarkData", asy
     const { loadBenchmarkData } = await import("../src/lib/api.js");
     const result = await loadBenchmarkData();
     assert.ok(Array.isArray(result.data.interface));
-    assert.equal(result.data.interface.length, RAW_MONTHLY_ROWS.length);
+    const realRows = result.data.interface.filter((r) => !r.is_synthetic);
+    assert.equal(realRows.length, RAW_MONTHLY_ROWS.length);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -458,6 +465,191 @@ test("legacy data.interface payload still loads without modification", async () 
     assert.equal(result.data.interface.length, 1);
     assert.equal(result.data.interface[0].company_id, "focus");
     assert.equal(result.meta?.generated_interface, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// --- Sprint 02: derived metrics engine ---
+
+const SPRINT02_ROWS = [
+  { date: "2025-01-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 100, visits: 200 },
+  { date: "2025-01-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 300, visits: 400 },
+  { date: "2025-02-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 110, visits: 220 },
+  { date: "2025-02-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 330, visits: 440 },
+];
+
+test("generateSyntheticBenchmarkRows produces market_total and market_average", () => {
+  const rows = [
+    { date: "2025-01-01", period_type: "monthly", market: "Demo", data_type: "actual", company_id: "focus", type: "own", revenue: 100, visits: 200 },
+    { date: "2025-01-01", period_type: "monthly", market: "Demo", data_type: "actual", company_id: "peer_a", type: "competitor", revenue: 300, visits: 400 },
+  ];
+  const synthetic = generateSyntheticBenchmarkRows(rows);
+  const total = synthetic.find((r) => r.company_id === "market_total");
+  const avg = synthetic.find((r) => r.company_id === "market_average");
+  assert.ok(total, "market_total should be generated");
+  assert.ok(avg, "market_average should be generated");
+  assert.equal(total.revenue, 400);
+  assert.equal(total.visits, 600);
+  assert.equal(avg.revenue, 200);
+  assert.equal(avg.visits, 300);
+  assert.equal(total.type, "benchmark");
+  assert.equal(total.is_synthetic, true);
+});
+
+test("generateSyntheticBenchmarkRows excludes existing benchmark rows from denominators", () => {
+  const rows = [
+    { date: "2025-01-01", period_type: "monthly", market: "Demo", data_type: "actual", company_id: "focus", type: "own", revenue: 100, visits: 100 },
+    { date: "2025-01-01", period_type: "monthly", market: "Demo", data_type: "actual", company_id: "market_average", type: "benchmark", revenue: 9999, visits: 9999 },
+  ];
+  const synthetic = generateSyntheticBenchmarkRows(rows);
+  const total = synthetic.find((r) => r.company_id === "market_total");
+  assert.equal(total.revenue, 100, "benchmark row must not count in total");
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes market shares", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  assert.equal(result.ok, true);
+  const jan = result.data.interface.filter((r) => r.date === "2025-01-01" && !r.is_synthetic);
+  const focus = jan.find((r) => r.company_id === "focus");
+  const peer = jan.find((r) => r.company_id === "peer_a");
+  assert.ok(focus.market_share_revenue !== null);
+  assert.ok(peer.market_share_revenue !== null);
+  assert.ok(Math.abs(focus.market_share_revenue + peer.market_share_revenue - 1) < 0.0001, "shares must sum to 1");
+  assert.ok(Math.abs(focus.market_share_revenue - 0.25) < 0.0001);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes revenue_per_visit", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const focus = result.data.interface.find((r) => r.company_id === "focus" && r.date === "2025-01-01");
+  assert.ok(focus.revenue_per_visit !== null);
+  assert.ok(Math.abs(focus.revenue_per_visit - 0.5) < 0.0001);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes monetization_gap", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const focus = result.data.interface.find((r) => r.company_id === "focus" && r.date === "2025-01-01");
+  assert.ok(focus.monetization_gap !== null);
+  const expectedRevShare = 100 / 400;
+  const expectedVisitShare = 200 / 600;
+  assert.ok(Math.abs(focus.monetization_gap - (expectedRevShare - expectedVisitShare)) < 0.0001);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes MoM growth", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const feb = result.data.interface.find((r) => r.company_id === "focus" && r.date === "2025-02-01" && !r.is_synthetic);
+  assert.ok(feb.revenue_mom_growth !== null);
+  assert.ok(Math.abs(feb.revenue_mom_growth - 0.1) < 0.0001);
+  assert.ok(feb.visits_mom_growth !== null);
+  assert.ok(Math.abs(feb.visits_mom_growth - 0.1) < 0.0001);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows returns null MoM growth for first month", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const jan = result.data.interface.find((r) => r.company_id === "focus" && r.date === "2025-01-01" && !r.is_synthetic);
+  assert.equal(jan.revenue_mom_growth ?? null, null);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes indexed metrics", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const jan = result.data.interface.find((r) => r.company_id === "focus" && r.date === "2025-01-01" && !r.is_synthetic);
+  const feb = result.data.interface.find((r) => r.company_id === "focus" && r.date === "2025-02-01" && !r.is_synthetic);
+  assert.ok(Math.abs(jan.indexed_revenue - 100) < 0.0001, "first month should be 100");
+  assert.ok(Math.abs(feb.indexed_revenue - 110) < 0.0001, "110% of base = 110");
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes revenue ranks", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const jan = result.data.interface.filter((r) => r.date === "2025-01-01" && !r.is_synthetic);
+  const peer = jan.find((r) => r.company_id === "peer_a");
+  const focus = jan.find((r) => r.company_id === "focus");
+  assert.equal(peer.rank_revenue, 1);
+  assert.equal(focus.rank_revenue, 2);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes visits ranks", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const jan = result.data.interface.filter((r) => r.date === "2025-01-01" && !r.is_synthetic);
+  const peer = jan.find((r) => r.company_id === "peer_a");
+  assert.equal(peer.rank_visits, 1);
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows computes share ranks", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const jan = result.data.interface.filter((r) => r.date === "2025-01-01" && !r.is_synthetic);
+  const peer = jan.find((r) => r.company_id === "peer_a");
+  const focus = jan.find((r) => r.company_id === "focus");
+  assert.equal(peer.rank_share_revenue, 1);
+  assert.equal(focus.rank_share_revenue, 2);
+});
+
+test("synthetic rows are excluded from ranks", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const synthRows = result.data.interface.filter((r) => r.is_synthetic && r.date === "2025-01-01");
+  assert.ok(synthRows.length > 0);
+  synthRows.forEach((row) => {
+    assert.equal(row.rank_revenue, null, `${row.company_id} should not have rank_revenue`);
+    assert.equal(row.rank_visits, null, `${row.company_id} should not have rank_visits`);
+  });
+});
+
+test("synthetic rows are excluded from share denominators", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  const jan = result.data.interface.filter((r) => r.date === "2025-01-01" && !r.is_synthetic);
+  const shares = jan.map((r) => r.market_share_revenue).filter((v) => v !== null);
+  const total = shares.reduce((s, v) => s + v, 0);
+  assert.ok(Math.abs(total - 1) < 0.0001, "real company shares must sum to 1 (synthetic excluded)");
+});
+
+test("buildBenchmarkPayloadFromSourceMonthlyRows sets meta.generated_interface", () => {
+  const result = buildBenchmarkPayloadFromSourceMonthlyRows(SPRINT02_ROWS);
+  assert.equal(result.meta.generated_interface, true);
+  assert.equal(result.meta.source_type, "raw_monthly_observations");
+});
+
+test("calculateIndexedMetrics sets first valid month to 100", () => {
+  const rows = [
+    { company_id: "a", market: "M", data_type: "actual", date: "2025-01-01", revenue: 50 },
+    { company_id: "a", market: "M", data_type: "actual", date: "2025-02-01", revenue: 75 },
+    { company_id: "a", market: "M", data_type: "actual", date: "2025-03-01", revenue: 100 },
+  ];
+  const result = calculateIndexedMetrics(rows, { indexedMetrics: ["revenue"] });
+  assert.ok(Math.abs(result[0].indexed_revenue - 100) < 0.0001);
+  assert.ok(Math.abs(result[1].indexed_revenue - 150) < 0.0001);
+  assert.ok(Math.abs(result[2].indexed_revenue - 200) < 0.0001);
+});
+
+test("calculateRanks supports share rank fields", () => {
+  const rows = [
+    { date: "2025-01-01", market: "D", data_type: "actual", company_id: "focus", type: "own", market_share_revenue: 0.25 },
+    { date: "2025-01-01", market: "D", data_type: "actual", company_id: "peer_a", type: "competitor", market_share_revenue: 0.75 },
+  ];
+  const result = calculateRanks(rows, "market_share_revenue", demoBenchmarkConfig);
+  assert.equal(result.find((r) => r.company_id === "peer_a").rank_share_revenue, 1);
+  assert.equal(result.find((r) => r.company_id === "focus").rank_share_revenue, 2);
+});
+
+test("source_monthly pipeline via loadBenchmarkData produces derived fields", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      data: { source_monthly: SPRINT02_ROWS },
+    }),
+  });
+  try {
+    const { loadBenchmarkData } = await import("../src/lib/api.js");
+    const result = await loadBenchmarkData();
+    const iface = result.data.interface;
+    assert.ok(Array.isArray(iface) && iface.length > 0);
+    const focus = iface.find((r) => r.company_id === "focus" && r.date === "2025-01-01" && !r.is_synthetic);
+    assert.ok(focus.market_share_revenue !== null, "market_share_revenue should be computed");
+    assert.ok(focus.revenue_per_visit !== null, "revenue_per_visit should be computed");
+    assert.ok(focus.rank_revenue !== null, "rank_revenue should be computed");
+    // Synthetic rows should be present
+    const synth = iface.find((r) => r.company_id === "market_total");
+    assert.ok(synth, "market_total synthetic row should exist");
   } finally {
     globalThis.fetch = originalFetch;
   }

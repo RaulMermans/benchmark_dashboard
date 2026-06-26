@@ -115,7 +115,7 @@ pnpm audit:public
 ## Common mistakes
 
 - Omitting `ok: true`.
-- Including pre-computed derived fields (`market_share_*`, growth, ranks) in `source_monthly` rows — the framework computes these.
+- Including pre-computed derived fields (`market_share_*`, growth, ranks, indexed, efficiency) in `source_monthly` rows — the framework computes all of these, plus synthetic `market_total` and `market_average` rows.
 - Supplying non-numeric strings for `revenue` or `visits`.
 - Using inconsistent `company_id` values across periods.
 - Using entity IDs that do not match `src/config/benchmarkConfig.js`.

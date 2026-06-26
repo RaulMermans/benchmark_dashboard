@@ -80,10 +80,11 @@ The goal is to create a reusable intelligence layer for comparison, prioritizati
 
 ### Benchmark calculations
 
-* Normalizes benchmark rows.
-* Calculates revenue, visits, growth, shares, ranks, efficiency, and aggregations.
-* Supports period-based analysis.
-* Supports enriched benchmark fields such as indexed metrics, forecast scenarios, and event metadata.
+* Normalizes benchmark rows from raw monthly observations.
+* Computes market shares, revenue per visit, monetization gap, MoM/YoY growth, indexed metrics, and ranks internally.
+* Generates synthetic `market_total` and `market_average` benchmark rows automatically.
+* Raw JSON does not need pre-computed derived fields — the framework derives everything from `revenue` and `visits`.
+* Supports period-based analysis and enriched fields such as forecast scenarios and event metadata.
 
 ### View-model generation
 
