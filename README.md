@@ -158,20 +158,25 @@ Simple monthly data / mock JSON / live API
 
 ## Framework modules
 
-| Module                          | Purpose                                                                                  |
-| ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `src/framework/schema`          | Validates the benchmark payload contract                                                 |
-| `src/framework/core`            | Normalizes rows and calculates shares, ranks, growth, efficiency, and aggregations       |
-| `src/framework/adapters`        | Converts JSON or simple monthly rows into benchmark payloads                             |
-| `src/framework/view-models`     | Builds chart-ready and table-ready data structures                                       |
-| `src/framework/config`          | Controls focus company, benchmark company, enabled views, currency, locale, and defaults |
-| `src/framework/forecasting`     | Provider-based forecasting layer: timeseries prep, local fallback, TimesFM adapter, row mapper |
-| `src/config/benchmarkConfig.js` | Centralizes entity IDs, routes, period types, scenario order, and thresholds for the App |
-| `src/config/metricRegistry.js`  | Centralizes metric definitions, labels, and named option arrays used across the App      |
-| `src/lib/metricFormatters.js`   | Resolves string formatter keys from the registry to formatting functions                 |
-| `src/viewModels/`               | Wraps framework view-model builders for each dashboard section                           |
-| `src/App.jsx`                   | Renders the polished executive dashboard interface                                       |
-| `services/timesfm-forecast/`    | Reference scaffold for the TimesFM Python service (not bundled into the Vite app)        |
+| Module                                       | Purpose                                                                                  |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/framework/schema`                       | Validates the benchmark payload contract                                                 |
+| `src/framework/core`                         | Normalizes rows and calculates shares, ranks, growth, efficiency, and aggregations       |
+| `src/framework/core/buildCanonicalBenchmarkPayload.js` | Single-entry canonical pipeline: source_monthly → full enriched payload         |
+| `src/framework/adapters`                     | Converts JSON or simple monthly rows into benchmark payloads                             |
+| `src/framework/view-models`                  | Builds chart-ready and table-ready data structures                                       |
+| `src/framework/config`                       | Controls focus company, benchmark company, enabled views, currency, locale, and defaults |
+| `src/framework/forecasting`                  | Provider-based forecasting layer: timeseries prep, local engine, TimesFM adapter, row mapper |
+| `src/config/benchmarkConfig.js`              | Centralizes entity IDs, routes, period types, scenario order, and thresholds for the App |
+| `src/config/metricRegistry.js`               | Centralizes metric definitions, labels, and named option arrays used across the App      |
+| `src/lib/metricFormatters.js`                | Resolves string formatter keys from the registry to formatting functions                 |
+| `src/lib/api.js`                             | Loads benchmark data, delegates all pipeline work to the canonical builder               |
+| `src/app/routes.js`                          | Route parsing, navigation, and profile hash helpers                                      |
+| `src/features/battle/battleLogic.js`         | Pure battle-arena scoring, formatting, and round-building logic                          |
+| `src/features/forecast/forecastUtils.js`     | Forecast merge helpers and observed/forecast deduplication utilities                     |
+| `src/viewModels/`                            | Wraps framework view-model builders for each dashboard section                           |
+| `src/App.jsx`                                | Renders the polished executive dashboard interface                                       |
+| `services/timesfm-forecast/`                 | Reference scaffold for the TimesFM Python service (not bundled into the Vite app)        |
 
 The framework is designed so that benchmark logic and interface rendering remain separated.
 
@@ -188,6 +193,8 @@ The framework is designed so that benchmark logic and interface rendering remain
 The dashboard header identifies the active result as `Sample data`, `Live API`, or `Snapshot fallback`.
 
 Both `data.source_monthly` (preferred) and `data.interface` (legacy) are accepted from any source.
+
+The public demo (`public/data/benchmark-data.json`) now uses raw `source_monthly` observations only. All benchmark metrics, forecast rows, and derived fields are generated at runtime by the framework pipeline. The JSON does not store pre-computed forecasts or derived metrics.
 
 ## Data contract
 

@@ -5,11 +5,12 @@ import {
   validateBenchmarkPayload,
   validateSourceMonthlyRows,
   buildBenchmarkDataset,
+  buildBenchmarkPayloadFromSourceMonthlyRows,
+  buildCanonicalBenchmarkPayload,
   calculateMarketShares,
   calculateRanks,
   calculateIndexedMetrics,
   generateSyntheticBenchmarkRows,
-  buildBenchmarkPayloadFromSourceMonthlyRows,
   aggregatePeriods,
   getAvailableYears,
   getAvailableDateRange,
@@ -65,17 +66,25 @@ import { getProfileHash } from "../src/viewModels/profileViewModel.js";
 
 const payload = JSON.parse(fs.readFileSync("public/data/benchmark-data.json", "utf8"));
 
-test("current mock JSON validates", () => {
-  const result = validateBenchmarkPayload(payload);
-  assert.equal(result.valid, true, result.errors.slice(0, 5).join("\n"));
-  assert.ok(result.summary.rowCount > 0);
-  assert.ok(result.summary.companyCount >= 8);
+test("current mock JSON validates (source_monthly format)", () => {
+  // The demo file now uses source_monthly format; validate using source_monthly validator
+  const isSourceMonthly = Array.isArray(payload?.data?.source_monthly);
+  assert.ok(isSourceMonthly, "benchmark-data.json must use source_monthly format");
+  const result = validateSourceMonthlyRows(payload.data.source_monthly);
+  assert.equal(result.ok, true, result.errors.slice(0, 5).join("\n"));
+  assert.ok(result.summary.rowCount >= 100, "must have at least 100 source rows");
+  assert.ok(result.summary.companyCount >= 8, "must have at least 8 companies");
 });
 
-test("dataset builds from mock JSON", () => {
-  const dataset = buildBenchmarkDataset(payload, demoBenchmarkConfig);
-  assert.ok(dataset.rows.length > 0);
-  assert.ok(dataset.events.length > 0);
+test("dataset builds from mock JSON via source_monthly pipeline", () => {
+  // Build interface from source_monthly, then verify dataset builds
+  const built = buildBenchmarkPayloadFromSourceMonthlyRows(payload.data.source_monthly);
+  assert.equal(built.ok, true);
+  const dataset = buildBenchmarkDataset(built, demoBenchmarkConfig);
+  assert.ok(dataset.rows.length > 0, "must produce interface rows");
+  // Events come from the original payload
+  const events = Array.isArray(payload.data?.events) ? payload.data.events : [];
+  assert.ok(events.length > 0, "demo payload must include at least one event");
 });
 
 test("market share excludes market_average by default", () => {
@@ -112,8 +121,15 @@ test("simple monthly adapter enriches basic rows", () => {
 });
 
 test("view models return usable data", () => {
-  const dataset = buildBenchmarkDataset(payload, demoBenchmarkConfig);
-  const rows = dataset.rows.filter((row) => row.date === "2025-12-01" && row.data_type !== "forecast");
+  // Build interface from source_monthly since the demo file now uses raw format
+  const built = buildBenchmarkPayloadFromSourceMonthlyRows(payload.data.source_monthly);
+  const dataset = buildBenchmarkDataset(built, demoBenchmarkConfig);
+  // Use the last actual month from the source rows
+  const latestDate = payload.data.source_monthly
+    .map(r => r.date)
+    .sort()
+    .at(-1);
+  const rows = dataset.rows.filter((row) => row.date === latestDate && row.data_type !== "forecast");
   assert.ok(buildRankingViewModel(rows, demoBenchmarkConfig).length > 0);
   assert.ok(buildMarketShareViewModel(rows, demoBenchmarkConfig).length > 0);
   assert.ok(buildExecutiveSummaryViewModel(rows, demoBenchmarkConfig).companyCount > 0);
@@ -1303,4 +1319,323 @@ test("backtestForecast is deterministic", async () => {
     backtestForecast(rows9m, { horizonMonths: 3, minHistoryMonths: 6, metric: "revenue" }),
   ]);
   assert.deepEqual(r1, r2, "backtest must be deterministic");
+});
+
+// --- Sprint 05: canonical pipeline, demo data migration, App decomposition ---
+
+import { parseRouteFromHash } from "../src/app/routes.js";
+import {
+  getBattleRelativeDiff,
+  getBattleStrengthShare,
+  buildBattleRound,
+  buildHistoricalBattleRounds,
+  getBattleScore,
+  getRoundWinner,
+  buildHistoricalBattleInsight,
+  formatBattleMetricValue,
+  getBattleOptionLabel,
+} from "../src/features/battle/battleLogic.js";
+import {
+  FORECAST_MERGE_FIELDS,
+  getForecastMergeKey,
+  mergeForecastMetricRows,
+  preferObservedRows,
+  getForecastWindow,
+} from "../src/features/forecast/forecastUtils.js";
+
+// --- Canonical builder ---
+
+// 6 months of data — enough for the forecast engine (minHistoryMonths: 3)
+const CANONICAL_SOURCE_ROWS = [
+  { date: "2025-01-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 120000, visits: 80000 },
+  { date: "2025-01-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 200000, visits: 140000 },
+  { date: "2025-02-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 125000, visits: 82000 },
+  { date: "2025-02-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 210000, visits: 145000 },
+  { date: "2025-03-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 128000, visits: 84000 },
+  { date: "2025-03-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 215000, visits: 148000 },
+  { date: "2025-04-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 132000, visits: 86000 },
+  { date: "2025-04-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 220000, visits: 152000 },
+  { date: "2025-05-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 135000, visits: 88000 },
+  { date: "2025-05-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 225000, visits: 155000 },
+  { date: "2025-06-01", company_id: "focus", display_name: "Focus Brand", market: "Demo", type: "own", revenue: 138000, visits: 90000 },
+  { date: "2025-06-01", company_id: "peer_a", display_name: "Peer Alpha", market: "Demo", type: "competitor", revenue: 230000, visits: 158000 },
+];
+
+test("buildCanonicalBenchmarkPayload accepts source_monthly and generates interface rows", async () => {
+  const input = { ok: true, meta: { dataset_name: "Test" }, data: { source_monthly: CANONICAL_SOURCE_ROWS } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  assert.equal(result.ok, true);
+  assert.ok(Array.isArray(result.data.interface), "must have interface array");
+  assert.ok(result.data.interface.length > 0, "must have interface rows");
+  const actual = result.data.interface.filter(r => r.data_type === "actual" && r.type !== "benchmark");
+  assert.ok(actual.length >= 4, "must have at least 4 actual rows");
+});
+
+test("buildCanonicalBenchmarkPayload generates actual derived metrics", async () => {
+  const input = { ok: true, data: { source_monthly: CANONICAL_SOURCE_ROWS } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  const jan = result.data.interface.find(r => r.company_id === "focus" && r.date === "2025-01-01" && r.data_type === "actual");
+  assert.ok(jan, "focus Jan row must exist");
+  assert.ok(typeof jan.market_share_revenue === "number", "must have market_share_revenue");
+  assert.ok(typeof jan.rank_revenue === "number", "must have rank_revenue");
+});
+
+test("buildCanonicalBenchmarkPayload generates forecast rows", async () => {
+  const input = { ok: true, data: { source_monthly: CANONICAL_SOURCE_ROWS } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  const forecasts = result.data.interface.filter(r => r.data_type === "forecast");
+  assert.ok(forecasts.length > 0, "must generate forecast rows");
+  const forecastWithShare = forecasts.find(r => typeof r.market_share_revenue === "number");
+  assert.ok(forecastWithShare, "forecast rows must have market_share_revenue");
+});
+
+test("buildCanonicalBenchmarkPayload forecast rows receive rank_revenue", async () => {
+  const input = { ok: true, data: { source_monthly: CANONICAL_SOURCE_ROWS } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  const realForecasts = result.data.interface.filter(r => r.data_type === "forecast" && r.type !== "benchmark");
+  assert.ok(realForecasts.length > 0, "must have real company forecast rows");
+  realForecasts.forEach(r => {
+    assert.ok(typeof r.rank_revenue === "number" || r.rank_revenue === null, `rank_revenue must be number or null on ${r.company_id}`);
+  });
+});
+
+test("buildCanonicalBenchmarkPayload includes coverage metadata", async () => {
+  const input = { ok: true, data: { source_monthly: CANONICAL_SOURCE_ROWS } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  assert.ok(result.meta.coverage, "must include coverage metadata");
+  assert.equal(result.meta.coverage.company_count, 2);
+  assert.ok(result.meta.coverage.month_count >= 6, "must have 6 months of coverage");
+});
+
+test("buildCanonicalBenchmarkPayload accepts legacy data.interface", async () => {
+  const legacyRows = [
+    { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", type: "own", market: "Demo", revenue: 100000, visits: 50000, data_type: "actual" },
+  ];
+  const input = { ok: true, data: { interface: legacyRows } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.interface, legacyRows, "legacy rows must be preserved");
+});
+
+test("buildCanonicalBenchmarkPayload throws for missing source", async () => {
+  await assert.rejects(
+    () => buildCanonicalBenchmarkPayload({ ok: true, data: {} }),
+    /must include/,
+  );
+});
+
+test("buildCanonicalBenchmarkPayload passthrough events from source_monthly payload", async () => {
+  const events = [{ date: "2025-01-01", event_name: "test event" }];
+  const input = { ok: true, data: { source_monthly: CANONICAL_SOURCE_ROWS, events } };
+  const result = await buildCanonicalBenchmarkPayload(input);
+  assert.deepEqual(result.data.events, events, "events must pass through");
+});
+
+test("api loader delegates to canonical builder for source_monthly", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      data: { source_monthly: CANONICAL_SOURCE_ROWS },
+    }),
+  });
+
+  try {
+    const result = await loadBenchmarkData();
+    assert.equal(result.meta.data_source.type, DATA_SOURCE_TYPES.LOCAL_SNAPSHOT);
+    assert.ok(Array.isArray(result.data.interface), "must have interface from pipeline");
+    assert.ok(result.data.interface.length > 0, "must have interface rows");
+    assert.equal(result.meta.source_type, "raw_monthly_observations", "meta must indicate raw source");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("api loader still works with legacy data.interface", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      data: { interface: [
+        { date: "2025-01-01", period_type: "monthly", company_id: "focus", display_name: "Focus", type: "own", market: "Demo", revenue: 100000, visits: 50000, data_type: "actual" },
+      ]},
+    }),
+  });
+
+  try {
+    const result = await loadBenchmarkData();
+    assert.ok(Array.isArray(result.data.interface));
+    assert.ok(result.data.interface.length > 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// --- Demo data format ---
+
+test("benchmark-data.json uses source_monthly format", () => {
+  assert.ok(Array.isArray(payload.data?.source_monthly), "must use data.source_monthly");
+  assert.equal(payload.data?.interface, undefined, "must not have data.interface at top level");
+});
+
+test("benchmark-data.json has no forecast rows in source_monthly", () => {
+  const rows = payload.data.source_monthly;
+  const forecast = rows.filter(r => r.data_type === "forecast" || r.is_forecast);
+  assert.equal(forecast.length, 0, "source_monthly must not contain forecast rows");
+});
+
+test("benchmark-data.json has no market_average rows in source_monthly", () => {
+  const rows = payload.data.source_monthly;
+  const synthetic = rows.filter(r => r.company_id === "market_average" || r.company_id === "market_total");
+  assert.equal(synthetic.length, 0, "source_monthly must not contain synthetic benchmark rows");
+});
+
+test("benchmark-data.json has no pre-computed derived fields", () => {
+  const rows = payload.data.source_monthly;
+  const derivedFields = ["market_share_revenue", "market_share_visits", "rank_revenue", "indexed_revenue", "revenue_yoy_growth"];
+  derivedFields.forEach(field => {
+    const hasField = rows.some(r => r[field] !== undefined);
+    assert.equal(hasField, false, `source_monthly must not contain derived field: ${field}`);
+  });
+});
+
+test("benchmark-data.json source_monthly passes framework validation", () => {
+  const result = validateSourceMonthlyRows(payload.data.source_monthly);
+  assert.equal(result.ok, true, result.errors.slice(0, 5).join("\n"));
+  assert.ok(result.summary.companyCount >= 8);
+});
+
+// --- Route parsing module ---
+
+test("parseRouteFromHash returns home for empty hash", () => {
+  assert.deepEqual(parseRouteFromHash(""), { view: "home", companyId: "" });
+  assert.deepEqual(parseRouteFromHash("#/"), { view: "home", companyId: "" });
+  assert.deepEqual(parseRouteFromHash("#/benchmark"), { view: "home", companyId: "" });
+});
+
+test("parseRouteFromHash returns forecast view", () => {
+  assert.deepEqual(parseRouteFromHash("#/forecast"), { view: "forecast", companyId: "" });
+});
+
+test("parseRouteFromHash returns battle view", () => {
+  assert.deepEqual(parseRouteFromHash("#/battle-arena"), { view: "battle", companyId: "" });
+});
+
+test("parseRouteFromHash returns profile view with company ID", () => {
+  const result = parseRouteFromHash("#/empresa/peer_a");
+  assert.equal(result.view, "profile");
+  assert.equal(result.companyId, "peer_a");
+});
+
+test("parseRouteFromHash decodes URI-encoded company IDs", () => {
+  const result = parseRouteFromHash("#/empresa/peer%20a");
+  assert.equal(result.view, "profile");
+  assert.equal(result.companyId, "peer a");
+});
+
+// --- Battle logic module ---
+
+test("getBattleRelativeDiff returns relative gap", () => {
+  assert.equal(getBattleRelativeDiff(100, 100), 0);
+  assert.ok(Math.abs(getBattleRelativeDiff(100, 50) - 0.5) < 0.001);
+  assert.equal(getBattleRelativeDiff(null, 100), null);
+});
+
+test("getBattleStrengthShare returns value between 6 and 94", () => {
+  const share = getBattleStrengthShare(100, 300);
+  assert.ok(share >= 6 && share <= 94);
+  assert.equal(getBattleStrengthShare(null, 100), 50);
+});
+
+test("buildBattleRound returns unavailable when data missing", () => {
+  const round = buildBattleRound({ key: "revenue", label: "Revenue", aValue: null, bValue: 100, aLabel: "A", bLabel: "B" });
+  assert.equal(round.available, false);
+  assert.ok(round.message, "unavailable round must have message");
+});
+
+test("buildBattleRound returns correct winner", () => {
+  const round = buildBattleRound({ key: "revenue", label: "Revenue", aValue: 200, bValue: 100, aLabel: "A", bLabel: "B" });
+  assert.equal(round.available, true);
+  assert.equal(round.winner, "a");
+});
+
+test("getBattleScore counts wins, draws, losses correctly", () => {
+  const rounds = [
+    { available: true, winner: "a" },
+    { available: true, winner: "b" },
+    { available: true, winner: "draw" },
+    { available: false },
+  ];
+  const score = getBattleScore(rounds);
+  assert.equal(score.a, 1);
+  assert.equal(score.b, 1);
+  assert.equal(score.draw, 1);
+});
+
+test("getRoundWinner finds round by key", () => {
+  const rounds = [
+    { key: "revenue", available: true, winner: "a" },
+    { key: "visits", available: false },
+  ];
+  assert.equal(getRoundWinner(rounds, "revenue")?.winner, "a");
+  assert.equal(getRoundWinner(rounds, "visits"), null);
+});
+
+test("formatBattleMetricValue formats revenue values", () => {
+  const result = formatBattleMetricValue(50000, "revenue");
+  assert.equal(typeof result, "string");
+  assert.ok(result.length > 0);
+});
+
+test("getBattleOptionLabel returns option label", () => {
+  assert.equal(getBattleOptionLabel({ label: "Apex" }), "Apex");
+  assert.equal(getBattleOptionLabel({ id: "peer_a" }), "peer_a");
+  assert.equal(getBattleOptionLabel({}), "Empresa");
+});
+
+// --- Forecast utils module ---
+
+test("FORECAST_MERGE_FIELDS contains expected metrics", () => {
+  assert.ok(FORECAST_MERGE_FIELDS.includes("revenue"));
+  assert.ok(FORECAST_MERGE_FIELDS.includes("market_share_revenue"));
+  assert.ok(FORECAST_MERGE_FIELDS.includes("rank_revenue"));
+});
+
+test("preferObservedRows deduplicates in favour of observed", () => {
+  const rows = [
+    { date: "2025-01-01", period_type: "monthly", market: "Demo", company_id: "focus", data_type: "actual" },
+    { date: "2025-01-01", period_type: "monthly", market: "Demo", company_id: "focus", data_type: "forecast" },
+  ];
+  const result = preferObservedRows(rows);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].data_type, "actual");
+});
+
+test("getForecastWindow returns start and end of forecast zone", () => {
+  const data = [
+    { date: "2025-01-01", has_forecast: false },
+    { date: "2025-07-01", has_forecast: true },
+    { date: "2025-08-01", has_forecast: true },
+  ];
+  const window = getForecastWindow(data);
+  assert.equal(window.start.date, "2025-07-01");
+  assert.equal(window.end.date, "2025-08-01");
+});
+
+test("getForecastWindow returns null when no forecast points", () => {
+  const data = [{ date: "2025-01-01", has_forecast: false }];
+  assert.equal(getForecastWindow(data), null);
+});
+
+test("mergeForecastMetricRows merges two partial forecast rows into one", () => {
+  const rows = [
+    { date: "2025-07-01", period_type: "monthly", market: "Demo", company_id: "focus", data_type: "forecast", forecast_scenario: "base_case", revenue: 130000 },
+    { date: "2025-07-01", period_type: "monthly", market: "Demo", company_id: "focus", data_type: "forecast", forecast_scenario: "base_case", visits: 90000 },
+  ];
+  const merged = mergeForecastMetricRows(rows);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].revenue, 130000);
+  assert.equal(merged[0].visits, 90000);
 });

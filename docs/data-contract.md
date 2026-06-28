@@ -183,6 +183,12 @@ The dashboard expects specific `company_id` values that match `src/config/benchm
 
 These IDs are configurable in `benchmarkConfig.identity` and `benchmarkConfig.comparisonSets`.
 
+## Demo data
+
+The public demo file (`public/data/benchmark-data.json`) uses `data.source_monthly` format.
+Forecast rows, derived metrics, and synthetic benchmark rows are all generated at runtime by the framework pipeline.
+The JSON contains only raw monthly observations and optional events.
+
 ## Forecast rows
 
 Forecast rows are generated at runtime by the forecasting layer. Raw JSON should not include them.

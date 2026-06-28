@@ -12,6 +12,7 @@ export { aggregatePeriods, getAvailableYears, getAvailableDateRange, getLatestCo
 export { buildCoverageMetadata } from "./core/buildCoverageMetadata.js";
 export { buildBenchmarkDataset } from "./core/buildBenchmarkDataset.js";
 export { buildBenchmarkPayloadFromSourceMonthlyRows } from "./core/buildBenchmarkPayloadFromSourceMonthlyRows.js";
+export { buildCanonicalBenchmarkPayload } from "./core/buildCanonicalBenchmarkPayload.js";
 export { adaptJsonPayload } from "./adapters/jsonAdapter.js";
 export { adaptSimpleMonthlyRows, adaptSourceMonthlyRowsToInterface } from "./adapters/simpleMonthlyAdapter.js";
 export { buildRankingViewModel } from "./view-models/buildRankingViewModel.js";

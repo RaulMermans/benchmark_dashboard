@@ -1,6 +1,4 @@
-import { buildBenchmarkPayloadFromSourceMonthlyRows } from "../framework/core/buildBenchmarkPayloadFromSourceMonthlyRows.js";
-import { generateForecastRows } from "../framework/forecasting/generateForecastRows.js";
-import { enrichForecastRows } from "../framework/forecasting/enrichForecastRows.js";
+import { buildCanonicalBenchmarkPayload } from "../framework/core/buildCanonicalBenchmarkPayload.js";
 
 const SNAPSHOT_URL = "/data/benchmark-data.json";
 const VITE_ENV = import.meta.env || {};
@@ -87,50 +85,12 @@ async function normalizePayload(json, sourceLabel) {
     json.data = {};
   }
 
-  // source_monthly path: run full derived-metrics pipeline, then merge result into json.
-  if (Array.isArray(json.data.source_monthly)) {
-    let built;
-    try {
-      built = buildBenchmarkPayloadFromSourceMonthlyRows(json.data.source_monthly);
-    } catch (err) {
-      throw new Error(`${sourceLabel} source_monthly pipeline failed: ${err.message}`);
-    }
-    json.data.interface = built.data.interface;
-    json.meta = { ...(json.meta || {}), ...built.meta };
-
-    // Forecast enrichment: generate forecast rows, enrich with derived metrics, append.
-    // Non-blocking: if generation fails, actual data is still returned.
-    try {
-      const forecastRows = await generateForecastRows(json.data.interface);
-      if (forecastRows.length) {
-        const enriched = enrichForecastRows(forecastRows);
-        json.data.interface = [...json.data.interface, ...enriched];
-      }
-    } catch {
-      // Continue without forecasts
-    }
-  } else if (!Array.isArray(json.data.interface)) {
-    // Legacy path: data.interface must exist.
-    throw new Error(`${sourceLabel} is missing data.interface as an array.`);
+  // Delegate all pipeline work to the canonical builder.
+  try {
+    return await buildCanonicalBenchmarkPayload(json);
+  } catch (err) {
+    throw new Error(`${sourceLabel} pipeline failed: ${err.message}`);
   }
-
-  if (!Array.isArray(json.data.events)) {
-    json.data.events = [];
-  }
-
-  if (!Array.isArray(json.data.dictionary)) {
-    json.data.dictionary = [];
-  }
-
-  if (!Array.isArray(json.data.forecasts)) {
-    json.data.forecasts = [];
-  }
-
-  if (!Array.isArray(json.data.insights)) {
-    json.data.insights = [];
-  }
-
-  return json;
 }
 
 export function createDataSourceMetadata(type, details = {}) {
