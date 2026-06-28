@@ -90,7 +90,6 @@ import {
   getForecastScenarioLabel,
 } from "./viewModels/forecastViewModel.js";
 import {
-  parseRouteFromHash,
   getCurrentRoute,
   getProfileHashFromId as getProfileHash,
   navigateToHash,
@@ -104,10 +103,7 @@ import {
   getBattleDeltaLabel,
   getBattleWinner,
   formatBattleCurrency,
-  formatBattlePoints,
   formatBattleMetricValue,
-  formatBattleGapValue,
-  getBattleUnavailableMessage,
   getBattleOptionLabel,
   getBattlePlayerOptions,
   getPreferredBattlePlayer,
@@ -116,21 +112,16 @@ import {
   getBattleMetricOptions,
   getBattleShare,
   getBattleRelativeDiff,
-  getBattleStrengthShare,
   buildBattleRound,
   buildHistoricalBattleRounds,
   getBattleScore,
   getRoundWinner,
   buildHistoricalBattleInsight,
-  getBattleHeroGrowthDefinitions,
   getBattleHeroKpiDefinitions,
   getHeroKpisForPlayer,
 } from "./features/battle/battleLogic.js";
 import {
-  FORECAST_MERGE_FIELDS,
-  getForecastMergeKey,
   mergeForecastMetricRows,
-  getComparableRowKey,
   preferObservedRows,
   getForecastWindow,
 } from "./features/forecast/forecastUtils.js";
