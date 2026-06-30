@@ -97,9 +97,9 @@ import {
   FORECAST_HASH,
   BATTLE_ARENA_HASH,
 } from "./app/routes.js";
+import { formatAppDateTime } from "./app/locale.js";
 import {
   getCompanyLabel,
-  formatPositionDelta,
   getBattleDeltaLabel,
   getBattleWinner,
   formatBattleCurrency,
@@ -111,11 +111,8 @@ import {
   getDefaultProfileBattleTarget,
   getBattleMetricOptions,
   getBattleShare,
-  getBattleRelativeDiff,
-  buildBattleRound,
   buildHistoricalBattleRounds,
   getBattleScore,
-  getRoundWinner,
   buildHistoricalBattleInsight,
   getBattleHeroKpiDefinitions,
   getHeroKpisForPlayer,
@@ -125,6 +122,23 @@ import {
   preferObservedRows,
   getForecastWindow,
 } from "./features/forecast/forecastUtils.js";
+import {
+  buildForecastBattle,
+  buildForecastBattleInsight,
+} from "./features/forecast-battle/forecastBattleLogic.js";
+import {
+  calculateProfileMetricDelta,
+  formatProfileRankChange,
+  formatProfileSignedGap as formatProfileSignedGapBase,
+  getAveragePreviousValueForMetric,
+  getLatestCompanyMetricRow,
+  getMarketGrowthForMetric,
+  getProfileExecutiveInsight as getProfileExecutiveInsightBase,
+  getProfileMomentumEntry,
+  getProfileRowLabel,
+  getProfileRowSortValue,
+  getSortedCompanyMetricRows,
+} from "./features/profile/profileMetrics.js";
 
 const OWN_COMPANY_ID = benchmarkConfig.identity.focusEntityId;
 const MARKET_BENCHMARK_ID = benchmarkConfig.identity.benchmarkEntityId;
@@ -138,7 +152,6 @@ const FORECAST_TIME_MODE_KEYS = FORECAST_TIME_MODE_OPTIONS.map((option) => optio
 const FORECAST_SCENARIO_ORDER = benchmarkConfig.forecast.scenarioOrder;
 const COMPETITIVE_MAP_OPTIONS = benchmarkConfig.views.competitiveMapOptions;
 
-const BATTLE_TECHNICAL_DRAW_THRESHOLD = benchmarkConfig.thresholds.battleTechnicalDraw;
 const FOCUS_LOGO_SRC = "";
 const EMPTY_HIDDEN_COMPANY_IDS = new Set();
 const PROFILE_FORECAST_SCENARIO_ORDER = FORECAST_SCENARIO_ORDER;
@@ -159,13 +172,16 @@ function sameCompany(a, b) {
   return normalizeCompanyId(a) === normalizeCompanyId(b);
 }
 
+function formatProfileSignedGap(delta, metricKey = "") {
+  return formatProfileSignedGapBase(delta, metricKey, formatSignedMetricDelta);
+}
+
+function getProfileExecutiveInsight(row = {}, companyTitle = "Player", periodRows = []) {
+  return getProfileExecutiveInsightBase(row, companyTitle, periodRows, OWN_COMPANY_ID);
+}
+
 function formatGeneratedAt(value) {
-  if (!value) return "N/A";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
-
-  return date.toLocaleString("es-ES");
+  return formatAppDateTime(value);
 }
 
 function getSeriesVisibilityKey(series = []) {
@@ -6516,174 +6532,6 @@ function BattleCards({ rows = [], onOpenBattleArena }) {
   );
 }
 
-function getFilteredForecastRowsAfterObserved(forecastRows = [], observedRows = [], companyId = "", metricKey = "") {
-  const lastObserved = getLatestCompanyMetricRow(observedRows, companyId, metricKey);
-  const lastObservedSort = lastObserved ? getProfileRowSortValue(lastObserved) : -Infinity;
-
-  return forecastRows
-    .filter((row) => sameCompany(row.company_id, companyId))
-    .filter((row) => hasMetricValue(row, metricKey))
-    .filter((row) => getProfileRowSortValue(row) > lastObservedSort);
-}
-
-function getForecastBattleMetricPair({
-  scenarioRows = [],
-  observedRows = [],
-  playerAId = "",
-  playerBId = "",
-  metricKey = "visits",
-}) {
-  const aRows = getFilteredForecastRowsAfterObserved(scenarioRows, observedRows, playerAId, metricKey);
-  const bRows = getFilteredForecastRowsAfterObserved(scenarioRows, observedRows, playerBId, metricKey);
-  const aByPeriod = new Map(aRows.map((row) => [getForecastPeriodKey(row), row]));
-
-  for (const bRow of bRows.slice().reverse()) {
-    const aRow = aByPeriod.get(getForecastPeriodKey(bRow));
-    if (aRow) return { aRow, bRow, periodLabel: getProfileRowLabel(bRow) };
-  }
-
-  const aRow = aRows.at(-1) ?? null;
-  const bRow = bRows.at(-1) ?? null;
-  return {
-    aRow,
-    bRow,
-    periodLabel: getProfileRowLabel(aRow || bRow, ""),
-  };
-}
-
-function buildForecastBattle({ scenarioRows = [], observedRows = [], playerAId = "", playerBId = "", metricKey = "visits", aLabel = "Player A", bLabel = "Player B" }) {
-  const visitsPair = getForecastBattleMetricPair({
-    scenarioRows,
-    observedRows,
-    playerAId,
-    playerBId,
-    metricKey: "visits",
-  });
-  const revenuePair = getForecastBattleMetricPair({
-    scenarioRows,
-    observedRows,
-    playerAId,
-    playerBId,
-    metricKey: "revenue",
-  });
-  const primaryPair = metricKey === "revenue" ? revenuePair : visitsPair;
-  const aPrimary = safeNumber(primaryPair.aRow?.[metricKey]);
-  const bPrimary = safeNumber(primaryPair.bRow?.[metricKey]);
-  const aObserved = safeNumber(getLatestCompanyMetricRow(observedRows, playerAId, metricKey)?.[metricKey]);
-  const bObserved = safeNumber(getLatestCompanyMetricRow(observedRows, playerBId, metricKey)?.[metricKey]);
-  const aDelta = aPrimary !== null && aObserved !== null ? aPrimary - aObserved : null;
-  const bDelta = bPrimary !== null && bObserved !== null ? bPrimary - bObserved : null;
-  const rankingReferenceRow = primaryPair.aRow || primaryPair.bRow;
-  const rankingRows = getProjectedRankingRows(scenarioRows, metricKey, rankingReferenceRow);
-  const aRank = getProjectedRank(rankingRows, playerAId);
-  const bRank = getProjectedRank(rankingRows, playerBId);
-  const shareMetric = getForecastShareMetric(metricKey);
-  const aShare = getForecastProjectedShare(primaryPair.aRow, scenarioRows, metricKey)?.value ?? null;
-  const bShare = getForecastProjectedShare(primaryPair.bRow, scenarioRows, metricKey)?.value ?? null;
-  const rounds = [
-    buildBattleRound({
-      key: "forecast_visits",
-      label: "Forecast final visitas",
-      metricKey: "visits",
-      aValue: visitsPair.aRow?.visits,
-      bValue: visitsPair.bRow?.visits,
-      aLabel,
-      bLabel,
-      mode: "forecast",
-      formatter: (value) => formatBattleMetricValue(value, "visits"),
-    }),
-    buildBattleRound({
-      key: "forecast_revenue",
-      label: "Forecast final facturación",
-      metricKey: "revenue",
-      aValue: revenuePair.aRow?.revenue,
-      bValue: revenuePair.bRow?.revenue,
-      aLabel,
-      bLabel,
-      mode: "forecast",
-      formatter: (value) => formatBattleMetricValue(value, "revenue"),
-    }),
-    buildBattleRound({
-      key: "forecast_delta",
-      label: `Δ vs último observado (${metricKey === "revenue" ? "facturación" : "visitas"})`,
-      metricKey,
-      aValue: aDelta,
-      bValue: bDelta,
-      aLabel,
-      bLabel,
-      mode: "forecast",
-      formatter: (value) => formatSignedMetricDelta(value, metricKey),
-    }),
-    buildBattleRound({
-      key: "rank_projected",
-      label: "Ranking proyectado",
-      metricKey: "rank_projected",
-      aValue: aRank,
-      bValue: bRank,
-      aLabel,
-      bLabel,
-      mode: "forecast",
-      lowerIsBetter: true,
-      formatter: (value) => formatBattleMetricValue(value, "rank_projected"),
-    }),
-    buildBattleRound({
-      key: "projected_share",
-      label: "Cuota proyectada",
-      metricKey: shareMetric,
-      aValue: aShare,
-      bValue: bShare,
-      aLabel,
-      bLabel,
-      mode: "forecast",
-      deltaType: "sharePoints",
-      formatter: (value) => formatPercent(value),
-    }),
-  ];
-  const projectedGap =
-    aPrimary !== null && bPrimary !== null
-      ? {
-          value: Math.abs(aPrimary - bPrimary),
-          winnerLabel:
-            getBattleRelativeDiff(aPrimary, bPrimary) < BATTLE_TECHNICAL_DRAW_THRESHOLD
-              ? "Empate técnico"
-              : aPrimary > bPrimary
-                ? aLabel
-                : bLabel,
-          metricKey,
-          periodLabel: primaryPair.periodLabel,
-        }
-      : null;
-
-  return {
-    rounds,
-    projectedGap,
-    periodLabel: primaryPair.periodLabel || visitsPair.periodLabel || revenuePair.periodLabel,
-    rankingRows,
-    primaryPair,
-  };
-}
-
-function buildForecastBattleInsight({ scenario, metricKey, projectedGap, rounds = [], aLabel = "Player A", bLabel = "Player B" }) {
-  const scenarioLabel = getForecastScenarioLabel(scenario).toLowerCase();
-  const metricLabel = metricKey === "revenue" ? "facturación" : "visitas";
-  const finalRound = getRoundWinner(rounds, metricKey === "revenue" ? "forecast_revenue" : "forecast_visits");
-  const rankRound = getRoundWinner(rounds, "rank_projected");
-
-  if (finalRound?.winner && finalRound.winner !== "draw") {
-    return `En escenario ${scenarioLabel}, ${finalRound.winnerLabel} ampliaría ventaja proyectada en ${metricLabel} frente a ${finalRound.winner === "a" ? bLabel : aLabel}.`;
-  }
-
-  if (rankRound?.winner && rankRound.winner !== "draw") {
-    return `En escenario ${scenarioLabel}, ${rankRound.winnerLabel} tendría mejor ranking proyectado, con la batalla de ${metricLabel} aún ajustada.`;
-  }
-
-  if (projectedGap) {
-    return `En escenario ${scenarioLabel}, el gap proyectado de ${metricLabel} es ${formatBattleMetricValue(projectedGap.value, metricKey)}.`;
-  }
-
-  return "No hay forecast suficiente para construir una lectura ejecutiva sin mezclar escenarios.";
-}
-
 function BattleRoundCard({ round, aLabel, bLabel, index = 0 }) {
   if (!round.available) {
     return (
@@ -6888,6 +6736,10 @@ function BattleArenaView({
         metricKey: forecastMetric,
         aLabel,
         bLabel,
+        getForecastPeriodKey,
+        getLatestCompanyMetricRow,
+        getProfileRowLabel,
+        getProfileRowSortValue,
       }),
     [aLabel, bLabel, forecastMetric, observedRows, playerAId, playerBId, scenarioRows],
   );
@@ -8379,30 +8231,6 @@ function HomeView({
   );
 }
 
-function getProfileRowSortValue(row = {}) {
-  const monthKey = getGlobalContextMonthKey(row);
-  if (monthKey) {
-    const [year, month] = monthKey.split("-");
-    return Date.parse(buildMonthDate(year, month)) || 0;
-  }
-
-  const parsed = Date.parse(row?.date || "");
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function getProfileRowLabel(row = {}, fallback = "") {
-  const formattedMonth = formatMonthLabelFromKey(getGlobalContextMonthKey(row));
-  const rawLabel = row?.period_display_label || row?.period_label || "";
-  const rawLooksIsoDate = /^\d{4}-\d{2}-\d{2}/.test(String(rawLabel));
-
-  return (
-    (rawLabel && !rawLooksIsoDate ? rawLabel : "") ||
-    formattedMonth ||
-    (row?.date ? formatDisplayPeriodLabel(row.date) : "") ||
-    fallback
-  );
-}
-
 const PROFILE_KPI_DEFINITIONS = [
   { key: "revenue", label: "Facturación", unavailable: "No hay facturación disponible para este periodo." },
   { key: "visits", label: "Visitas", unavailable: "No hay visitas disponibles para este periodo." },
@@ -8565,155 +8393,6 @@ function PlayerHeader({
   );
 }
 
-function getSortedCompanyMetricRows(rows = [], companyId = "", metricKey = "") {
-  return rows
-    .filter((row) => sameCompany(row?.company_id, companyId))
-    .filter((row) => hasMetricValue(row, metricKey))
-    .sort((a, b) => getProfileRowSortValue(a) - getProfileRowSortValue(b));
-}
-
-function getLatestCompanyMetricRow(rows = [], companyId = "", metricKey = "") {
-  return getSortedCompanyMetricRows(rows, companyId, metricKey).at(-1) ?? null;
-}
-
-function formatProfileRankChange(value) {
-  const number = safeNumber(value);
-  if (number === null) return "";
-  if (number === 0) return "Sin cambio";
-  const direction = number > 0 ? "+" : "-";
-  return `${direction}${formatNumber(Math.abs(number), { maximumFractionDigits: 0 })} puestos`;
-}
-
-function formatProfileSignedGap(delta, metricKey = "") {
-  const value = safeNumber(delta);
-  if (value === null) return "Sin dato comparable";
-  if (Math.abs(value) < 0.000001) return "En linea";
-
-  if (metricKey.startsWith("rank_")) {
-    const rankDelta = -value;
-    const prefix = rankDelta > 0 ? "Ventaja" : "Desventaja";
-    return `${prefix}: ${formatPositionDelta(Math.abs(rankDelta))}`;
-  }
-
-  const prefix = value > 0 ? "Ventaja" : "Desventaja";
-  if (metricKey.includes("market_share") || metricKey === "monetization_gap") {
-    return `${prefix}: ${formatPercentagePoints(value, { compact: true })}`;
-  }
-  if (metricKey === "revenue") {
-    const sign = value > 0 ? "+" : "-";
-    return `${prefix}: ${sign}${formatBattleCurrency(Math.abs(value))}`;
-  }
-
-  return `${prefix}: ${formatSignedMetricDelta(value, metricKey)}`;
-}
-
-function calculateProfileMetricDelta(baseRow = {}, targetRow = {}, metricKey = "") {
-  const baseValue = safeNumber(baseRow?.[metricKey]);
-  const targetValue = safeNumber(targetRow?.[metricKey]);
-  return baseValue !== null && targetValue !== null ? baseValue - targetValue : null;
-}
-
-function getProfileMomentumTone(row = {}) {
-  const revenueGrowth = safeNumber(row?.revenue_yoy_growth);
-  const visitsGrowth = safeNumber(row?.visits_yoy_growth);
-  const revenueShareChange = safeNumber(row?.share_revenue_change_yoy ?? row?.share_revenue_change_range);
-  const visitsShareChange = safeNumber(row?.share_visits_change_yoy ?? row?.share_visits_change_range);
-  const positiveSignals = [revenueGrowth, visitsGrowth, revenueShareChange, visitsShareChange].filter(
-    (value) => value !== null && value > 0.005,
-  ).length;
-  const negativeSignals = [revenueGrowth, visitsGrowth, revenueShareChange, visitsShareChange].filter(
-    (value) => value !== null && value < -0.005,
-  ).length;
-
-  if (positiveSignals > negativeSignals) return "gana momentum";
-  if (negativeSignals > positiveSignals) return "pierde momentum relativo";
-  return "";
-}
-
-function getProfileExecutiveInsight(row = {}, companyTitle = "Player", periodRows = []) {
-  const rankRevenue = safeNumber(row?.rank_revenue);
-  const rankVisits = safeNumber(row?.rank_visits);
-  const visitsShare = safeNumber(row?.market_share_visits);
-  const revenueShare = safeNumber(row?.market_share_revenue);
-  const monetizationGap = safeNumber(row?.monetization_gap);
-  const revenuePerVisit = safeNumber(row?.revenue_per_visit);
-  const benchmarkRow = getBenchmarkRow(periodRows);
-  const benchmarkRpv = safeNumber(benchmarkRow?.revenue_per_visit);
-  const momentumTone = getProfileMomentumTone(row);
-  const hasRevenue = safeNumber(row?.revenue) !== null;
-  const hasVisits = safeNumber(row?.visits) !== null;
-
-  if (!hasRevenue && !hasVisits) {
-    return `${companyTitle} no tiene dato observado suficiente para construir una lectura ejecutiva en este periodo.`;
-  }
-
-  if (
-    sameCompany(row.company_id, OWN_COMPANY_ID) &&
-    (rankVisits === 1 || (visitsShare !== null && visitsShare >= 0.25)) &&
-    monetizationGap !== null &&
-    monetizationGap < -0.03
-  ) {
-    return `${companyTitle} mantiene una posición líder en tráfico, con fuerte volumen de visitas, pero monetiza por debajo de su peso de audiencia.`;
-  }
-
-  if (
-    sameCompany(row.company_id, "peer_a") &&
-    rankRevenue === 1
-  ) {
-    return `${companyTitle} lidera facturación y mantiene presión competitiva directa sobre Focus Brand.`;
-  }
-
-  if (
-    sameCompany(row.company_id, "peer_b") &&
-    revenuePerVisit !== null &&
-    ((benchmarkRpv !== null && revenuePerVisit > benchmarkRpv * 1.25) ||
-      (monetizationGap !== null && monetizationGap > 0.03))
-  ) {
-    return `${companyTitle} tiene menor escala de tráfico, pero muestra alta eficiencia comercial frente al mercado.`;
-  }
-
-  let position = "";
-  if (rankRevenue === 1) {
-    position = `${companyTitle} lidera facturación`;
-  } else if (rankVisits === 1) {
-    position = `${companyTitle} lidera en tráfico`;
-  } else if (rankRevenue !== null && rankVisits !== null) {
-    position = `${companyTitle} ocupa posición #${rankRevenue} en facturación y #${rankVisits} en visitas`;
-  } else if (rankVisits !== null) {
-    position = `${companyTitle} ocupa posición #${rankVisits} en tráfico`;
-  } else if (rankRevenue !== null) {
-    position = `${companyTitle} ocupa posición #${rankRevenue} en facturación`;
-  } else {
-    position = `${companyTitle} tiene presencia medible en el mercado`;
-  }
-
-  let strength = "";
-  if (rankRevenue === 1 && !sameCompany(row.company_id, OWN_COMPANY_ID)) {
-    strength = "mantiene presión competitiva directa sobre Focus Brand";
-  } else if (rankVisits === 1 || (visitsShare !== null && visitsShare >= 0.25)) {
-    strength = "con fuerte volumen de visitas";
-  } else if (
-    (revenuePerVisit !== null && benchmarkRpv !== null && revenuePerVisit > benchmarkRpv * 1.25) ||
-    (monetizationGap !== null && monetizationGap > 0.03)
-  ) {
-    strength = "con alta eficiencia comercial frente al mercado";
-  } else if (revenueShare !== null && visitsShare !== null && revenueShare > visitsShare) {
-    strength = "con mejor peso de facturación que de audiencia";
-  }
-
-  let tension = "";
-  if (monetizationGap !== null && monetizationGap < -0.03) {
-    tension = "pero monetiza por debajo de su peso de audiencia";
-  } else if (monetizationGap !== null && monetizationGap > 0.03) {
-    tension = "y convierte una menor escala de tráfico en mayor peso de facturación";
-  } else if (hasVisits && !hasRevenue) {
-    tension = "con lectura limitada a tráfico porque no hay facturación disponible";
-  }
-
-  const parts = [position, strength, tension, momentumTone].filter(Boolean);
-  return `${parts.join(", ")}.`;
-}
-
 function ProfileExecutiveSnapshot({ row, company, periodRows = [], periodLabel = "" }) {
   if (!row) return null;
 
@@ -8786,59 +8465,6 @@ function ProfileExecutiveSnapshot({ row, company, periodRows = [], periodLabel =
       </div>
     </section>
   );
-}
-
-function getMarketGrowthForMetric(periodRows = [], metricKey = "visits") {
-  const growthKey = metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
-  let currentTotal = 0;
-  let previousTotal = 0;
-  let hasRows = false;
-
-  periodRows
-    .filter(isRealCompanyRow)
-    .filter((row) => !isBenchmarkRow(row) && !isForecastRow(row))
-    .forEach((row) => {
-      const breakdown = getGrowthBreakdown(row, growthKey);
-      if (!breakdown) return;
-      currentTotal += breakdown.currentValue;
-      previousTotal += breakdown.previousValue;
-      hasRows = true;
-    });
-
-  return hasRows && previousTotal > 0 ? currentTotal / previousTotal - 1 : null;
-}
-
-function getAveragePreviousValueForMetric(periodRows = [], metricKey = "visits") {
-  const growthKey = metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
-  const previousValues = periodRows
-    .filter(isRealCompanyRow)
-    .filter((periodRow) => !isBenchmarkRow(periodRow) && !isForecastRow(periodRow))
-    .map((periodRow) => getGrowthBreakdown(periodRow, growthKey)?.previousValue)
-    .filter((value) => safeNumber(value) !== null);
-
-  return previousValues.length
-    ? previousValues.reduce((total, value) => total + value, 0) / previousValues.length
-    : null;
-}
-
-function getProfileMomentumEntry(row = {}, periodRows = [], metricKey = "visits") {
-  const growthKey = metricKey === "revenue" ? "revenue_yoy_growth" : "visits_yoy_growth";
-  const breakdown = getGrowthBreakdown(row, growthKey);
-  if (!breakdown) return null;
-  const marketGrowth = getMarketGrowthForMetric(periodRows, metricKey);
-  const averagePreviousValue = getAveragePreviousValueForMetric(periodRows, metricKey);
-
-  return {
-    metricKey,
-    label: metricKey === "revenue" ? "Facturación" : "Visitas",
-    ...breakdown,
-    absoluteDelta: breakdown.currentValue - breakdown.previousValue,
-    marketDelta:
-      marketGrowth !== null && breakdown.growthValue !== null
-        ? breakdown.growthValue - marketGrowth
-        : null,
-    isLowBase: isLowBaseMomentum(breakdown.previousValue, averagePreviousValue),
-  };
 }
 
 function ProfileMomentumBlock({ row, periodRows = [] }) {

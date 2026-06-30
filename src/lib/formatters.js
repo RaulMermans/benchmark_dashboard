@@ -1,3 +1,5 @@
+import { APP_CURRENCY, APP_LOCALE } from "../app/locale.js";
+
 const EMPTY_VALUE = "N/A";
 
 export function safeNumber(value) {
@@ -39,9 +41,9 @@ export function formatCurrency(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(APP_LOCALE, {
     style: "currency",
-    currency: "EUR",
+    currency: APP_CURRENCY,
     maximumFractionDigits: 0,
   }).format(number);
 }
@@ -50,9 +52,9 @@ export function formatCurrencyDecimal(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(APP_LOCALE, {
     style: "currency",
-    currency: "EUR",
+    currency: APP_CURRENCY,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(number);
@@ -62,14 +64,14 @@ export function formatNumber(value, options = {}) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", options).format(number);
+  return new Intl.NumberFormat(APP_LOCALE, options).format(number);
 }
 
 export function formatCompact(value) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(APP_LOCALE, {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(number);
@@ -80,7 +82,7 @@ export function formatPercent(value) {
   if (number === null) return EMPTY_VALUE;
 
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
-  return `${new Intl.NumberFormat("es-ES", {
+  return `${new Intl.NumberFormat(APP_LOCALE, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(normalized)}%`;
@@ -95,7 +97,7 @@ export function formatPp(value, { compact = false, signed = true } = {}) {
   const displayValue = signed ? normalized : Math.abs(normalized);
   const label = compact ? "puntos" : "puntos de cuota";
 
-  return `${sign}${new Intl.NumberFormat("es-ES", {
+  return `${sign}${new Intl.NumberFormat(APP_LOCALE, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(displayValue)} ${label}`;
@@ -110,7 +112,7 @@ export function formatPercentagePoints(value, { compact = false, signed = true }
   const displayValue = signed ? normalized : Math.abs(normalized);
   const label = compact ? "pp" : "puntos porcentuales";
 
-  return `${sign}${new Intl.NumberFormat("es-ES", {
+  return `${sign}${new Intl.NumberFormat(APP_LOCALE, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(displayValue)} ${label}`;
@@ -121,7 +123,7 @@ export function formatSignedPercent(value) {
   if (number === null) return formatPercent(value);
 
   const normalized = number * 100;
-  return `${number > 0 ? "+" : ""}${new Intl.NumberFormat("es-ES", {
+  return `${number > 0 ? "+" : ""}${new Intl.NumberFormat(APP_LOCALE, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(normalized)}%`;
@@ -153,7 +155,7 @@ export function formatMetric(value, metricKey) {
     const number = safeNumber(value);
     return number === null
       ? EMPTY_VALUE
-      : new Intl.NumberFormat("es-ES", {
+      : new Intl.NumberFormat(APP_LOCALE, {
           minimumFractionDigits: 1,
           maximumFractionDigits: 1,
         }).format(number);
@@ -166,7 +168,7 @@ export function formatMetric(value, metricKey) {
   const number = safeNumber(value);
   if (number === null) return EMPTY_VALUE;
 
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(APP_LOCALE, {
     maximumFractionDigits: 2,
   }).format(number);
 }

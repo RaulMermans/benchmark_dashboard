@@ -156,6 +156,8 @@ test("benchmarkConfig routes are well-formed hash strings", () => {
   assert.ok(routes.forecast.startsWith("#/"));
   assert.ok(routes.battleArena.startsWith("#/"));
   assert.ok(routes.profilePrefix.startsWith("#/"));
+  assert.equal(routes.profilePrefix, "#/company/");
+  assert.ok(routes.legacyProfilePrefixes.includes("#/empresa/"));
 });
 
 test("benchmarkConfig periods have all required keys", () => {
@@ -200,7 +202,7 @@ test("dashboard period helpers preserve preferred order and select a fallback", 
 });
 
 test("profile hash helper safely encodes company IDs", () => {
-  assert.equal(getProfileHash("#/empresa/", "peer a/b"), "#/empresa/peer%20a%2Fb");
+  assert.equal(getProfileHash("#/company/", "peer a/b"), "#/company/peer%20a%2Fb");
 });
 
 test("forecast helpers label, order, and filter scenarios", () => {
@@ -1478,6 +1480,7 @@ test("api loader still works with legacy data.interface", async () => {
 test("benchmark-data.json uses source_monthly format", () => {
   assert.ok(Array.isArray(payload.data?.source_monthly), "must use data.source_monthly");
   assert.equal(payload.data?.interface, undefined, "must not have data.interface at top level");
+  assert.equal(payload.data.source_monthly.length, 144, "demo data must contain 144 raw monthly rows");
 });
 
 test("benchmark-data.json has no forecast rows in source_monthly", () => {
@@ -1524,15 +1527,21 @@ test("parseRouteFromHash returns battle view", () => {
 });
 
 test("parseRouteFromHash returns profile view with company ID", () => {
-  const result = parseRouteFromHash("#/empresa/peer_a");
+  const result = parseRouteFromHash("#/company/peer_a");
   assert.equal(result.view, "profile");
   assert.equal(result.companyId, "peer_a");
 });
 
 test("parseRouteFromHash decodes URI-encoded company IDs", () => {
-  const result = parseRouteFromHash("#/empresa/peer%20a");
+  const result = parseRouteFromHash("#/company/peer%20a");
   assert.equal(result.view, "profile");
   assert.equal(result.companyId, "peer a");
+});
+
+test("parseRouteFromHash preserves legacy empresa profile deep links", () => {
+  const result = parseRouteFromHash("#/empresa/peer_a");
+  assert.equal(result.view, "profile");
+  assert.equal(result.companyId, "peer_a");
 });
 
 // --- Battle logic module ---

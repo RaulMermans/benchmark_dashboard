@@ -5,6 +5,21 @@ const HOME_HASH = benchmarkConfig.routes.home;
 const FORECAST_HASH = benchmarkConfig.routes.forecast;
 const BATTLE_ARENA_HASH = benchmarkConfig.routes.battleArena;
 const PROFILE_HASH_PREFIX = benchmarkConfig.routes.profilePrefix;
+const LEGACY_PROFILE_HASH_PREFIXES = benchmarkConfig.routes.legacyProfilePrefixes || [];
+
+function parseProfileRoute(normalizedHash = "", profilePrefix = "") {
+  if (!profilePrefix || !normalizedHash.startsWith(profilePrefix)) return null;
+
+  const rawCompanyId = normalizedHash
+    .slice(profilePrefix.length)
+    .split("?")[0];
+
+  try {
+    return { view: "profile", companyId: decodeURIComponent(rawCompanyId) };
+  } catch {
+    return { view: "profile", companyId: rawCompanyId };
+  }
+}
 
 export function parseRouteFromHash(hash = "") {
   const normalizedHash = String(hash || "").trim();
@@ -26,16 +41,11 @@ export function parseRouteFromHash(hash = "") {
     return { view: "battle", companyId: "" };
   }
 
-  if (normalizedHash.startsWith(PROFILE_HASH_PREFIX)) {
-    const rawCompanyId = normalizedHash
-      .slice(PROFILE_HASH_PREFIX.length)
-      .split("?")[0];
-
-    try {
-      return { view: "profile", companyId: decodeURIComponent(rawCompanyId) };
-    } catch {
-      return { view: "profile", companyId: rawCompanyId };
-    }
+  const profileRoute = [PROFILE_HASH_PREFIX, ...LEGACY_PROFILE_HASH_PREFIXES]
+    .map((profilePrefix) => parseProfileRoute(normalizedHash, profilePrefix))
+    .find(Boolean);
+  if (profileRoute) {
+    return profileRoute;
   }
 
   return { view: "home", companyId: "" };
@@ -59,4 +69,10 @@ export function navigateToHash(hash) {
   }
 }
 
-export { HOME_HASH, FORECAST_HASH, BATTLE_ARENA_HASH, PROFILE_HASH_PREFIX };
+export {
+  HOME_HASH,
+  FORECAST_HASH,
+  BATTLE_ARENA_HASH,
+  PROFILE_HASH_PREFIX,
+  LEGACY_PROFILE_HASH_PREFIXES,
+};
