@@ -132,7 +132,6 @@ import {
   formatProfileSignedGap as formatProfileSignedGapBase,
   getAveragePreviousValueForMetric,
   getLatestCompanyMetricRow,
-  getMarketGrowthForMetric,
   getProfileExecutiveInsight as getProfileExecutiveInsightBase,
   getProfileMomentumEntry,
   getProfileRowLabel,
