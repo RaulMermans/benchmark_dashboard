@@ -222,6 +222,21 @@ test("forecast helpers label, order, and filter scenarios", () => {
   );
 });
 
+test("presentation share mover treats a missing mover as no variation", () => {
+  const missingMover = null;
+  assert.equal(missingMover?.shareChange != null, false);
+
+  const appSource = fs.readFileSync("src/App.jsx", "utf8");
+  assert.ok(
+    appSource.includes("mover?.shareChange != null"),
+    "presentation summary must guard both null and undefined movers",
+  );
+  assert.ok(
+    !appSource.includes("mover?.shareChange !== null"),
+    "undefined share changes must not enter the formatting branch",
+  );
+});
+
 test("data-source metadata and badge status classify all loading modes", () => {
   const cases = [
     [DATA_SOURCE_TYPES.LOCAL_SNAPSHOT, "Sample data"],

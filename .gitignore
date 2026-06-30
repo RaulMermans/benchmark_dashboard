@@ -7,3 +7,4 @@ dist
 .tools
 .codex
 coverage
+.vercel

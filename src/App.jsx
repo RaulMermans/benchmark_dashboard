@@ -7555,7 +7555,7 @@ function PresentationSmartVisual({ rows = [], snapshot = {} }) {
         <div>
           <span>Mayor avance cuota</span>
           <strong>{mover?.name || "N/A"}</strong>
-          <small>{mover?.shareChange !== null ? formatPercentagePoints(mover.shareChange, { compact: true }) : "Sin variación"}</small>
+          <small>{mover?.shareChange != null ? formatPercentagePoints(mover.shareChange, { compact: true }) : "Sin variación"}</small>
         </div>
       </div>
 
