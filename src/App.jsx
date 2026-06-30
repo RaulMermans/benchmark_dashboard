@@ -9973,7 +9973,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [route, setRoute] = useState(getCurrentRoute);
   const [forecastPeriodType, setForecastPeriodType] = useState("monthly");
-  const [forecastMarket, setForecastMarket] = useState("");
+  const [forecastMarketPreference, setForecastMarket] = useState("");
   const [chartPeriodType, setChartPeriodType] = useState("monthly");
   const [chartMarket, setChartMarket] = useState("");
   const [chartRangeMode, setChartRangeMode] = useState("all");
@@ -10176,16 +10176,13 @@ export default function App() {
     [forecastSelectableRows, forecastSourcePeriodType],
   );
 
-  useEffect(() => {
-    if (!forecastMarkets.length) {
-      setForecastMarket("");
-      return;
+  const forecastMarket = useMemo(() => {
+    if (!forecastMarkets.length) return "";
+    if (forecastMarketPreference && forecastMarkets.includes(forecastMarketPreference)) {
+      return forecastMarketPreference;
     }
-
-    if (!forecastMarket || !forecastMarkets.includes(forecastMarket)) {
-      setForecastMarket(forecastMarkets[0]);
-    }
-  }, [forecastMarket, forecastMarkets]);
+    return forecastMarkets[0];
+  }, [forecastMarketPreference, forecastMarkets]);
 
   const forecastRows = useMemo(
     () =>
