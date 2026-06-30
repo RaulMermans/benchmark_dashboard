@@ -9980,7 +9980,7 @@ export default function App() {
   const [selectedChartYear, setSelectedChartYear] = useState("");
   const [rankingSort, setRankingSort] = useState("revenue");
   const [forecastScenario, setForecastScenario] = useState("base_case");
-  const [selectedCompanyId, setSelectedCompanyId] = useState(OWN_COMPANY_ID);
+  const [selectedCompanyIdPreference, setSelectedCompanyId] = useState(OWN_COMPANY_ID);
 
   useEffect(() => {
     let isMounted = true;
@@ -10217,24 +10217,24 @@ export default function App() {
   );
   const companies = useMemo(() => getUniqueCompanies(realRows), [realRows]);
 
-  useEffect(() => {
+  const selectedCompanyId = useMemo(() => {
     if (!companies.length) {
-      setSelectedCompanyId(route.companyId || OWN_COMPANY_ID);
-      return;
+      return route.companyId || selectedCompanyIdPreference || OWN_COMPANY_ID;
     }
 
     if (route.view === "profile" && route.companyId) {
       const routedCompany = companies.find((company) => sameCompany(company.id, route.companyId));
       const focus = companies.find((company) => sameCompany(company.id, OWN_COMPANY_ID));
-      setSelectedCompanyId(routedCompany?.id ?? focus?.id ?? companies[0].id);
-      return;
+      return routedCompany?.id ?? focus?.id ?? companies[0].id;
     }
 
-    if (!companies.some((company) => sameCompany(company.id, selectedCompanyId))) {
-      const focus = companies.find((company) => sameCompany(company.id, OWN_COMPANY_ID));
-      setSelectedCompanyId(focus?.id ?? companies[0].id);
+    if (companies.some((company) => sameCompany(company.id, selectedCompanyIdPreference))) {
+      return selectedCompanyIdPreference;
     }
-  }, [companies, route.companyId, route.view, selectedCompanyId]);
+
+    const focus = companies.find((company) => sameCompany(company.id, OWN_COMPANY_ID));
+    return focus?.id ?? companies[0].id;
+  }, [companies, route.companyId, route.view, selectedCompanyIdPreference]);
 
   const selectedCompany = useMemo(
     () => companies.find((company) => sameCompany(company.id, selectedCompanyId)) ?? null,

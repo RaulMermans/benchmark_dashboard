@@ -7,7 +7,6 @@ import {
   isRealCompanyRow,
 } from "../../lib/data.js";
 import {
-  formatMetric,
   formatNumber,
   formatPercentagePoints,
   safeNumber,
@@ -49,10 +48,6 @@ function formatDisplayPeriodLabel(value = "") {
 
 function hasMetricValue(row, metricKey) {
   return hasDataForMetric(row, metricKey);
-}
-
-function getCompanyRow(rows = [], companyId = "") {
-  return rows.find((row) => sameCompany(row.company_id, companyId)) ?? null;
 }
 
 function getBenchmarkRow(rows = []) {
