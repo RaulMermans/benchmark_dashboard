@@ -1146,12 +1146,14 @@ test("generateForecastRows skips companies with insufficient history", async () 
 test("DEFAULT_FORECAST_CONFIG uses local_engine as default provider", () => {
   assert.equal(DEFAULT_FORECAST_CONFIG.provider, "local_engine");
   assert.equal(DEFAULT_FORECAST_CONFIG.enabled, true);
+  assert.equal(DEFAULT_FORECAST_CONFIG.horizonMonths, 60);
   assert.equal(DEFAULT_FORECAST_CONFIG.minHistoryMonths, 3);
 });
 
 test("benchmarkConfig forecast has local_engine as provider", () => {
   assert.equal(benchmarkConfig.forecast.provider, "local_engine");
   assert.equal(benchmarkConfig.forecast.enabled, true);
+  assert.equal(benchmarkConfig.forecast.horizonMonths, 60);
   assert.ok(benchmarkConfig.forecast.scenarioOrder.includes("base_case"));
 });
 
@@ -1290,6 +1292,41 @@ test("generateForecastRows with local_engine produces enrichable rows", async ()
     assert.ok(r.revenue >= 0);
     assert.ok(r.visits >= 0);
   });
+});
+
+test("generateForecastRows defaults to a rolling 5-year monthly horizon", async () => {
+  const rows = await generateForecastRows(FORECAST_ROWS, {
+    provider: "local_engine",
+    scenarios: ["base_case"],
+  });
+  const focusRows = rows
+    .filter((r) => r.company_id === "focus" && r.forecast_scenario === "base_case")
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  assert.equal(focusRows.length, 60);
+  assert.equal(focusRows[0].date, "2025-07-01");
+  assert.equal(focusRows.at(-1).date, "2030-06-01");
+  assert.equal(focusRows.at(-1).forecast_horizon_month, 60);
+});
+
+test("generateForecastRows rolls the 5-year horizon after a new actual month", async () => {
+  const rowsWithNewActual = [
+    ...FORECAST_ROWS,
+    { date: "2025-07-01", period_type: "monthly", company_id: "focus", display_name: "Focus", market: "Demo", type: "own", data_type: "actual", revenue: 177, visits: 354 },
+  ];
+
+  const rows = await generateForecastRows(rowsWithNewActual, {
+    provider: "local_engine",
+    scenarios: ["base_case"],
+  });
+  const focusRows = rows
+    .filter((r) => r.company_id === "focus" && r.forecast_scenario === "base_case")
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  assert.equal(focusRows.length, 60);
+  assert.equal(focusRows[0].date, "2025-08-01");
+  assert.equal(focusRows.at(-1).date, "2030-07-01");
+  assert.ok(!focusRows.some((r) => r.date === "2025-07-01"), "new actual month must disappear from forecast");
 });
 
 test("TimesFM is optional — local_engine works without VITE_TIMESFM_API_URL", async () => {

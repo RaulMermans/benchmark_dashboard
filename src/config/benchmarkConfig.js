@@ -40,7 +40,7 @@ export const benchmarkConfig = {
     enabled: true,
     provider: "local_engine",
     fallbackProvider: "local_engine",
-    horizonMonths: 6,
+    horizonMonths: 60,
     scenarios: ["base_case", "conservative", "aggressive"],
     scenarioOrder: ["base_case", "conservative", "aggressive", "unknown"],
     metrics: ["revenue", "visits"],
