@@ -9,13 +9,373 @@
   "data": {
     "source_monthly": [
       {
+        "date": "2021-01-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 378056,
+        "visits": 287661,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 401302,
+        "visits": 299376,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 428611,
+        "visits": 313391,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 448850,
+        "visits": 317954,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 448638,
+        "visits": 325969,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 467182,
+        "visits": 336084,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 462794,
+        "visits": 341517,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 479794,
+        "visits": 349710,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 454481,
+        "visits": 338155,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 488014,
+        "visits": 341151,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 535582,
+        "visits": 357866,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 603647,
+        "visits": 366264,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 481616,
+        "visits": 345550,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 511256,
+        "visits": 354580,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 525466,
+        "visits": 362562,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 554690,
+        "visits": 376549,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 566829,
+        "visits": 382592,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 559801,
+        "visits": 395288,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 583533,
+        "visits": 404335,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 581267,
+        "visits": 404153,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 586878,
+        "visits": 394538,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 600687,
+        "visits": 401517,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 676433,
+        "visits": 415561,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 750286,
+        "visits": 426800,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 484929,
+        "visits": 361433,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 539941,
+        "visits": 370472,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 550918,
+        "visits": 393672,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 571752,
+        "visits": 399242,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 584138,
+        "visits": 408889,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 607513,
+        "visits": 421812,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 609021,
+        "visits": 429653,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 631857,
+        "visits": 433927,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 595683,
+        "visits": 411721,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 647932,
+        "visits": 419264,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 712495,
+        "visits": 444228,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 772832,
+        "visits": 453798,
+        "active": true
+      },
+      {
         "date": "2024-01-01",
         "company_id": "focus",
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 580000,
-        "visits": 380000,
+        "revenue": 617070,
+        "visits": 410972,
         "active": true
       },
       {
@@ -24,8 +384,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 592760,
-        "visits": 386840,
+        "revenue": 694990,
+        "visits": 425899,
         "active": true
       },
       {
@@ -34,8 +394,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 605801,
-        "visits": 393803,
+        "revenue": 731851,
+        "visits": 451989,
         "active": true
       },
       {
@@ -44,8 +404,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 619128,
-        "visits": 400892,
+        "revenue": 739071,
+        "visits": 453974,
         "active": true
       },
       {
@@ -54,8 +414,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 632749,
-        "visits": 408108,
+        "revenue": 747674,
+        "visits": 458890,
         "active": true
       },
       {
@@ -64,8 +424,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 646670,
-        "visits": 415454,
+        "revenue": 774262,
+        "visits": 473119,
         "active": true
       },
       {
@@ -74,8 +434,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 660896,
-        "visits": 422932,
+        "revenue": 784722,
+        "visits": 489306,
         "active": true
       },
       {
@@ -84,8 +444,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 675436,
-        "visits": 430544,
+        "revenue": 796653,
+        "visits": 496094,
         "active": true
       },
       {
@@ -94,8 +454,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 690296,
-        "visits": 438294,
+        "revenue": 763448,
+        "visits": 471153,
         "active": true
       },
       {
@@ -104,8 +464,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 705482,
-        "visits": 446184,
+        "revenue": 818911,
+        "visits": 488006,
         "active": true
       },
       {
@@ -114,8 +474,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 721003,
-        "visits": 454215,
+        "revenue": 911323,
+        "visits": 500907,
         "active": true
       },
       {
@@ -124,8 +484,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 736865,
-        "visits": 462391,
+        "revenue": 979868,
+        "visits": 528833,
         "active": true
       },
       {
@@ -134,8 +494,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 753076,
-        "visits": 470714,
+        "revenue": 735457,
+        "visits": 454105,
         "active": true
       },
       {
@@ -144,8 +504,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 769644,
-        "visits": 479187,
+        "revenue": 796756,
+        "visits": 484211,
         "active": true
       },
       {
@@ -154,8 +514,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 786576,
-        "visits": 487812,
+        "revenue": 865098,
+        "visits": 499547,
         "active": true
       },
       {
@@ -164,8 +524,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 803880,
-        "visits": 496593,
+        "revenue": 857301,
+        "visits": 499971,
         "active": true
       },
       {
@@ -174,8 +534,8 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 821566,
-        "visits": 505531,
+        "revenue": 888096,
+        "visits": 512088,
         "active": true
       },
       {
@@ -184,8 +544,428 @@
         "display_name": "Focus Brand",
         "market": "Demo Market",
         "type": "own",
-        "revenue": 839640,
-        "visits": 514631,
+        "revenue": 888222,
+        "visits": 531042,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 928391,
+        "visits": 542140,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 920540,
+        "visits": 544431,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 943196,
+        "visits": 550345,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 949328,
+        "visits": 532643,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 1042573,
+        "visits": 562164,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "focus",
+        "display_name": "Focus Brand",
+        "market": "Demo Market",
+        "type": "own",
+        "revenue": 1198297,
+        "visits": 593819,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 693101,
+        "visits": 475510,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 748585,
+        "visits": 496052,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 763032,
+        "visits": 510882,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 773523,
+        "visits": 529752,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 788513,
+        "visits": 528966,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 790527,
+        "visits": 544545,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 826031,
+        "visits": 568130,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 806273,
+        "visits": 564395,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 800248,
+        "visits": 550795,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 848939,
+        "visits": 545813,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 919425,
+        "visits": 565215,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1016696,
+        "visits": 581902,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 789395,
+        "visits": 550136,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 856510,
+        "visits": 568319,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 898075,
+        "visits": 577273,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 906914,
+        "visits": 585835,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 924600,
+        "visits": 593988,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 906127,
+        "visits": 625735,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 949918,
+        "visits": 628937,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 941202,
+        "visits": 637553,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 920692,
+        "visits": 602892,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 958759,
+        "visits": 618066,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1063278,
+        "visits": 664601,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1132659,
+        "visits": 668675,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 778112,
+        "visits": 563024,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 826502,
+        "visits": 578959,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 899308,
+        "visits": 603823,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 889964,
+        "visits": 602419,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 906091,
+        "visits": 620629,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 921189,
+        "visits": 640556,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 928288,
+        "visits": 656853,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 956615,
+        "visits": 643614,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 918622,
+        "visits": 639303,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 982273,
+        "visits": 640474,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1047146,
+        "visits": 674332,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1178864,
+        "visits": 688536,
         "active": true
       },
       {
@@ -194,8 +974,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1820000,
-        "visits": 1050000,
+        "revenue": 896599,
+        "visits": 615498,
         "active": true
       },
       {
@@ -204,8 +984,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1865500,
-        "visits": 1071000,
+        "revenue": 941288,
+        "visits": 622937,
         "active": true
       },
       {
@@ -214,8 +994,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1912137,
-        "visits": 1092420,
+        "revenue": 981253,
+        "visits": 647556,
         "active": true
       },
       {
@@ -224,8 +1004,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1959941,
-        "visits": 1114268,
+        "revenue": 1020000,
+        "visits": 653875,
         "active": true
       },
       {
@@ -234,8 +1014,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2008939,
-        "visits": 1136554,
+        "revenue": 1051831,
+        "visits": 687661,
         "active": true
       },
       {
@@ -244,8 +1024,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2059163,
-        "visits": 1159285,
+        "revenue": 1010700,
+        "visits": 701025,
         "active": true
       },
       {
@@ -254,8 +1034,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2110642,
-        "visits": 1182471,
+        "revenue": 1066087,
+        "visits": 709279,
         "active": true
       },
       {
@@ -264,8 +1044,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2163408,
-        "visits": 1206120,
+        "revenue": 1047004,
+        "visits": 709434,
         "active": true
       },
       {
@@ -274,8 +1054,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2217493,
-        "visits": 1230242,
+        "revenue": 1049048,
+        "visits": 678109,
         "active": true
       },
       {
@@ -284,8 +1064,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2272931,
-        "visits": 1254847,
+        "revenue": 1090737,
+        "visits": 685563,
         "active": true
       },
       {
@@ -294,8 +1074,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2329754,
-        "visits": 1279944,
+        "revenue": 1183854,
+        "visits": 731220,
         "active": true
       },
       {
@@ -304,8 +1084,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2387998,
-        "visits": 1305543,
+        "revenue": 1314346,
+        "visits": 745303,
         "active": true
       },
       {
@@ -314,8 +1094,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2447698,
-        "visits": 1331654,
+        "revenue": 951682,
+        "visits": 656117,
         "active": true
       },
       {
@@ -324,8 +1104,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2508890,
-        "visits": 1358287,
+        "revenue": 1006878,
+        "visits": 660530,
         "active": true
       },
       {
@@ -334,8 +1114,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2571612,
-        "visits": 1385453,
+        "revenue": 1052300,
+        "visits": 695494,
         "active": true
       },
       {
@@ -344,8 +1124,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2635903,
-        "visits": 1413162,
+        "revenue": 1069168,
+        "visits": 703369,
         "active": true
       },
       {
@@ -354,8 +1134,8 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2701800,
-        "visits": 1441425,
+        "revenue": 1104168,
+        "visits": 727605,
         "active": true
       },
       {
@@ -364,8 +1144,428 @@
         "display_name": "Apex Digital",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 2769345,
-        "visits": 1470253,
+        "revenue": 1086683,
+        "visits": 748098,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1130854,
+        "visits": 748226,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1125947,
+        "visits": 764881,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1099441,
+        "visits": 718016,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1151979,
+        "visits": 732893,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1246647,
+        "visits": 768084,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_a",
+        "display_name": "Apex Digital",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1380370,
+        "visits": 805114,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 493611,
+        "visits": 364482,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 518307,
+        "visits": 381875,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 548971,
+        "visits": 391317,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 545475,
+        "visits": 401245,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 568468,
+        "visits": 407850,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 564113,
+        "visits": 421764,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 573743,
+        "visits": 422846,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 589035,
+        "visits": 430043,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 557767,
+        "visits": 416892,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 584437,
+        "visits": 412488,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 644245,
+        "visits": 429499,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 715044,
+        "visits": 450468,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 554357,
+        "visits": 403409,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 583422,
+        "visits": 414040,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 629218,
+        "visits": 439955,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 625890,
+        "visits": 441030,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 647246,
+        "visits": 441006,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 651291,
+        "visits": 450023,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 658394,
+        "visits": 473766,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 650457,
+        "visits": 462383,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 637044,
+        "visits": 457526,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 658624,
+        "visits": 455073,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 720547,
+        "visits": 470602,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 795149,
+        "visits": 494428,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 546715,
+        "visits": 397447,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 582470,
+        "visits": 413273,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 619285,
+        "visits": 438904,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 622780,
+        "visits": 436969,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 640898,
+        "visits": 445629,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 644709,
+        "visits": 450355,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 642700,
+        "visits": 463846,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 660698,
+        "visits": 471194,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 627544,
+        "visits": 450199,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 654390,
+        "visits": 453022,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 721310,
+        "visits": 472931,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 807008,
+        "visits": 499369,
         "active": true
       },
       {
@@ -374,8 +1574,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1050000,
-        "visits": 690000,
+        "revenue": 630794,
+        "visits": 451344,
         "active": true
       },
       {
@@ -384,8 +1584,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1068900,
-        "visits": 700350,
+        "revenue": 683971,
+        "visits": 468927,
         "active": true
       },
       {
@@ -394,8 +1594,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1088140,
-        "visits": 710855,
+        "revenue": 697401,
+        "visits": 475369,
         "active": true
       },
       {
@@ -404,8 +1604,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1107727,
-        "visits": 721518,
+        "revenue": 735157,
+        "visits": 485452,
         "active": true
       },
       {
@@ -414,8 +1614,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1127666,
-        "visits": 732341,
+        "revenue": 740520,
+        "visits": 487290,
         "active": true
       },
       {
@@ -424,8 +1624,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1147964,
-        "visits": 743326,
+        "revenue": 735751,
+        "visits": 507215,
         "active": true
       },
       {
@@ -434,8 +1634,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1168627,
-        "visits": 754476,
+        "revenue": 760296,
+        "visits": 521953,
         "active": true
       },
       {
@@ -444,8 +1644,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1189662,
-        "visits": 765793,
+        "revenue": 751522,
+        "visits": 520635,
         "active": true
       },
       {
@@ -454,8 +1654,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1211076,
-        "visits": 777280,
+        "revenue": 725444,
+        "visits": 490753,
         "active": true
       },
       {
@@ -464,8 +1664,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1232876,
-        "visits": 788939,
+        "revenue": 774845,
+        "visits": 496381,
         "active": true
       },
       {
@@ -474,8 +1674,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1255067,
-        "visits": 800773,
+        "revenue": 848792,
+        "visits": 535520,
         "active": true
       },
       {
@@ -484,8 +1684,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1277659,
-        "visits": 812785,
+        "revenue": 934078,
+        "visits": 543286,
         "active": true
       },
       {
@@ -494,8 +1694,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1300657,
-        "visits": 824977,
+        "revenue": 680170,
+        "visits": 469269,
         "active": true
       },
       {
@@ -504,8 +1704,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1324068,
-        "visits": 837351,
+        "revenue": 707953,
+        "visits": 479619,
         "active": true
       },
       {
@@ -514,8 +1714,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1347902,
-        "visits": 849911,
+        "revenue": 749733,
+        "visits": 509002,
         "active": true
       },
       {
@@ -524,8 +1724,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1372164,
-        "visits": 862660,
+        "revenue": 764593,
+        "visits": 507039,
         "active": true
       },
       {
@@ -534,8 +1734,8 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1396863,
-        "visits": 875600,
+        "revenue": 771561,
+        "visits": 506272,
         "active": true
       },
       {
@@ -544,8 +1744,428 @@
         "display_name": "Crest Commerce",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1422006,
-        "visits": 888734,
+        "revenue": 784649,
+        "visits": 523041,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 786942,
+        "visits": 545980,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 803091,
+        "visits": 537976,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 767276,
+        "visits": 518081,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 830719,
+        "visits": 524883,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 877501,
+        "visits": 544613,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_b",
+        "display_name": "Crest Commerce",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 999024,
+        "visits": 559561,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 269341,
+        "visits": 244152,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 288324,
+        "visits": 251607,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 312166,
+        "visits": 271624,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 317121,
+        "visits": 275871,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 327916,
+        "visits": 283538,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 338901,
+        "visits": 290217,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 345584,
+        "visits": 299238,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 343106,
+        "visits": 305651,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 338174,
+        "visits": 294469,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 357266,
+        "visits": 295180,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 407909,
+        "visits": 316208,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 446792,
+        "visits": 330499,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 383293,
+        "visits": 324313,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 410936,
+        "visits": 345750,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 446714,
+        "visits": 371099,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 445323,
+        "visits": 361602,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 455820,
+        "visits": 368831,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 460171,
+        "visits": 388457,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 483448,
+        "visits": 399867,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 488821,
+        "visits": 402025,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 468555,
+        "visits": 395720,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 512543,
+        "visits": 400525,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 566368,
+        "visits": 428294,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 627547,
+        "visits": 443634,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 409225,
+        "visits": 351608,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 443682,
+        "visits": 365416,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 461560,
+        "visits": 385595,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 473578,
+        "visits": 394179,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 505081,
+        "visits": 404465,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 499472,
+        "visits": 414114,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 518002,
+        "visits": 433351,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 533118,
+        "visits": 428929,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 523792,
+        "visits": 422580,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 553006,
+        "visits": 430715,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 589227,
+        "visits": 462039,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 674851,
+        "visits": 467539,
         "active": true
       },
       {
@@ -554,8 +2174,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 780000,
-        "visits": 540000,
+        "revenue": 552820,
+        "visits": 441508,
         "active": true
       },
       {
@@ -564,8 +2184,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 803400,
-        "visits": 555120,
+        "revenue": 598540,
+        "visits": 462216,
         "active": true
       },
       {
@@ -574,8 +2194,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 827502,
-        "visits": 570663,
+        "revenue": 628774,
+        "visits": 492760,
         "active": true
       },
       {
@@ -584,8 +2204,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 852327,
-        "visits": 586642,
+        "revenue": 661497,
+        "visits": 505241,
         "active": true
       },
       {
@@ -594,8 +2214,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 877897,
-        "visits": 603068,
+        "revenue": 685234,
+        "visits": 507209,
         "active": true
       },
       {
@@ -604,8 +2224,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 904234,
-        "visits": 619954,
+        "revenue": 689582,
+        "visits": 535655,
         "active": true
       },
       {
@@ -614,8 +2234,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 931361,
-        "visits": 637313,
+        "revenue": 699853,
+        "visits": 552072,
         "active": true
       },
       {
@@ -624,8 +2244,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 959302,
-        "visits": 655157,
+        "revenue": 698127,
+        "visits": 545629,
         "active": true
       },
       {
@@ -634,8 +2254,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 988081,
-        "visits": 673502,
+        "revenue": 699278,
+        "visits": 531474,
         "active": true
       },
       {
@@ -644,8 +2264,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1017723,
-        "visits": 692360,
+        "revenue": 726746,
+        "visits": 550346,
         "active": true
       },
       {
@@ -654,8 +2274,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1048255,
-        "visits": 711746,
+        "revenue": 829793,
+        "visits": 580268,
         "active": true
       },
       {
@@ -664,8 +2284,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1079702,
-        "visits": 731675,
+        "revenue": 925117,
+        "visits": 602139,
         "active": true
       },
       {
@@ -674,8 +2294,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1112093,
-        "visits": 752162,
+        "revenue": 706064,
+        "visits": 537362,
         "active": true
       },
       {
@@ -684,8 +2304,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1145456,
-        "visits": 773222,
+        "revenue": 746161,
+        "visits": 566894,
         "active": true
       },
       {
@@ -694,8 +2314,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1179820,
-        "visits": 794872,
+        "revenue": 823962,
+        "visits": 611848,
         "active": true
       },
       {
@@ -704,8 +2324,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1215215,
-        "visits": 817129,
+        "revenue": 827341,
+        "visits": 606246,
         "active": true
       },
       {
@@ -714,8 +2334,8 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1251671,
-        "visits": 840008,
+        "revenue": 855933,
+        "visits": 620750,
         "active": true
       },
       {
@@ -724,548 +2344,2228 @@
         "display_name": "Nova Retail",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 1289221,
-        "visits": 863529,
+        "revenue": 848544,
+        "visits": 644996,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 906171,
+        "visits": 657241,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 896519,
+        "visits": 661387,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 877634,
+        "visits": 649375,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 944044,
+        "visits": 666379,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1031157,
+        "visits": 694943,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_c",
+        "display_name": "Nova Retail",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 1170303,
+        "visits": 731980,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 413950,
+        "visits": 441390,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 458531,
+        "visits": 454467,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 469152,
+        "visits": 484799,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 471044,
+        "visits": 483515,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 489240,
+        "visits": 485432,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 478246,
+        "visits": 516087,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 503796,
+        "visits": 525681,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 507131,
+        "visits": 528349,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 481633,
+        "visits": 498212,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 497515,
+        "visits": 511915,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 550401,
+        "visits": 544668,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 591836,
+        "visits": 553466,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 456667,
+        "visits": 525483,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 488754,
+        "visits": 542830,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 511652,
+        "visits": 560450,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 525035,
+        "visits": 565918,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 523105,
+        "visits": 588421,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 517271,
+        "visits": 608597,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 529365,
+        "visits": 615016,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 528820,
+        "visits": 619049,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 521126,
+        "visits": 607094,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 540892,
+        "visits": 605487,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 589001,
+        "visits": 637494,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 637608,
+        "visits": 656968,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 432983,
+        "visits": 571318,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 455943,
+        "visits": 583295,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 475515,
+        "visits": 605029,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 475113,
+        "visits": 649611,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 499758,
+        "visits": 636543,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 487804,
+        "visits": 657375,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 500999,
+        "visits": 674536,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 503817,
+        "visits": 673216,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 487125,
+        "visits": 654023,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 501368,
+        "visits": 655202,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 545051,
+        "visits": 693635,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 594288,
+        "visits": 714802,
         "active": true
       },
       {
         "date": "2024-01-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 460000,
-        "visits": 320000,
+        "revenue": 473835,
+        "visits": 594404,
         "active": true
       },
       {
         "date": "2024-02-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 465520,
-        "visits": 323200,
+        "revenue": 521760,
+        "visits": 624054,
         "active": true
       },
       {
         "date": "2024-03-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 471106,
-        "visits": 326432,
+        "revenue": 524697,
+        "visits": 660704,
         "active": true
       },
       {
         "date": "2024-04-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 476760,
-        "visits": 329696,
+        "revenue": 538700,
+        "visits": 657944,
         "active": true
       },
       {
         "date": "2024-05-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 482481,
-        "visits": 332993,
+        "revenue": 564699,
+        "visits": 667720,
         "active": true
       },
       {
         "date": "2024-06-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 488270,
-        "visits": 336323,
+        "revenue": 560663,
+        "visits": 701020,
         "active": true
       },
       {
         "date": "2024-07-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 494130,
-        "visits": 339686,
+        "revenue": 564567,
+        "visits": 705769,
         "active": true
       },
       {
         "date": "2024-08-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 500059,
-        "visits": 343083,
+        "revenue": 556481,
+        "visits": 723864,
         "active": true
       },
       {
         "date": "2024-09-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 506060,
-        "visits": 346514,
+        "revenue": 533597,
+        "visits": 693393,
         "active": true
       },
       {
         "date": "2024-10-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 512133,
-        "visits": 349979,
+        "revenue": 567102,
+        "visits": 690466,
         "active": true
       },
       {
         "date": "2024-11-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 518278,
-        "visits": 353479,
+        "revenue": 619309,
+        "visits": 745361,
         "active": true
       },
       {
         "date": "2024-12-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 524498,
-        "visits": 357014,
+        "revenue": 680583,
+        "visits": 766058,
         "active": true
       },
       {
         "date": "2025-01-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 530792,
-        "visits": 360584,
+        "revenue": 490276,
+        "visits": 652814,
         "active": true
       },
       {
         "date": "2025-02-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 537161,
-        "visits": 364190,
+        "revenue": 523439,
+        "visits": 669208,
         "active": true
       },
       {
         "date": "2025-03-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 543607,
-        "visits": 367832,
+        "revenue": 529787,
+        "visits": 696703,
         "active": true
       },
       {
         "date": "2025-04-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 550130,
-        "visits": 371510,
+        "revenue": 553334,
+        "visits": 700754,
         "active": true
       },
       {
         "date": "2025-05-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 556732,
-        "visits": 375225,
+        "revenue": 566400,
+        "visits": 727804,
         "active": true
       },
       {
         "date": "2025-06-01",
         "company_id": "peer_d",
-        "display_name": "Origin Market",
+        "display_name": "Orbit Market",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 563413,
-        "visits": 378977,
+        "revenue": 564685,
+        "visits": 747193,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 574180,
+        "visits": 776090,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 558799,
+        "visits": 771882,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 548923,
+        "visits": 740145,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 566795,
+        "visits": 740207,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 624845,
+        "visits": 782008,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_d",
+        "display_name": "Orbit Market",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 678639,
+        "visits": 810131,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 230628,
+        "visits": 155741,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 252750,
+        "visits": 159712,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 265767,
+        "visits": 166058,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 276513,
+        "visits": 171852,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 276365,
+        "visits": 170536,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 275222,
+        "visits": 175892,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 292063,
+        "visits": 183892,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 288269,
+        "visits": 178841,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 285216,
+        "visits": 175006,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 297424,
+        "visits": 174883,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 327438,
+        "visits": 181885,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 369454,
+        "visits": 190658,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 293439,
+        "visits": 175499,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 316089,
+        "visits": 176378,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 325060,
+        "visits": 187411,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 344609,
+        "visits": 188028,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 342327,
+        "visits": 194133,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 355771,
+        "visits": 199506,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 356699,
+        "visits": 204692,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 366037,
+        "visits": 198733,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 361834,
+        "visits": 194391,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 366962,
+        "visits": 196906,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 412170,
+        "visits": 209689,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 458606,
+        "visits": 212678,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 311776,
+        "visits": 178649,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 340380,
+        "visits": 183474,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 357933,
+        "visits": 190800,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 362500,
+        "visits": 189771,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 373607,
+        "visits": 197775,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 373577,
+        "visits": 196879,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 388222,
+        "visits": 202872,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 385428,
+        "visits": 206012,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 381674,
+        "visits": 196905,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 401940,
+        "visits": 203138,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 449131,
+        "visits": 212938,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 491947,
+        "visits": 217476,
         "active": true
       },
       {
         "date": "2024-01-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 340000,
-        "visits": 250000,
+        "revenue": 383396,
+        "visits": 194854,
         "active": true
       },
       {
         "date": "2024-02-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 338640,
-        "visits": 248500,
+        "revenue": 424596,
+        "visits": 204561,
         "active": true
       },
       {
         "date": "2024-03-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 337285,
-        "visits": 247009,
+        "revenue": 443320,
+        "visits": 205905,
         "active": true
       },
       {
         "date": "2024-04-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 335936,
-        "visits": 245527,
+        "revenue": 447242,
+        "visits": 210077,
         "active": true
       },
       {
         "date": "2024-05-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 334593,
-        "visits": 244054,
+        "revenue": 473089,
+        "visits": 217892,
         "active": true
       },
       {
         "date": "2024-06-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 333254,
-        "visits": 242589,
+        "revenue": 487342,
+        "visits": 217672,
         "active": true
       },
       {
         "date": "2024-07-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 331921,
-        "visits": 241134,
+        "revenue": 482480,
+        "visits": 229440,
         "active": true
       },
       {
         "date": "2024-08-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 330593,
-        "visits": 239687,
+        "revenue": 481021,
+        "visits": 229712,
         "active": true
       },
       {
         "date": "2024-09-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 329271,
-        "visits": 238249,
+        "revenue": 479771,
+        "visits": 218613,
         "active": true
       },
       {
         "date": "2024-10-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 327954,
-        "visits": 236820,
+        "revenue": 498822,
+        "visits": 222803,
         "active": true
       },
       {
         "date": "2024-11-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 326642,
-        "visits": 235399,
+        "revenue": 547629,
+        "visits": 229170,
         "active": true
       },
       {
         "date": "2024-12-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 325336,
-        "visits": 233986,
+        "revenue": 614050,
+        "visits": 235748,
         "active": true
       },
       {
         "date": "2025-01-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 324034,
-        "visits": 232582,
+        "revenue": 448638,
+        "visits": 205240,
         "active": true
       },
       {
         "date": "2025-02-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 322738,
-        "visits": 231187,
+        "revenue": 470614,
+        "visits": 213093,
         "active": true
       },
       {
         "date": "2025-03-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 321447,
-        "visits": 229800,
+        "revenue": 498683,
+        "visits": 223151,
         "active": true
       },
       {
         "date": "2025-04-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 320161,
-        "visits": 228421,
+        "revenue": 507774,
+        "visits": 223481,
         "active": true
       },
       {
         "date": "2025-05-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 318881,
-        "visits": 227050,
+        "revenue": 529399,
+        "visits": 225741,
         "active": true
       },
       {
         "date": "2025-06-01",
         "company_id": "peer_e",
-        "display_name": "Drift Shop",
+        "display_name": "Luma Store",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 317605,
-        "visits": 225688,
+        "revenue": 525584,
+        "visits": 230831,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 536647,
+        "visits": 240218,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 557933,
+        "visits": 234681,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 540048,
+        "visits": 227462,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 559885,
+        "visits": 233060,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 616273,
+        "visits": 248029,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_e",
+        "display_name": "Luma Store",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 675620,
+        "visits": 248979,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 552785,
+        "visits": 411565,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 588470,
+        "visits": 417558,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 623879,
+        "visits": 431564,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 633434,
+        "visits": 441165,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 640197,
+        "visits": 455193,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 644679,
+        "visits": 463612,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 652315,
+        "visits": 475063,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 643136,
+        "visits": 473357,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 619421,
+        "visits": 455712,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 659856,
+        "visits": 444678,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 709966,
+        "visits": 466534,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 777847,
+        "visits": 482510,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 585994,
+        "visits": 430350,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 624964,
+        "visits": 448455,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 670866,
+        "visits": 455100,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 676421,
+        "visits": 473323,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 693572,
+        "visits": 468271,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 671876,
+        "visits": 476313,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 681747,
+        "visits": 486683,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 701812,
+        "visits": 497793,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 663546,
+        "visits": 469577,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 705716,
+        "visits": 474006,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 765501,
+        "visits": 499044,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 832776,
+        "visits": 516282,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 596370,
+        "visits": 422737,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 630026,
+        "visits": 448672,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 654655,
+        "visits": 464099,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 652838,
+        "visits": 461470,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 677194,
+        "visits": 475184,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 678649,
+        "visits": 478394,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 678390,
+        "visits": 491244,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 674256,
+        "visits": 487751,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 678967,
+        "visits": 470575,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 700525,
+        "visits": 473401,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 761762,
+        "visits": 492849,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 829363,
+        "visits": 513855,
         "active": true
       },
       {
         "date": "2024-01-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 280000,
-        "visits": 190000,
+        "revenue": 633022,
+        "visits": 450791,
         "active": true
       },
       {
         "date": "2024-02-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 284200,
-        "visits": 192280,
+        "revenue": 680730,
+        "visits": 461664,
         "active": true
       },
       {
         "date": "2024-03-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 288463,
-        "visits": 194587,
+        "revenue": 711156,
+        "visits": 488605,
         "active": true
       },
       {
         "date": "2024-04-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 292790,
-        "visits": 196922,
+        "revenue": 706373,
+        "visits": 481981,
         "active": true
       },
       {
         "date": "2024-05-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 297182,
-        "visits": 199285,
+        "revenue": 739981,
+        "visits": 500229,
         "active": true
       },
       {
         "date": "2024-06-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 301640,
-        "visits": 201677,
+        "revenue": 727455,
+        "visits": 499499,
         "active": true
       },
       {
         "date": "2024-07-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 306164,
-        "visits": 204097,
+        "revenue": 739645,
+        "visits": 512076,
         "active": true
       },
       {
         "date": "2024-08-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 310757,
-        "visits": 206546,
+        "revenue": 729212,
+        "visits": 507266,
         "active": true
       },
       {
         "date": "2024-09-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 315418,
-        "visits": 209025,
+        "revenue": 724099,
+        "visits": 492317,
         "active": true
       },
       {
         "date": "2024-10-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 320149,
-        "visits": 211533,
+        "revenue": 765790,
+        "visits": 494972,
         "active": true
       },
       {
         "date": "2024-11-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 324951,
-        "visits": 214071,
+        "revenue": 846151,
+        "visits": 524300,
         "active": true
       },
       {
         "date": "2024-12-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 329826,
-        "visits": 216640,
+        "revenue": 899794,
+        "visits": 529191,
         "active": true
       },
       {
         "date": "2025-01-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 334773,
-        "visits": 219240,
+        "revenue": 654794,
+        "visits": 448055,
         "active": true
       },
       {
         "date": "2025-02-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 339795,
-        "visits": 221871,
+        "revenue": 696600,
+        "visits": 469210,
         "active": true
       },
       {
         "date": "2025-03-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 344892,
-        "visits": 224533,
+        "revenue": 731711,
+        "visits": 486289,
         "active": true
       },
       {
         "date": "2025-04-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 350065,
-        "visits": 227228,
+        "revenue": 738077,
+        "visits": 497981,
         "active": true
       },
       {
         "date": "2025-05-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 355316,
-        "visits": 229954,
+        "revenue": 735965,
+        "visits": 494462,
         "active": true
       },
       {
         "date": "2025-06-01",
         "company_id": "peer_f",
-        "display_name": "Summit Store",
+        "display_name": "Harbor Direct",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 360646,
-        "visits": 232714,
+        "revenue": 735753,
+        "visits": 503667,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 774332,
+        "visits": 510991,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 746056,
+        "visits": 523288,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 725734,
+        "visits": 491696,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 756913,
+        "visits": 500020,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 820927,
+        "visits": 517338,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_f",
+        "display_name": "Harbor Direct",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 904830,
+        "visits": 544228,
+        "active": true
+      },
+      {
+        "date": "2021-01-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 172102,
+        "visits": 142578,
+        "active": true
+      },
+      {
+        "date": "2021-02-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 181261,
+        "visits": 144841,
+        "active": true
+      },
+      {
+        "date": "2021-03-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 195164,
+        "visits": 153001,
+        "active": true
+      },
+      {
+        "date": "2021-04-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 196821,
+        "visits": 152455,
+        "active": true
+      },
+      {
+        "date": "2021-05-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 204554,
+        "visits": 159711,
+        "active": true
+      },
+      {
+        "date": "2021-06-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 209277,
+        "visits": 164891,
+        "active": true
+      },
+      {
+        "date": "2021-07-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 213077,
+        "visits": 169614,
+        "active": true
+      },
+      {
+        "date": "2021-08-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 210296,
+        "visits": 165252,
+        "active": true
+      },
+      {
+        "date": "2021-09-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 211393,
+        "visits": 162854,
+        "active": true
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 220486,
+        "visits": 164440,
+        "active": true
+      },
+      {
+        "date": "2021-11-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 241524,
+        "visits": 171536,
+        "active": true
+      },
+      {
+        "date": "2021-12-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 263732,
+        "visits": 178561,
+        "active": true
+      },
+      {
+        "date": "2022-01-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 213384,
+        "visits": 167745,
+        "active": true
+      },
+      {
+        "date": "2022-02-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 224969,
+        "visits": 174055,
+        "active": true
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 237136,
+        "visits": 181063,
+        "active": true
+      },
+      {
+        "date": "2022-04-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 238789,
+        "visits": 184049,
+        "active": true
+      },
+      {
+        "date": "2022-05-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 250418,
+        "visits": 182529,
+        "active": true
+      },
+      {
+        "date": "2022-06-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 252519,
+        "visits": 191461,
+        "active": true
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 261283,
+        "visits": 198494,
+        "active": true
+      },
+      {
+        "date": "2022-08-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 265791,
+        "visits": 199254,
+        "active": true
+      },
+      {
+        "date": "2022-09-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 257681,
+        "visits": 188865,
+        "active": true
+      },
+      {
+        "date": "2022-10-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 269009,
+        "visits": 192925,
+        "active": true
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 300922,
+        "visits": 206250,
+        "active": true
+      },
+      {
+        "date": "2022-12-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 324050,
+        "visits": 207987,
+        "active": true
+      },
+      {
+        "date": "2023-01-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 227421,
+        "visits": 171916,
+        "active": true
+      },
+      {
+        "date": "2023-02-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 240905,
+        "visits": 180270,
+        "active": true
+      },
+      {
+        "date": "2023-03-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 258417,
+        "visits": 189809,
+        "active": true
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 259012,
+        "visits": 188453,
+        "active": true
+      },
+      {
+        "date": "2023-05-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 272460,
+        "visits": 194751,
+        "active": true
+      },
+      {
+        "date": "2023-06-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 273072,
+        "visits": 198870,
+        "active": true
+      },
+      {
+        "date": "2023-07-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 271712,
+        "visits": 204593,
+        "active": true
+      },
+      {
+        "date": "2023-08-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 272741,
+        "visits": 206060,
+        "active": true
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 273164,
+        "visits": 201059,
+        "active": true
+      },
+      {
+        "date": "2023-10-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 284593,
+        "visits": 204018,
+        "active": true
+      },
+      {
+        "date": "2023-11-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 313885,
+        "visits": 210412,
+        "active": true
+      },
+      {
+        "date": "2023-12-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 343228,
+        "visits": 220152,
         "active": true
       },
       {
@@ -1274,8 +4574,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 220000,
-        "visits": 160000,
+        "revenue": 269235,
+        "visits": 194712,
         "active": true
       },
       {
@@ -1284,8 +4584,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 221760,
-        "visits": 160960,
+        "revenue": 294190,
+        "visits": 205073,
         "active": true
       },
       {
@@ -1294,8 +4594,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 223534,
-        "visits": 161926,
+        "revenue": 300426,
+        "visits": 216018,
         "active": true
       },
       {
@@ -1304,8 +4604,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 225322,
-        "visits": 162897,
+        "revenue": 306826,
+        "visits": 219710,
         "active": true
       },
       {
@@ -1314,8 +4614,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 227125,
-        "visits": 163875,
+        "revenue": 317961,
+        "visits": 221910,
         "active": true
       },
       {
@@ -1324,8 +4624,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 228942,
-        "visits": 164858,
+        "revenue": 317626,
+        "visits": 226815,
         "active": true
       },
       {
@@ -1334,8 +4634,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 230773,
-        "visits": 165847,
+        "revenue": 338993,
+        "visits": 230541,
         "active": true
       },
       {
@@ -1344,8 +4644,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 232620,
-        "visits": 166842,
+        "revenue": 339610,
+        "visits": 237134,
         "active": true
       },
       {
@@ -1354,8 +4654,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 234481,
-        "visits": 167843,
+        "revenue": 326051,
+        "visits": 225766,
         "active": true
       },
       {
@@ -1364,8 +4664,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 236356,
-        "visits": 168850,
+        "revenue": 344291,
+        "visits": 227166,
         "active": true
       },
       {
@@ -1374,8 +4674,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 238247,
-        "visits": 169863,
+        "revenue": 371804,
+        "visits": 239227,
         "active": true
       },
       {
@@ -1384,8 +4684,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 240153,
-        "visits": 170883,
+        "revenue": 412935,
+        "visits": 250731,
         "active": true
       },
       {
@@ -1394,8 +4694,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 242075,
-        "visits": 171908,
+        "revenue": 313721,
+        "visits": 217119,
         "active": true
       },
       {
@@ -1404,8 +4704,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 244011,
-        "visits": 172939,
+        "revenue": 329503,
+        "visits": 225102,
         "active": true
       },
       {
@@ -1414,8 +4714,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 245963,
-        "visits": 173977,
+        "revenue": 352409,
+        "visits": 232897,
         "active": true
       },
       {
@@ -1424,8 +4724,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 247931,
-        "visits": 175021,
+        "revenue": 359142,
+        "visits": 242260,
         "active": true
       },
       {
@@ -1434,8 +4734,8 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 249914,
-        "visits": 176071,
+        "revenue": 368247,
+        "visits": 245352,
         "active": true
       },
       {
@@ -1444,46 +4744,155 @@
         "display_name": "Cascade Goods",
         "market": "Demo Market",
         "type": "competitor",
-        "revenue": 251914,
-        "visits": 177127,
+        "revenue": 369808,
+        "visits": 252351,
+        "active": true
+      },
+      {
+        "date": "2025-07-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 386232,
+        "visits": 263387,
+        "active": true
+      },
+      {
+        "date": "2025-08-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 393557,
+        "visits": 256272,
+        "active": true
+      },
+      {
+        "date": "2025-09-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 383576,
+        "visits": 251262,
+        "active": true
+      },
+      {
+        "date": "2025-10-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 396527,
+        "visits": 258476,
+        "active": true
+      },
+      {
+        "date": "2025-11-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 441797,
+        "visits": 270731,
+        "active": true
+      },
+      {
+        "date": "2025-12-01",
+        "company_id": "peer_g",
+        "display_name": "Cascade Goods",
+        "market": "Demo Market",
+        "type": "competitor",
+        "revenue": 495588,
+        "visits": 273442,
         "active": true
       }
     ],
     "events": [
       {
-        "date": "2024-03-01",
-        "company_id": "peer_a",
-        "event_name": "Platform relaunch",
+        "date": "2021-06-01",
+        "company_id": "focus",
+        "event_name": "Retention campaign",
+        "event_type": "marketing",
+        "description": "Focus Brand launches a synthetic retention campaign."
+      },
+      {
+        "date": "2021-10-01",
+        "company_id": "peer_g",
+        "event_name": "Assortment refresh",
         "event_type": "product",
-        "description": "Apex Digital launched a redesigned platform."
+        "description": "Cascade Goods refreshes its public demo catalogue mix."
+      },
+      {
+        "date": "2022-03-01",
+        "company_id": "peer_c",
+        "event_name": "Acquisition expansion",
+        "event_type": "marketing",
+        "description": "Nova Retail expands synthetic acquisition spend."
+      },
+      {
+        "date": "2022-07-01",
+        "company_id": "peer_e",
+        "event_name": "Niche channel push",
+        "event_type": "marketing",
+        "description": "Luma Store tests a focused demo-channel campaign."
+      },
+      {
+        "date": "2022-11-01",
+        "company_id": "peer_a",
+        "event_name": "Holiday campaign",
+        "event_type": "marketing",
+        "description": "Apex Digital runs a synthetic holiday campaign."
+      },
+      {
+        "date": "2023-04-01",
+        "company_id": "peer_d",
+        "event_name": "Traffic spike",
+        "event_type": "traffic",
+        "description": "Orbit Market sees higher demo traffic with weaker monetization."
+      },
+      {
+        "date": "2023-09-01",
+        "company_id": "peer_b",
+        "event_name": "Logistics issue",
+        "event_type": "operations",
+        "description": "Crest Commerce has a synthetic logistics issue."
+      },
+      {
+        "date": "2024-02-01",
+        "company_id": "focus",
+        "event_name": "Checkout optimization",
+        "event_type": "product",
+        "description": "Focus Brand improves its demo checkout flow."
       },
       {
         "date": "2024-06-01",
-        "company_id": "focus",
-        "event_name": "Summer campaign",
-        "event_type": "marketing",
-        "description": "Focus Brand ran an intensive summer acquisition campaign."
-      },
-      {
-        "date": "2024-09-01",
-        "company_id": "peer_c",
-        "event_name": "New market entry",
-        "event_type": "expansion",
-        "description": "Nova Retail expanded into two new cities."
+        "company_id": "peer_e",
+        "event_name": "Pricing refresh",
+        "event_type": "pricing",
+        "description": "Luma Store refreshes synthetic pricing."
       },
       {
         "date": "2024-11-01",
-        "company_id": "peer_b",
-        "event_name": "Partnership deal",
-        "event_type": "partnership",
-        "description": "Crest Commerce announced a logistics partnership."
+        "company_id": "peer_f",
+        "event_name": "Seasonal campaign",
+        "event_type": "marketing",
+        "description": "Harbor Direct launches a synthetic seasonal campaign."
       },
       {
-        "date": "2025-02-01",
+        "date": "2025-03-01",
+        "company_id": "peer_c",
+        "event_name": "Market expansion",
+        "event_type": "expansion",
+        "description": "Nova Retail expands within the synthetic demo market."
+      },
+      {
+        "date": "2025-09-01",
         "company_id": "focus",
         "event_name": "Loyalty programme",
         "event_type": "product",
-        "description": "Focus Brand launched a customer loyalty programme."
+        "description": "Focus Brand launches a synthetic loyalty programme."
       }
     ]
   }

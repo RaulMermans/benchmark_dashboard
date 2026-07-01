@@ -36,11 +36,11 @@ raw monthly observations
 
 The preferred input is `data.source_monthly`: one row per company per month with `date`, `company_id`, `revenue`, and `visits`.
 
-The framework derives market share, ranks, growth, indexed metrics, revenue per visit, monetization gap, and synthetic benchmark rows. Legacy `data.interface` payloads remain supported.
+The public demo uses 5 years of synthetic monthly observations: 480 raw rows across 8 companies and 60 months. The framework derives tracked benchmark-set share, ranks, growth, indexed metrics, revenue per visit, monetization gap, and synthetic benchmark rows. Legacy `data.interface` payloads remain supported.
 
 ## Forecast Engine
 
-The default provider is a local statistical forecast engine. It creates conservative, base, and aggressive scenarios from observed revenue and visits, then sends those forecast rows through the same metric derivation pipeline.
+The default provider is a local statistical forecast engine. It creates conservative, base, and aggressive scenario projections from observed revenue and visits, then sends those forecast rows through the same metric derivation pipeline.
 
 TimesFM is optional advanced infrastructure only.
 
@@ -53,6 +53,8 @@ TimesFM is optional advanced infrastructure only.
 - Preserved legacy payload compatibility.
 - Improved release documentation, public-data rules, and audit coverage.
 - Extracted pure helper logic from the large dashboard app file.
+- Expanded the public synthetic demo to 5 full years so seasonality and YoY reads are better supported.
+- Fixed Battle Arena and company/player profile flows to work with generated benchmark rows.
 
 ## Screenshots Checklist
 
@@ -70,6 +72,7 @@ TimesFM is optional advanced infrastructure only.
 - Forecast rows generated outside the source JSON.
 - Static-demo deployment path with optional API integration.
 - Backward-compatible profile route aliases.
+- Battle Arena and company profile views work from generated canonical rows.
 - Public audit script for private-data and credential risks.
 
 ## Limitations

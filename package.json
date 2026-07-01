@@ -21,6 +21,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "generate:data": "node scripts/generate-demo-data.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",

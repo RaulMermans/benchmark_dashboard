@@ -8641,6 +8641,21 @@ function sameForecastPeriod(a = {}, b = {}) {
   return getForecastPeriodKey(a) === getForecastPeriodKey(b);
 }
 
+function getFilteredForecastRowsAfterObserved(
+  forecastRows = [],
+  observedRows = [],
+  companyId = "",
+  metricKey = "",
+) {
+  const lastObserved = getLatestCompanyMetricRow(observedRows, companyId, metricKey);
+  const lastObservedSort = lastObserved ? getProfileRowSortValue(lastObserved) : -Infinity;
+
+  return forecastRows
+    .filter((row) => sameCompany(row.company_id, companyId))
+    .filter((row) => hasMetricValue(row, metricKey))
+    .filter((row) => getProfileRowSortValue(row) > lastObservedSort);
+}
+
 function sumForecastMetric(rows = [], metricKey = "") {
   let total = 0;
   let hasValue = false;

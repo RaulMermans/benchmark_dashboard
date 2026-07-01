@@ -186,8 +186,10 @@ These IDs are configurable in `benchmarkConfig.identity` and `benchmarkConfig.co
 ## Demo data
 
 The public demo file (`public/data/benchmark-data.json`) uses `data.source_monthly` format.
+It contains 480 raw rows: 8 synthetic companies x 60 monthly periods, from `2021-01-01` through `2025-12-01`.
 Forecast rows, derived metrics, and synthetic benchmark rows are all generated at runtime by the framework pipeline.
-The JSON contains only raw monthly observations and optional events.
+The JSON contains only raw monthly observations and optional synthetic events.
+Five years of history support stronger seasonality and YoY analysis while keeping the public file raw and audit-friendly.
 
 ## Forecast rows
 
