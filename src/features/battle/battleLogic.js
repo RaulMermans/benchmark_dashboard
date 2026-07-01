@@ -215,7 +215,7 @@ export function getProfileBattleOptions(rows = [], companies = []) {
     });
   });
 
-  rows.forEach((row) => {
+  rows.filter(isRealCompanyRow).forEach((row) => {
     const id = normalizeCompanyId(row?.company_id);
     if (!id) return;
 

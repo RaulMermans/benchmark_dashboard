@@ -222,6 +222,21 @@ test("forecast helpers label, order, and filter scenarios", () => {
   );
 });
 
+test("presentation share mover treats a missing mover as no variation", () => {
+  const missingMover = null;
+  assert.equal(missingMover?.shareChange != null, false);
+
+  const appSource = fs.readFileSync("src/App.jsx", "utf8");
+  assert.ok(
+    appSource.includes("mover?.shareChange != null"),
+    "presentation summary must guard both null and undefined movers",
+  );
+  assert.ok(
+    !appSource.includes("mover?.shareChange !== null"),
+    "undefined share changes must not enter the formatting branch",
+  );
+});
+
 test("data-source metadata and badge status classify all loading modes", () => {
   const cases = [
     [DATA_SOURCE_TYPES.LOCAL_SNAPSHOT, "Sample data"],
@@ -1331,12 +1346,20 @@ import {
   getBattleStrengthShare,
   buildBattleRound,
   buildHistoricalBattleRounds,
+  getBattlePlayerOptions,
   getBattleScore,
+  getProfileBattleOptions,
   getRoundWinner,
   buildHistoricalBattleInsight,
   formatBattleMetricValue,
   getBattleOptionLabel,
 } from "../src/features/battle/battleLogic.js";
+import { buildForecastBattle } from "../src/features/forecast-battle/forecastBattleLogic.js";
+import {
+  getLatestCompanyMetricRow,
+  getProfileRowLabel,
+  getProfileRowSortValue,
+} from "../src/features/profile/profileMetrics.js";
 import {
   FORECAST_MERGE_FIELDS,
   getForecastMergeKey,
@@ -1344,6 +1367,11 @@ import {
   preferObservedRows,
   getForecastWindow,
 } from "../src/features/forecast/forecastUtils.js";
+import {
+  getForecastRows,
+  getUniqueCompanies,
+  isRealCompanyRow,
+} from "../src/lib/data.js";
 
 // --- Canonical builder ---
 
@@ -1480,7 +1508,11 @@ test("api loader still works with legacy data.interface", async () => {
 test("benchmark-data.json uses source_monthly format", () => {
   assert.ok(Array.isArray(payload.data?.source_monthly), "must use data.source_monthly");
   assert.equal(payload.data?.interface, undefined, "must not have data.interface at top level");
-  assert.equal(payload.data.source_monthly.length, 144, "demo data must contain 144 raw monthly rows");
+  assert.equal(payload.data.source_monthly.length, 480, "demo data must contain 480 raw monthly rows");
+  assert.equal(new Set(payload.data.source_monthly.map((row) => row.company_id)).size, 8);
+  assert.equal(new Set(payload.data.source_monthly.map((row) => row.date)).size, 60);
+  assert.equal(payload.data.source_monthly.map((row) => row.date).sort()[0], "2021-01-01");
+  assert.equal(payload.data.source_monthly.map((row) => row.date).sort().at(-1), "2025-12-01");
 });
 
 test("benchmark-data.json has no forecast rows in source_monthly", () => {
@@ -1497,7 +1529,26 @@ test("benchmark-data.json has no market_average rows in source_monthly", () => {
 
 test("benchmark-data.json has no pre-computed derived fields", () => {
   const rows = payload.data.source_monthly;
-  const derivedFields = ["market_share_revenue", "market_share_visits", "rank_revenue", "indexed_revenue", "revenue_yoy_growth"];
+  const derivedFields = [
+    "market_share_revenue",
+    "market_share_visits",
+    "market_total",
+    "market_average",
+    "rank_revenue",
+    "rank_visits",
+    "rank_share_revenue",
+    "rank_share_visits",
+    "indexed_revenue",
+    "indexed_visits",
+    "revenue_yoy_growth",
+    "visits_yoy_growth",
+    "revenue_mom_growth",
+    "visits_mom_growth",
+    "revenue_per_visit",
+    "monetization_gap",
+    "forecast_confidence",
+    "forecast_diagnostics",
+  ];
   derivedFields.forEach(field => {
     const hasField = rows.some(r => r[field] !== undefined);
     assert.equal(hasField, false, `source_monthly must not contain derived field: ${field}`);
@@ -1507,7 +1558,21 @@ test("benchmark-data.json has no pre-computed derived fields", () => {
 test("benchmark-data.json source_monthly passes framework validation", () => {
   const result = validateSourceMonthlyRows(payload.data.source_monthly);
   assert.equal(result.ok, true, result.errors.slice(0, 5).join("\n"));
-  assert.ok(result.summary.companyCount >= 8);
+  assert.equal(result.summary.companyCount, 8);
+  assert.equal(result.summary.rowCount, 480);
+  assert.deepEqual(result.summary.dateRange, { start: "2021-01-01", end: "2025-12-01" });
+});
+
+test("benchmark-data.json events are synthetic and map to generated rows", () => {
+  const sourceKeys = new Set(
+    payload.data.source_monthly.map((row) => `${row.company_id}:${row.date}`),
+  );
+  const events = payload.data.events ?? [];
+  assert.ok(events.length >= 10 && events.length <= 15, "demo should include 10-15 synthetic events");
+  events.forEach((event) => {
+    assert.ok(sourceKeys.has(`${event.company_id}:${event.date}`), `${event.event_name} must map to a source row`);
+    assert.match(event.description, /synthetic|demo/i);
+  });
 });
 
 // --- Route parsing module ---
@@ -1532,6 +1597,10 @@ test("parseRouteFromHash returns profile view with company ID", () => {
   assert.equal(result.companyId, "peer_a");
 });
 
+test("parseRouteFromHash resolves #/company/focus", () => {
+  assert.deepEqual(parseRouteFromHash("#/company/focus"), { view: "profile", companyId: "focus" });
+});
+
 test("parseRouteFromHash decodes URI-encoded company IDs", () => {
   const result = parseRouteFromHash("#/company/peer%20a");
   assert.equal(result.view, "profile");
@@ -1542,6 +1611,10 @@ test("parseRouteFromHash preserves legacy empresa profile deep links", () => {
   const result = parseRouteFromHash("#/empresa/peer_a");
   assert.equal(result.view, "profile");
   assert.equal(result.companyId, "peer_a");
+});
+
+test("parseRouteFromHash resolves legacy #/empresa/focus", () => {
+  assert.deepEqual(parseRouteFromHash("#/empresa/focus"), { view: "profile", companyId: "focus" });
 });
 
 // --- Battle logic module ---
@@ -1602,6 +1675,91 @@ test("getBattleOptionLabel returns option label", () => {
   assert.equal(getBattleOptionLabel({ label: "Apex" }), "Apex");
   assert.equal(getBattleOptionLabel({ id: "peer_a" }), "peer_a");
   assert.equal(getBattleOptionLabel({}), "Empresa");
+});
+
+test("company list excludes generated market_total and market_average rows", () => {
+  const rows = [
+    { company_id: "focus", display_name: "Focus Brand", type: "own", data_type: "actual" },
+    { company_id: "peer_a", display_name: "Apex Digital", type: "competitor", data_type: "actual" },
+    { company_id: "market_total", display_name: "Market Total", type: "benchmark", is_synthetic: true, data_type: "actual" },
+    { company_id: "market_average", display_name: "Market Average", type: "benchmark", is_synthetic: true, data_type: "actual" },
+  ];
+  const companies = getUniqueCompanies(rows);
+  assert.deepEqual(companies.map((company) => company.id).sort(), ["focus", "peer_a"]);
+});
+
+test("battle option helpers handle generated market_average without exposing market_total", () => {
+  const rows = [
+    { company_id: "focus", display_name: "Focus Brand", type: "own", data_type: "actual" },
+    { company_id: "peer_a", display_name: "Apex Digital", type: "competitor", data_type: "actual" },
+    { company_id: "market_average", display_name: "Market Average", type: "benchmark", is_synthetic: true, data_type: "actual" },
+    { company_id: "market_total", display_name: "Market Total", type: "benchmark", is_synthetic: true, data_type: "actual" },
+  ];
+  const companies = getUniqueCompanies(rows);
+  const battleOptions = getBattlePlayerOptions(companies, rows);
+  const profileBattleOptions = getProfileBattleOptions(rows, companies);
+  assert.deepEqual(battleOptions.map((option) => option.id).sort(), ["focus", "peer_a"]);
+  assert.deepEqual(profileBattleOptions.map((option) => option.id).sort(), ["focus", "peer_a"]);
+});
+
+test("profile metrics can build from canonical raw-source payload", async () => {
+  const result = await buildCanonicalBenchmarkPayload({ ok: true, data: { source_monthly: payload.data.source_monthly } });
+  const rows = result.data.interface;
+  const focusLatest = getLatestCompanyMetricRow(rows.filter(isRealCompanyRow), "focus", "revenue");
+  assert.ok(focusLatest, "focus profile must have a latest revenue row");
+  assert.equal(focusLatest.date, "2025-12-01");
+  assert.equal(typeof focusLatest.market_share_revenue, "number");
+  assert.equal(typeof focusLatest.revenue_yoy_growth, "number");
+});
+
+test("battle logic can build battles from canonical raw-source payload", async () => {
+  const result = await buildCanonicalBenchmarkPayload({ ok: true, data: { source_monthly: payload.data.source_monthly } });
+  const rows = result.data.interface;
+  const latestRows = rows.filter((row) => row.date === "2025-12-01" && row.data_type === "actual");
+  const focusRow = latestRows.find((row) => row.company_id === "focus");
+  const peerRow = latestRows.find((row) => row.company_id === "peer_a");
+  const benchmarkRow = latestRows.find((row) => row.company_id === "market_average");
+  assert.ok(benchmarkRow, "market_average must be generated by the framework");
+  const rounds = buildHistoricalBattleRounds(focusRow, peerRow, "Focus Brand", "Apex Digital");
+  assert.ok(rounds.length > 0);
+  assert.ok(rounds.some((round) => round.available), "battle must have comparable rounds");
+});
+
+test("forecast battle logic handles generated scenario rows", async () => {
+  const result = await buildCanonicalBenchmarkPayload({ ok: true, data: { source_monthly: payload.data.source_monthly } });
+  const rows = result.data.interface;
+  const forecastRows = getForecastRows(rows).filter((row) => row.forecast_scenario === "base_case");
+  assert.ok(forecastRows.length > 0, "canonical payload must include runtime forecast rows");
+  const battle = buildForecastBattle({
+    scenarioRows: forecastRows,
+    observedRows: rows.filter((row) => row.data_type === "actual"),
+    playerAId: "focus",
+    playerBId: "peer_a",
+    metricKey: "revenue",
+    aLabel: "Focus Brand",
+    bLabel: "Apex Digital",
+    getForecastPeriodKey: (row) => row.date,
+    getLatestCompanyMetricRow,
+    getProfileRowLabel,
+    getProfileRowSortValue,
+  });
+  assert.ok(battle.rounds.some((round) => round.available), "forecast battle must have comparable rounds");
+  assert.ok(battle.primaryPair.aRow.date > "2025-12-01", "forecast battle must use rows after the last actual month");
+});
+
+test("5-year dataset produces company profiles, battle candidates, and runtime forecasts", async () => {
+  const result = await buildCanonicalBenchmarkPayload({ ok: true, data: { source_monthly: payload.data.source_monthly } });
+  const rows = result.data.interface;
+  const companies = getUniqueCompanies(rows);
+  const battleOptions = getBattlePlayerOptions(companies, rows);
+  const forecastRows = getForecastRows(rows);
+  const years = getAvailableYears(rows);
+  assert.deepEqual(years, ["2021", "2022", "2023", "2024", "2025"]);
+  assert.equal(companies.length, 8);
+  assert.ok(battleOptions.length >= 8);
+  assert.ok(companies.some((company) => company.id === "focus"));
+  assert.ok(forecastRows.length > 0, "forecast rows should be generated at runtime");
+  assert.equal(forecastRows.map((row) => row.date).sort()[0], "2026-01-01");
 });
 
 // --- Forecast utils module ---

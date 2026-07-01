@@ -7555,7 +7555,7 @@ function PresentationSmartVisual({ rows = [], snapshot = {} }) {
         <div>
           <span>Mayor avance cuota</span>
           <strong>{mover?.name || "N/A"}</strong>
-          <small>{mover?.shareChange !== null ? formatPercentagePoints(mover.shareChange, { compact: true }) : "Sin variación"}</small>
+          <small>{mover?.shareChange != null ? formatPercentagePoints(mover.shareChange, { compact: true }) : "Sin variación"}</small>
         </div>
       </div>
 
@@ -8639,6 +8639,21 @@ function getForecastPeriodKey(row = {}) {
 
 function sameForecastPeriod(a = {}, b = {}) {
   return getForecastPeriodKey(a) === getForecastPeriodKey(b);
+}
+
+function getFilteredForecastRowsAfterObserved(
+  forecastRows = [],
+  observedRows = [],
+  companyId = "",
+  metricKey = "",
+) {
+  const lastObserved = getLatestCompanyMetricRow(observedRows, companyId, metricKey);
+  const lastObservedSort = lastObserved ? getProfileRowSortValue(lastObserved) : -Infinity;
+
+  return forecastRows
+    .filter((row) => sameCompany(row.company_id, companyId))
+    .filter((row) => hasMetricValue(row, metricKey))
+    .filter((row) => getProfileRowSortValue(row) > lastObservedSort);
 }
 
 function sumForecastMetric(rows = [], metricKey = "") {
