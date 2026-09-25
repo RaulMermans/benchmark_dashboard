@@ -6,16 +6,23 @@ Benchmark Dashboard is a portfolio-grade benchmark intelligence dashboard that t
 
 The public demo is intentionally synthetic. It contains five full years of monthly observations (480 raw rows: 8 companies x 60 months), no real company data, no private client data, no credentials, and no required paid API.
 
-## Live Demo
+## Demo
 
-Live demo: _add deployment URL after release_
+No hosted demo yet. It runs locally in under a minute (see below).
 
-Screenshots:
+![Dashboard overview: executive market reading with period context](docs/screenshots/dashboard-overview.png)
 
-<!-- Add screenshot: dashboard overview -->
-<!-- Add screenshot: market share / ranking section -->
-<!-- Add screenshot: company profile -->
-<!-- Add screenshot: forecast section -->
+| Market-share ranking | Competitive map |
+| --- | --- |
+| ![Period ranking with revenue distribution](docs/screenshots/market-ranking.png) | ![Traffic vs revenue competitive map](docs/screenshots/competitive-map.png) |
+
+| Company profile | Forecast |
+| --- | --- |
+| ![Company profile view](docs/screenshots/company-profile.png) | ![Market forecast view](docs/screenshots/forecast.png) |
+
+<sub>All screenshots show the bundled synthetic demo data (8 fictional companies × 60 months).</sub>
+
+**Evidence:** 156 tests passing (`pnpm test`), production build passing, and CI on every push.
 
 See [docs/screenshot-checklist.md](docs/screenshot-checklist.md) for the capture list.
 
