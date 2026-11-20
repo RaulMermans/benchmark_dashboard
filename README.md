@@ -1,30 +1,47 @@
-# Benchmark Dashboard
+<div align="center">
 
-## Overview
+# BENCHMARK DASHBOARD
 
-Benchmark Dashboard is a portfolio-grade benchmark intelligence dashboard that turns raw monthly revenue and traffic observations into market-share analysis, rankings, monetization diagnostics, period aggregation, and local scenario forecasts.
+**Raw observations in. Comparative market intelligence out.**
 
-The public demo is intentionally synthetic. It contains five full years of monthly observations (480 raw rows: 8 companies x 60 months), no real company data, no private client data, no credentials, and no required paid API.
+An inspectable revenue-and-traffic benchmarking workspace for comparing market players, diagnosing monetization gaps, and exploring local forecast scenarios.
 
-## Demo
+[![CI](https://github.com/RaulMermans/benchmark_dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/RaulMermans/benchmark_dashboard/actions/workflows/ci.yml)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=111827)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Demo](https://img.shields.io/badge/demo-synthetic%20%2F%20local-6b7280?style=for-the-badge)
 
-No hosted demo yet. It runs locally in under a minute (see below).
+<img src="docs/screenshots/dashboard-overview.png" alt="Benchmark Dashboard overview showing fictional companies, trends and period context" width="860" />
 
-![Dashboard overview: executive market reading with period context](docs/screenshots/dashboard-overview.png)
+<sub>Demonstration uses fictional companies and generated monthly observations. No production company data.</sub>
 
-| Market-share ranking | Competitive map |
-| --- | --- |
-| ![Period ranking with revenue distribution](docs/screenshots/market-ranking.png) | ![Traffic vs revenue competitive map](docs/screenshots/competitive-map.png) |
+**[Get started](#getting-started)** · **[Data contract](docs/data-contract.md)** · **[Architecture](docs/architecture.md)** · **[Portfolio case study](docs/portfolio-case-study.md)**
 
-| Company profile | Forecast |
-| --- | --- |
-| ![Company profile view](docs/screenshots/company-profile.png) | ![Market forecast view](docs/screenshots/forecast.png) |
+</div>
 
-<sub>All screenshots show the bundled synthetic demo data (8 fictional companies × 60 months).</sub>
+---
 
-**Evidence:** 156 tests passing (`pnpm test`), production build passing, and CI on every push.
+## What this project demonstrates
 
-See [docs/screenshot-checklist.md](docs/screenshot-checklist.md) for the capture list.
+| DATA INTEGRITY | COMPARATIVE ANALYSIS | FORECASTING |
+|:--|:--|:--|
+| One canonical pipeline builds derived metrics from raw observations | Tracked-set share, rankings, growth and revenue-per-visit diagnostics | Local scenario projections based on observed historical values |
+
+**480 synthetic monthly records · 8 fictional companies · 60 months.**
+
+Unlike an image-only analytics mockup, the dashboard derives its metrics in code. The public data file stores raw observations; rankings, growth, share, and forecast-derived views are calculated by the framework.
+
+> **Scope:** No public hosted demo is currently provided; run it locally. “Market share” describes share **within the modeled benchmark set**, not measured share of an entire real market. Forecasts are illustrative scenarios, not predictions guaranteed to hold.
+
+### Interface
+
+| Competitive ranking | Positioning map |
+|:--:|:--:|
+| <img src="docs/screenshots/market-ranking.png" alt="Ranking for fictional companies" width="420" /> | <img src="docs/screenshots/competitive-map.png" alt="Synthetic companies positioned by revenue and traffic" width="420" /> |
+| **Company intelligence** | **Scenario exploration** |
+| <img src="docs/screenshots/company-profile.png" alt="Company-level diagnostics" width="420" /> | <img src="docs/screenshots/forecast.png" alt="Local forecast scenarios" width="420" /> |
+
+---
 
 ## What It Does
 
